@@ -1,14 +1,18 @@
 # Lista zadan implementacyjnych DABot
 
-Dokument powstal na podstawie `prd.md` i opisuje praktyczny backlog potrzebny do zbudowania MVP aplikacji Desktop Automation Bot w .NET 8 / C#. Zakladam, ze wersja 1.0 powstaje najpierw jako aplikacja uruchamiana z konsoli (`Runner`), a panel UI zostaje przygotowany dopiero po stabilnym silniku scenariuszy.
+Dokument powstal na podstawie `prd.md` i opisuje praktyczny backlog potrzebny do zbudowania MVP aplikacji Desktop Automation Bot w .NET 8 / C#. Zakladam, ze wersja 1.0 powstaje najpierw jako aplikacja uruchamiana z konsoli (`Runner`) dzialajaca na Linuxie, a panel UI zostaje przygotowany dopiero po stabilnym silniku scenariuszy.
 
 ## Zalozenia wykonawcze
 
 - Glowny cel MVP: uruchomienie scenariusza JSON, wykonanie akcji w Chromium przez Playwright, komunikacja z lokalnym REST API, zapis logow i artefaktow bledow.
 - Stack: .NET 8, C#, Playwright for .NET, HttpClient, Serilog, Polly, Microsoft.Extensions.DependencyInjection, Microsoft.Extensions.Options.
-- Architektura: `Core`, `Application`, `Infrastructure`, `Runner`, opcjonalnie `UI`.
+- Glowny target runtime: Linux, najlepiej Ubuntu/Debian compatible, uruchamiany jako CLI/worker.
+- Windows moze byc srodowiskiem developerskim, ale kod MVP nie moze wymagac Windows-only API.
+- Browser domyslnie startuje w trybie headless. Tryb headed na Linuxie wymaga aktywnego X11/Wayland albo Xvfb.
+- Architektura: `Core`, `Application`, `Infrastructure`, `Runner`, opcjonalnie cross-platform `UI`.
 - Storage lokalny: `config.json`, `scenarios/`, `logs/`, `screenshots/`, `artifacts/html/`.
 - Sekrety nie moga byc trzymane w kodzie ani commitowane w jawnej postaci.
+- Wszystkie sciezki plikow budowac przez `Path.Combine`/`Path.Join`, nie przez reczne laczenie separatorem `\` albo `/`.
 
 ## Sprint 0 - Fundament repozytorium
 
@@ -16,16 +20,16 @@ Dokument powstal na podstawie `prd.md` i opisuje praktyczny backlog potrzebny do
 
 **Cel:** przygotowac fizyczna strukture aplikacji zgodna z PRD.
 
-**Uzyc:** .NET 8 SDK, `dotnet CLI`, C# class libraries, console app.
+**Uzyc:** .NET 8 SDK na Linuxie i Windows, `dotnet CLI`, C# class libraries, console app.
 
 **Jak zrobic:**
 
 1. Utworzyc solution:
-   ```powershell
+   ```bash
    dotnet new sln -n DesktopAutomationBot
    ```
 2. Utworzyc katalogi i projekty:
-   ```powershell
+   ```bash
    mkdir src
    dotnet new classlib -n DesktopAutomationBot.Core -o src/DesktopAutomationBot.Core
    dotnet new classlib -n DesktopAutomationBot.Application -o src/DesktopAutomationBot.Application
@@ -33,14 +37,14 @@ Dokument powstal na podstawie `prd.md` i opisuje praktyczny backlog potrzebny do
    dotnet new console -n DesktopAutomationBot.Runner -o src/DesktopAutomationBot.Runner
    ```
 3. Dodac projekty do solution:
-   ```powershell
+   ```bash
    dotnet sln add src/DesktopAutomationBot.Core/DesktopAutomationBot.Core.csproj
    dotnet sln add src/DesktopAutomationBot.Application/DesktopAutomationBot.Application.csproj
    dotnet sln add src/DesktopAutomationBot.Infrastructure/DesktopAutomationBot.Infrastructure.csproj
    dotnet sln add src/DesktopAutomationBot.Runner/DesktopAutomationBot.Runner.csproj
    ```
 4. Ustawic referencje:
-   ```powershell
+   ```bash
    dotnet add src/DesktopAutomationBot.Application/DesktopAutomationBot.Application.csproj reference src/DesktopAutomationBot.Core/DesktopAutomationBot.Core.csproj
    dotnet add src/DesktopAutomationBot.Infrastructure/DesktopAutomationBot.Infrastructure.csproj reference src/DesktopAutomationBot.Core/DesktopAutomationBot.Core.csproj
    dotnet add src/DesktopAutomationBot.Infrastructure/DesktopAutomationBot.Infrastructure.csproj reference src/DesktopAutomationBot.Application/DesktopAutomationBot.Application.csproj
@@ -49,13 +53,13 @@ Dokument powstal na podstawie `prd.md` i opisuje praktyczny backlog potrzebny do
    dotnet add src/DesktopAutomationBot.Runner/DesktopAutomationBot.Runner.csproj reference src/DesktopAutomationBot.Infrastructure/DesktopAutomationBot.Infrastructure.csproj
    ```
 
-**Kryteria ukonczenia:** `dotnet build` przechodzi, solution ma cztery projekty, zaleznosci ida w jednym kierunku: Runner -> Application/Infrastructure -> Core.
+**Kryteria ukonczenia:** `dotnet build` przechodzi na Linuxie i Windows, solution ma cztery projekty, zaleznosci ida w jednym kierunku: Runner -> Application/Infrastructure -> Core.
 
 ### 2. Dodanie standardow repozytorium
 
 **Cel:** ujednolicic styl kodu i uniknac przypadkowego commitowania logow, sekretow i artefaktow.
 
-**Uzyc:** `.gitignore`, `.editorconfig`, nullable reference types, implicit usings.
+**Uzyc:** `.gitignore`, `.gitattributes`, `.editorconfig`, nullable reference types, implicit usings.
 
 **Jak zrobic:**
 
@@ -69,18 +73,30 @@ Dokument powstal na podstawie `prd.md` i opisuje praktyczny backlog potrzebny do
    config.local.json
    *.user
    ```
-2. Dodac `.editorconfig` z reguly formatowania C#.
-3. W kazdym `.csproj` wlaczyc:
+2. Dodac `.gitattributes`, zeby wymusic przewidywalne konce linii dla kodu i dokumentacji:
+   ```gitattributes
+   * text=auto
+   *.cs text eol=lf
+   *.csproj text eol=lf
+   *.sln text eol=crlf
+   *.md text eol=lf
+   *.json text eol=lf
+   *.sh text eol=lf
+   *.ps1 text eol=crlf
+   ```
+3. Dodac `.editorconfig` z reguly formatowania C#.
+4. W kazdym `.csproj` wlaczyc:
    ```xml
    <Nullable>enable</Nullable>
    <ImplicitUsings>enable</ImplicitUsings>
    <LangVersion>latest</LangVersion>
    ```
-4. Ustalic konwencje nazewnictwa:
+5. Ustalic konwencje nazewnictwa:
    - modele domenowe w `Core`
    - orkiestracja przypadkow uzycia w `Application`
    - Playwright, HTTP, storage, logowanie w `Infrastructure`
    - argumenty CLI i start procesu w `Runner`
+6. Unikac w kodzie zalozen o literach dyskow, backslashach i lokalizacjach typu `C:\...`.
 
 **Kryteria ukonczenia:** repo nie sledzi plikow runtime, projekt buduje sie z wlaczonym nullable, a struktura nazw jest jednoznaczna.
 
@@ -94,14 +110,14 @@ Dokument powstal na podstawie `prd.md` i opisuje praktyczny backlog potrzebny do
 
 1. Utworzyc katalog `tests/`.
 2. Dodac projekty testowe:
-   ```powershell
+   ```bash
    mkdir tests
    dotnet new xunit -n DesktopAutomationBot.Core.Tests -o tests/DesktopAutomationBot.Core.Tests
    dotnet new xunit -n DesktopAutomationBot.Application.Tests -o tests/DesktopAutomationBot.Application.Tests
    ```
 3. Dodac referencje do projektow produkcyjnych.
 4. Dodac paczki:
-   ```powershell
+   ```bash
    dotnet add tests/DesktopAutomationBot.Core.Tests package FluentAssertions
    dotnet add tests/DesktopAutomationBot.Application.Tests package FluentAssertions
    ```
@@ -120,19 +136,22 @@ Dokument powstal na podstawie `prd.md` i opisuje praktyczny backlog potrzebny do
 **Jak zrobic:**
 
 1. Dodac paczke do `Infrastructure`:
-   ```powershell
+   ```bash
    dotnet add src/DesktopAutomationBot.Infrastructure package Microsoft.Playwright
    ```
-2. Po pierwszym buildzie zainstalowac przegladarki:
-   ```powershell
+2. Po pierwszym buildzie zainstalowac Chromium razem z zaleznosciami systemowymi dla Linuxa:
+   ```bash
    dotnet build
-   pwsh src/DesktopAutomationBot.Infrastructure/bin/Debug/net8.0/playwright.ps1 install chromium
+   pwsh src/DesktopAutomationBot.Infrastructure/bin/Debug/net8.0/playwright.ps1 install --with-deps chromium
    ```
-3. Utworzyc interfejs w `Application`, np. `IBrowserAutomation`.
-4. Implementacje Playwright trzymac w `Infrastructure`, np. `PlaywrightBrowserAutomation`.
-5. Ustawienia `headless`, `slowMo`, viewport i timeout pobierac z konfiguracji.
+3. Na Linuxie upewnic sie, ze `pwsh` jest dostepne, bo Playwright .NET generuje skrypt `playwright.ps1`.
+4. W CI lub kontenerze uruchamiac instalacje zaleznosci jako uzytkownik z uprawnieniami do instalacji pakietow systemowych.
+5. Utworzyc interfejs w `Application`, np. `IBrowserAutomation`.
+6. Implementacje Playwright trzymac w `Infrastructure`, np. `PlaywrightBrowserAutomation`.
+7. Ustawienia `headless`, `slowMo`, viewport i timeout pobierac z konfiguracji.
+8. Domyslnie ustawic `headless = true`; `headless = false` dopuszczac tylko dla lokalnego debugowania z X11/Wayland/Xvfb.
 
-**Kryteria ukonczenia:** Runner potrafi otworzyc Chromium, wejsc na URL i zamknac przegladarke bez bledu.
+**Kryteria ukonczenia:** Runner potrafi na Linuxie otworzyc Chromium w trybie headless, wejsc na URL i zamknac przegladarke bez bledu.
 
 ### 5. Model domenowy scenariusza
 
@@ -191,7 +210,7 @@ Dokument powstal na podstawie `prd.md` i opisuje praktyczny backlog potrzebny do
 **Jak zrobic:**
 
 1. Dodac paczki do `Runner`:
-   ```powershell
+   ```bash
    dotnet add src/DesktopAutomationBot.Runner package Microsoft.Extensions.Configuration
    dotnet add src/DesktopAutomationBot.Runner package Microsoft.Extensions.Configuration.Json
    dotnet add src/DesktopAutomationBot.Runner package Microsoft.Extensions.Options.ConfigurationExtensions
@@ -217,7 +236,7 @@ Dokument powstal na podstawie `prd.md` i opisuje praktyczny backlog potrzebny do
 **Jak zrobic:**
 
 1. Dodac paczke:
-   ```powershell
+   ```bash
    dotnet add src/DesktopAutomationBot.Runner package Microsoft.Extensions.DependencyInjection
    ```
 2. W `Application` dodac `ServiceCollectionExtensions.AddApplication()`.
@@ -275,9 +294,11 @@ Dokument powstal na podstawie `prd.md` i opisuje praktyczny backlog potrzebny do
 
 1. Dodac `FillTextStepHandler`.
 2. Dla `FillText` uzyc `locator.FillAsync(value)`.
-3. Dla `PasteText` najpierw ustawic schowek przez `page.EvaluateAsync` lub mechanizm systemowy, potem `Ctrl+V`.
-4. W obu przypadkach obslugiwac podstawianie zmiennych `{{name}}`.
-5. Dla hasel nie logowac wartosci jawnie. W logu zapisac np. `***`.
+3. Dla `PasteText` preferowac Playwright `Keyboard.InsertTextAsync` albo kontrolowane ustawienie clipboardu w kontekscie przegladarki.
+4. Nie polegac na systemowym schowku hosta, bo na Linuxie w trybie headless moze nie byc dostepnej sesji graficznej.
+5. Jezeli scenariusz wymaga prawdziwego skrotu wklejania, uzyc `Control+V` na Linux/Windows i testowac to osobno w headed/Xvfb.
+6. W obu przypadkach obslugiwac podstawianie zmiennych `{{name}}`.
+7. Dla hasel nie logowac wartosci jawnie. W logu zapisac np. `***`.
 
 **Kryteria ukonczenia:** bot wypelnia input tekstowy wartoscia ze scenariusza lub zmiennej.
 
@@ -340,7 +361,7 @@ Dokument powstal na podstawie `prd.md` i opisuje praktyczny backlog potrzebny do
 **Jak zrobic:**
 
 1. Dodac paczki:
-   ```powershell
+   ```bash
    dotnet add src/DesktopAutomationBot.Runner package Serilog.Extensions.Hosting
    dotnet add src/DesktopAutomationBot.Runner package Serilog.Sinks.Console
    dotnet add src/DesktopAutomationBot.Runner package Serilog.Sinks.File
@@ -367,7 +388,7 @@ Dokument powstal na podstawie `prd.md` i opisuje praktyczny backlog potrzebny do
 **Jak zrobic:**
 
 1. Dodac paczke:
-   ```powershell
+   ```bash
    dotnet add src/DesktopAutomationBot.Infrastructure package Microsoft.Extensions.Http
    ```
 2. W `Application` zdefiniowac `IApiClient`.
@@ -391,7 +412,7 @@ Dokument powstal na podstawie `prd.md` i opisuje praktyczny backlog potrzebny do
 **Jak zrobic:**
 
 1. Dodac paczki:
-   ```powershell
+   ```bash
    dotnet add src/DesktopAutomationBot.Infrastructure package Polly
    dotnet add src/DesktopAutomationBot.Infrastructure package Microsoft.Extensions.Http.Polly
    ```
@@ -622,11 +643,13 @@ Dokument powstal na podstawie `prd.md` i opisuje praktyczny backlog potrzebny do
    - aktywna page
    - slownik nazwanych kart
 2. Dodac ustawienie `userDataDir` dla sesji persistent.
-3. W scenariuszu przewidziec opcjonalne `pageName`.
-4. Na MVP zaimplementowac minimum: jedna aktywna karta plus mozliwosc utworzenia nowej.
-5. Przy zamknieciu zawsze sprzatac browser/context.
+3. Domyslna lokalizacje profilu na Linuxie trzymac pod katalogiem aplikacji albo `~/.local/share/dabot/profiles/{profileName}`.
+4. Sciezke `userDataDir` budowac przez `Path.Combine` i pozwolic nadpisac ja w konfiguracji.
+5. W scenariuszu przewidziec opcjonalne `pageName`.
+6. Na MVP zaimplementowac minimum: jedna aktywna karta plus mozliwosc utworzenia nowej.
+7. Przy zamknieciu zawsze sprzatac browser/context.
 
-**Kryteria ukonczenia:** bot moze zachowac sesje uzytkownika miedzy uruchomieniami, jezeli wlaczono `userDataDir`.
+**Kryteria ukonczenia:** bot moze na Linuxie zachowac sesje uzytkownika miedzy uruchomieniami, jezeli wlaczono `userDataDir`.
 
 ## Sprint 4 - Runner, UX developerski i UI opcjonalne
 
@@ -648,8 +671,9 @@ Dokument powstal na podstawie `prd.md` i opisuje praktyczny backlog potrzebny do
 3. Dla bledu wykonania zwrocic kod wyjscia `1`.
 4. Dla sukcesu zwrocic kod `0`.
 5. W `--dry-run` tylko wczytac i zwalidowac scenariusz bez startu browsera.
+6. Dla Linuxa dodac przyklady uruchomienia w bashu i przewidziec uzycie w `cron`, `systemd timer` albo CI.
 
-**Kryteria ukonczenia:** aplikacje da sie uruchomic komenda `dotnet run --project src/DesktopAutomationBot.Runner -- --scenario scenarios/sample.json`.
+**Kryteria ukonczenia:** aplikacje da sie uruchomic na Linuxie komenda `dotnet run --project src/DesktopAutomationBot.Runner -- --scenario scenarios/sample.json`.
 
 ### 30. Przykladowe scenariusze
 
@@ -682,8 +706,9 @@ Dokument powstal na podstawie `prd.md` i opisuje praktyczny backlog potrzebny do
    - element `.result`
 3. Po kliknieciu przycisku JS przepisuje wartosc inputa do `.result`.
 4. Uzyc tej strony w testach `FillText`, `Click`, `ReadText`.
+5. Test browsera uruchamiac headless, zeby dzialal na Linux CI bez serwera graficznego.
 
-**Kryteria ukonczenia:** test integracyjny potwierdza, ze bot wypelnia formularz i odczytuje wynik.
+**Kryteria ukonczenia:** test integracyjny na Linuxie potwierdza, ze bot wypelnia formularz i odczytuje wynik.
 
 ### 32. Testy jednostkowe walidacji scenariusza
 
@@ -725,7 +750,7 @@ Dokument powstal na podstawie `prd.md` i opisuje praktyczny backlog potrzebny do
 
 **Cel:** spelnic wymaganie braku hasel w kodzie i bezpiecznego trzymania tokenow.
 
-**Uzyc:** na Windows `Microsoft.AspNetCore.DataProtection` albo DPAPI przez `System.Security.Cryptography.ProtectedData`; dla dev takze user-secrets.
+**Uzyc:** zmienne srodowiskowe, plik lokalny z ograniczonymi uprawnieniami, opcjonalnie `Microsoft.AspNetCore.DataProtection` z cross-platform key ring; dla dev takze user-secrets.
 
 **Jak zrobic:**
 
@@ -735,12 +760,12 @@ Dokument powstal na podstawie `prd.md` i opisuje praktyczny backlog potrzebny do
    - `config.local.json`
    - zaszyfrowanego pliku lokalnego
 3. Dodac usluge `ISecretProvider`.
-4. Dla Windows zaimplementowac DPAPI:
-   - encrypt token do lokalnego pliku
-   - decrypt tylko na tym uzytkowniku/systemie
-5. W logach zawsze maskowac sekrety.
+4. Na Linuxie dla plikow z sekretami wymagac uprawnien tylko dla wlasciciela, np. `0600`.
+5. Jezeli uzywany jest `Microsoft.AspNetCore.DataProtection`, skonfigurowac katalog kluczy poza repo, np. `~/.local/share/dabot/keys`.
+6. DPAPI moze byc opcjonalnym providerem Windows, ale nie moze byc jedynym mechanizmem sekretow.
+7. W logach zawsze maskowac sekrety.
 
-**Kryteria ukonczenia:** token API jest pobierany bez wpisywania go w kodzie, a logi nigdy go nie ujawniaja.
+**Kryteria ukonczenia:** token API jest pobierany na Linuxie bez wpisywania go w kodzie, a logi nigdy go nie ujawniaja.
 
 ### 35. Dokumentacja uruchomienia
 
@@ -752,25 +777,33 @@ Dokument powstal na podstawie `prd.md` i opisuje praktyczny backlog potrzebny do
 
 1. Opisac wymagania:
    - .NET 8 SDK
-   - PowerShell
+   - Linux Ubuntu/Debian compatible jako docelowy runtime
+   - PowerShell `pwsh` potrzebny do skryptu Playwright .NET
    - Playwright browsers
+   - zaleznosci systemowe Chromium instalowane przez Playwright
 2. Opisac instalacje:
-   ```powershell
+   ```bash
    dotnet restore
    dotnet build
+   pwsh src/DesktopAutomationBot.Infrastructure/bin/Debug/net8.0/playwright.ps1 install --with-deps chromium
+   ```
+3. Opisac wariant bez instalacji zaleznosci systemowych, jezeli obraz/kontener juz je ma:
+   ```bash
    pwsh src/DesktopAutomationBot.Infrastructure/bin/Debug/net8.0/playwright.ps1 install chromium
    ```
-3. Opisac `config.json`.
-4. Opisac uruchomienie sample scenario.
-5. Opisac lokalizacje logow, screenshotow i raportow.
+4. Opisac `config.json`.
+5. Opisac konfiguracje przez zmienne srodowiskowe w bashu.
+6. Opisac uruchomienie sample scenario.
+7. Opisac lokalizacje logow, screenshotow i raportow.
+8. Opisac uruchomienie headless oraz debugowanie headed przez Xvfb.
 
-**Kryteria ukonczenia:** osoba z czystym repo potrafi uruchomic sample na podstawie README.
+**Kryteria ukonczenia:** osoba z czystym repo potrafi uruchomic sample na Linuxie na podstawie README.
 
 ### 36. Minimalny panel UI po MVP
 
 **Cel:** przygotowac opcjonalny panel do wyboru scenariusza i podgladu statusu.
 
-**Uzyc:** WPF albo Avalonia. Rekomendacja: Avalonia, jezeli aplikacja ma byc latwiej przenoszalna; WPF, jezeli cel to tylko Windows.
+**Uzyc:** Avalonia. Nie uzywac WPF dla glownego UI, bo aplikacja ma dzialac na Linuxie.
 
 **Jak zrobic:**
 
@@ -785,13 +818,13 @@ Dokument powstal na podstawie `prd.md` i opisuje praktyczny backlog potrzebny do
 3. UI powinno uzywac tych samych serwisow `Application` i `Infrastructure`, bez duplikowania logiki.
 4. Dlugie wykonanie uruchamiac w tle z `CancellationToken`.
 
-**Kryteria ukonczenia:** uzytkownik moze wybrac scenariusz z UI, uruchomic go i zobaczyc wynik.
+**Kryteria ukonczenia:** uzytkownik moze na Linuxie wybrac scenariusz z UI, uruchomic go i zobaczyc wynik. UI pozostaje opcjonalne; MVP moze byc w pelni CLI/worker.
 
 ## Zadania przekrojowe
 
 ### 37. Utrzymanie modularnej architektury
 
-**Cel:** zachowac rozszerzalnosc pod przyszle scenariusze, OCR, kolejki, AI decision engine i aplikacje desktopowe.
+**Cel:** zachowac rozszerzalnosc pod przyszle scenariusze, OCR, kolejki, AI decision engine i ewentualne aplikacje desktopowe jako osobne moduly zalezne od OS.
 
 **Uzyc:** interfejsy w `Application`, implementacje w `Infrastructure`, modele w `Core`.
 
@@ -802,6 +835,8 @@ Dokument powstal na podstawie `prd.md` i opisuje praktyczny backlog potrzebny do
 3. Nowy typ kroku dodawac jako osobny handler.
 4. Kazdy handler powinien byc maly i testowalny.
 5. Nie uzalezniac scenariusza JSON od klas Playwright.
+6. Nie wprowadzac obowiazkowych zaleznosci Windows-only do `Application` ani `Infrastructure`.
+7. Platform-specific implementacje, jezeli beda potrzebne, ukrywac za interfejsem i rejestrowac warunkowo po wykryciu OS.
 
 **Kryteria ukonczenia:** dodanie nowego kroku wymaga glownie nowego handlera i rejestracji w DI.
 
@@ -867,6 +902,35 @@ Dokument powstal na podstawie `prd.md` i opisuje praktyczny backlog potrzebny do
 
 **Kryteria ukonczenia:** da sie teoretycznie uruchomic dwa scenariusze w osobnych kontekstach bez konfliktu katalogow i zmiennych.
 
+### 41. Walidacja Linux runtime i deployment
+
+**Cel:** potwierdzic, ze MVP naprawde dziala na Linuxie, a nie tylko kompiluje sie cross-platformowo.
+
+**Uzyc:** Ubuntu/Debian, bash, `dotnet publish`, Playwright headless, opcjonalnie Docker albo GitHub Actions.
+
+**Jak zrobic:**
+
+1. Przygotowac instrukcje uruchomienia na czystym Linuxie:
+   - instalacja .NET 8 SDK albo runtime
+   - instalacja `pwsh`, jezeli nie ma go w systemie
+   - `dotnet restore`
+   - `dotnet build`
+   - `pwsh .../playwright.ps1 install --with-deps chromium`
+2. Dodac smoke test CLI:
+   ```bash
+   dotnet run --project src/DesktopAutomationBot.Runner -- --scenario scenarios/sample-open-url.json --headless true
+   ```
+3. Dodac smoke test po publikacji:
+   ```bash
+   dotnet publish src/DesktopAutomationBot.Runner -c Release -o ./publish/dabot
+   ./publish/dabot/DesktopAutomationBot.Runner --scenario scenarios/sample-open-url.json --headless true
+   ```
+4. Sprawdzic, ze logi, screenshoty i raporty zapisuja sie do katalogow wzglednych albo skonfigurowanych sciezek bez problemow z uprawnieniami.
+5. Zweryfikowac, ze aplikacja nie wymaga aktywnej sesji graficznej dla domyslnego trybu headless.
+6. Opcjonalnie przygotowac plik `Dockerfile` albo workflow CI, ktory uruchamia `dotnet test` i smoke test na Linuxie.
+
+**Kryteria ukonczenia:** czysty Linux potrafi zbudowac, zainstalowac zaleznosci Playwright, uruchomic sample scenario headless i zapisac artefakty bez recznych poprawek.
+
 ## Proponowana kolejnosc realizacji MVP
 
 1. Zadania 1-3: solution, standardy, testy.
@@ -875,13 +939,14 @@ Dokument powstal na podstawie `prd.md` i opisuje praktyczny backlog potrzebny do
 4. Zadania 22-28: executor, zmienne, `If`, `Loop`, retry krokow.
 5. Zadania 29-35: runner, sample, testy, sekrety, dokumentacja.
 6. Zadanie 36: UI jako etap po stabilnym MVP konsolowym.
-7. Zadania 37-40: trzymac jako zasady stale podczas calej implementacji.
+7. Zadania 37-41: trzymac jako zasady stale podczas calej implementacji, z walidacja Linux runtime przed uznaniem MVP za gotowe.
 
 ## Minimalna definicja MVP
 
 Aplikacja moze byc uznana za MVP, gdy:
 
 - uruchamia sie przez `DesktopAutomationBot.Runner`,
+- dziala na Linuxie w trybie headless bez aktywnej sesji graficznej,
 - wczytuje `config.json` i scenariusz JSON,
 - otwiera Chromium przez Playwright,
 - wykonuje `OpenUrl`, `Click`, `FillText`, `PasteText`, `WaitFor`, `ReadText`, `Screenshot`, `CallApi`, `Delay`,
@@ -890,4 +955,5 @@ Aplikacja moze byc uznana za MVP, gdy:
 - loguje przebieg do konsoli i pliku,
 - przy bledzie zapisuje screenshot, HTML i raport JSON,
 - zwraca poprawny kod wyjscia procesu,
-- ma testy walidacji scenariusza i minimum jeden test integracyjny browsera.
+- ma testy walidacji scenariusza i minimum jeden test integracyjny browsera,
+- ma wykonany smoke test na Linuxie po `dotnet publish`.

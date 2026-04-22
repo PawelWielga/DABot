@@ -1,4 +1,4 @@
-# PRD – Narzędzie Desktop Bot Automation (.NET / C#)
+# PRD – Narzędzie Desktop Bot Automation (.NET / C#, Linux)
 
 ## 1. Nazwa robocza projektu
 **Desktop Automation Bot**  
@@ -6,6 +6,8 @@
 
 ## 2. Cel produktu
 Stworzenie aplikacji w **C# / .NET**, która automatyzuje zadania wykonywane w przeglądarce oraz komunikuje się z lokalnym API.
+
+Aplikacja ma działać docelowo na **Linuxie** jako narzędzie CLI/worker, z możliwością uruchamiania Chromium w trybie headless. Środowisko Windows może być używane developersko, ale implementacja MVP nie może zależeć od mechanizmów dostępnych wyłącznie na Windows.
 
 Narzędzie ma działać jako uniwersalny bot wykonujący scenariusze biznesowe, np.:
 - pobranie danych z API
@@ -37,12 +39,14 @@ Bot ma być:
 - rozszerzalny
 - prosty do utrzymania
 - gotowy pod przyszłe scenariusze
+- gotowy do uruchamiania na Linuxie, także w środowiskach serwerowych/CI
 
 ## 5. Grupa docelowa
 ### Główna:
 - developerzy .NET
 - testerzy
 - administratorzy
+- administratorzy Linux / DevOps
 - osoby automatyzujące pracę biurową
 
 ### Dodatkowa:
@@ -87,6 +91,16 @@ W przypadku błędu:
 - retry
 - komunikat końcowy
 
+### 6.6 Linux runtime
+Bot w MVP musi:
+- działać na Linuxie jako aplikacja konsolowa
+- uruchamiać Chromium przez Playwright w trybie headless
+- wspierać tryb headed tylko wtedy, gdy dostępny jest serwer graficzny, np. X11/Xvfb
+- używać przenośnych ścieżek plików i separatorów
+- korzystać z konfiguracji przez pliki JSON i zmienne środowiskowe
+- unikać zależności od Windows-only API, np. WPF, rejestru Windows, DPAPI jako jedynego mechanizmu sekretów
+- dokumentować instalację zależności Playwright na Linuxie
+
 ## 7. Funkcje po MVP (v2+)
 - UI do budowy scenariuszy
 - Harmonogram
@@ -94,7 +108,7 @@ W przypadku błędu:
 - Wiele botów równolegle
 - OCR
 - AI decision engine
-- Obsługa aplikacji desktopowych
+- Obsługa aplikacji desktopowych jako osobny moduł zależny od systemu operacyjnego
 
 ## 8. User Stories
 - Jako użytkownik chcę uruchomić bota, aby sam wykonał proces w przeglądarce.
@@ -116,6 +130,7 @@ W przypadku błędu:
 - headless on/off
 - wiele kart
 - sesje użytkownika
+- Linux headless jako podstawowy tryb uruchomienia
 
 ### Scenariusze
 Typy kroków:
@@ -136,6 +151,7 @@ Typy kroków:
 - logs/
 - screenshots/
 - scenarios/
+- ścieżki przenośne między Windows i Linux
 
 ## 10. Wymagania niefunkcjonalne
 - start < 5 sekund
@@ -143,6 +159,9 @@ Typy kroków:
 - możliwość wielu scenariuszy
 - szyfrowanie sekretów
 - brak haseł w kodzie
+- zgodność z Linuxem jako środowiskiem docelowym
+- brak obowiązkowych zależności Windows-only
+- poprawna praca w trybie headless bez aktywnej sesji graficznej
 
 ## 11. Architektura techniczna
 ### Stack
@@ -153,12 +172,13 @@ Typy kroków:
 - Serilog
 - Polly
 - Microsoft DI
+- Linux runtime: Ubuntu/Debian compatible jako główny target wdrożeniowy
 
 ### Warstwy
 - Core
 - Infrastructure
 - Application
-- UI (opcjonalnie)
+- UI (opcjonalnie, cross-platform; preferowana Avalonia zamiast WPF)
 
 ## 12. Struktura projektu
 ```text
@@ -192,11 +212,13 @@ Start → Załaduj scenariusz → Uruchom browser → Wykonaj kroki → Raport
 - skeleton solution
 - Playwright start
 - Click / Fill / Read
+- Linux Playwright setup
 
 ### Sprint 2
 - API integration
 - logs
 - screenshots
+- Linux-compatible filesystem paths
 
 ### Sprint 3
 - JSON scenarios
@@ -204,5 +226,4 @@ Start → Załaduj scenariusz → Uruchom browser → Wykonaj kroki → Raport
 - variables
 
 ### Sprint 4
-- UI panel
-
+- UI panel cross-platform albo dalszy rozwój CLI/worker
