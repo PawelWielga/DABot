@@ -1,0 +1,65 @@
+# Build output
+bin/
+obj/
+out/
+publish/
+
+# .NET generated files
+*.dll
+*.exe
+*.pdb
+*.deps.json
+*.runtimeconfig.json
+*.generated.cs
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+.packages/
+project.lock.json
+project.assets.json
+
+# Visual Studio / Rider / VS Code
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+*.rsuser
+*.userosscache
+*.sln.docstates
+
+# Test and coverage output
+TestResults/
+coverage/
+coverage*/
+*.coverage
+*.coveragexml
+coverage.cobertura.xml
+*.trx
+
+# DesktopAutomationBot runtime files
+logs/
+screenshots/
+artifacts/
+reports/
+
+# Local configuration and secrets
+config.local.json
+*.local.json
+*.secret.json
+secrets.json
+.env
+.env.*
+
+# Playwright runtime/cache artifacts
+playwright-report/
+test-results/
+.playwright/
+ms-playwright/
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store
