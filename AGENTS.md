@@ -48,8 +48,8 @@ automates browser workflows with Playwright and talks to a local REST API.
 
 ## Working rules
 
-- Read `prd.md` and `tasks.md` before making changes that affect scope.
-- Follow the sprint order in `tasks.md` unless the user explicitly asks for a
+- Read `docs/prd.md` and `docs/tasks.md` before making changes that affect scope.
+- Follow the sprint order in `docs/tasks.md` unless the user explicitly asks for a
   different priority.
 - Keep changes small and coherent.
 - Do not revert user changes or unrelated edits.
