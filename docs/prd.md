@@ -1,87 +1,87 @@
-# PRD – Narzędzie Desktop Bot Automation (.NET / C#, Linux)
+# PRD Ă˘â‚¬â€ś NarzĂ„â„˘dzie Desktop Bot Automation (.NET / C#, Linux)
 
 ## 1. Nazwa robocza projektu
 **Desktop Automation Bot**  
 (roboczo: DABot)
 
 ## 2. Cel produktu
-Stworzenie aplikacji w **C# / .NET**, która automatyzuje zadania wykonywane w przeglądarce oraz komunikuje się z lokalnym API.
+Stworzenie aplikacji w **C# / .NET**, ktÄ‚Ĺ‚ra automatyzuje zadania wykonywane w przeglĂ„â€¦darce oraz komunikuje siĂ„â„˘ z lokalnym API.
 
-Aplikacja ma działać docelowo na **Linuxie** jako narzędzie CLI/worker, z możliwością uruchamiania Chromium w trybie headless. Środowisko Windows może być używane developersko, ale implementacja MVP nie może zależeć od mechanizmów dostępnych wyłącznie na Windows.
+Aplikacja ma dzialac docelowo na **Linuxie** jako narzedzie CLI/worker, z mozliwoscia uruchamiania Chromium w trybie headless. Windows ma byc wspierany jako platforma developerska i testowa, o ile nie wymaga to mechanizmow dostepnych wylacznie na Windows i nie rozbija zgodnosci z Linuxem.
 
-Narzędzie ma działać jako uniwersalny bot wykonujący scenariusze biznesowe, np.:
+NarzĂ„â„˘dzie ma dziaÄąâ€šaĂ„â€ˇ jako uniwersalny bot wykonujĂ„â€¦cy scenariusze biznesowe, np.:
 - pobranie danych z API
 - otwarcie strony WWW
-- zalogowanie użytkownika
-- kliknięcie przycisków
+- zalogowanie uÄąÄ˝ytkownika
+- klikniĂ„â„˘cie przyciskÄ‚Ĺ‚w
 - wklejenie tekstu do formularzy
-- pobranie wyników ze strony
+- pobranie wynikÄ‚Ĺ‚w ze strony
 - zapisanie rezultatu do API
-- raportowanie błędów
+- raportowanie bÄąâ€šĂ„â„˘dÄ‚Ĺ‚w
 
-## 3. Problem do rozwiązania
-Wiele procesów wymaga ręcznego wykonywania powtarzalnych czynności w przeglądarce:
-- kopiuj → wklej
+## 3. Problem do rozwiĂ„â€¦zania
+Wiele procesÄ‚Ĺ‚w wymaga rĂ„â„˘cznego wykonywania powtarzalnych czynnoÄąâ€şci w przeglĂ„â€¦darce:
+- kopiuj Ă˘â€ â€™ wklej
 - kliknij
-- sprawdź status
+- sprawdÄąĹź status
 - przepisz dane
 - pobierz wynik
-- wyślij dalej
+- wyÄąâ€şlij dalej
 
-To zajmuje czas, generuje błędy i blokuje człowieka.
+To zajmuje czas, generuje bÄąâ€šĂ„â„˘dy i blokuje czÄąâ€šowieka.
 
 ## 4. Wizja produktu
-Użytkownik uruchamia bota, a ten samodzielnie wykonuje zadania w przeglądarce na podstawie danych z API lub lokalnej konfiguracji.
+UÄąÄ˝ytkownik uruchamia bota, a ten samodzielnie wykonuje zadania w przeglĂ„â€¦darce na podstawie danych z API lub lokalnej konfiguracji.
 
-Bot ma być:
+Bot ma byĂ„â€ˇ:
 - szybki
 - stabilny
 - rozszerzalny
 - prosty do utrzymania
-- gotowy pod przyszłe scenariusze
-- gotowy do uruchamiania na Linuxie, także w środowiskach serwerowych/CI
+- gotowy pod przyszÄąâ€še scenariusze
+- gotowy do uruchamiania na Linuxie, takÄąÄ˝e w Äąâ€şrodowiskach serwerowych/CI
 
 ## 5. Grupa docelowa
-### Główna:
+### GÄąâ€šÄ‚Ĺ‚wna:
 - developerzy .NET
 - testerzy
 - administratorzy
 - administratorzy Linux / DevOps
-- osoby automatyzujące pracę biurową
+- osoby automatyzujĂ„â€¦ce pracĂ„â„˘ biurowĂ„â€¦
 
 ### Dodatkowa:
 - firmy z systemami bez API
-- użytkownicy wykonujący powtarzalne operacje
+- uÄąÄ˝ytkownicy wykonujĂ„â€¦cy powtarzalne operacje
 
 ## 6. Zakres MVP (wersja 1.0)
 ### 6.1 Integracja z lokalnym API
 Bot potrafi:
-- GET dane wejściowe
+- GET dane wejÄąâ€şciowe
 - POST wynik
 - PUT status
-- obsłużyć token/autoryzację
+- obsÄąâ€šuÄąÄ˝yĂ„â€ˇ token/autoryzacjĂ„â„˘
 
-### 6.2 Automatyzacja przeglÄ…darki
+### 6.2 Automatyzacja przeglÄ‚â€žĂ˘â‚¬Â¦darki
 Bot potrafi:
-- uruchomiÄ‡ Chromium / Chrome
-- wejĹ›Ä‡ na adres URL
-- czekaÄ‡ na zaĹ‚adowanie strony
-- kliknÄ…Ä‡ element
-- wpisaÄ‡ tekst
-- wkleiÄ‡ tekst
-- odczytaÄ‡ tekst ze strony
-- pobraÄ‡ HTML
-- zrobiÄ‡ screenshot
-- otwieraÄ‡, zamykaÄ‡ i przeĹ‚Ä…czaÄ‡ siÄ™ miÄ™dzy zakĹ‚adkami, gdy scenariusz tego wymaga
-- uruchamiaÄ‡ przeglÄ…darkÄ™ z trwaĹ‚ym profilem uĹĽytkownika, aby zachowaÄ‡ sesjÄ™ logowania
+- uruchomiÄ‚â€žĂ˘â‚¬Ë‡ Chromium / Chrome
+- wejĂ„Ä…Ă˘â‚¬ĹźÄ‚â€žĂ˘â‚¬Ë‡ na adres URL
+- czekaÄ‚â€žĂ˘â‚¬Ë‡ na zaĂ„Ä…Ă˘â‚¬Ĺˇadowanie strony
+- kliknÄ‚â€žĂ˘â‚¬Â¦Ä‚â€žĂ˘â‚¬Ë‡ element
+- wpisaÄ‚â€žĂ˘â‚¬Ë‡ tekst
+- wkleiÄ‚â€žĂ˘â‚¬Ë‡ tekst
+- odczytaÄ‚â€žĂ˘â‚¬Ë‡ tekst ze strony
+- pobraÄ‚â€žĂ˘â‚¬Ë‡ HTML
+- zrobiÄ‚â€žĂ˘â‚¬Ë‡ screenshot
+- otwieraÄ‚â€žĂ˘â‚¬Ë‡, zamykaÄ‚â€žĂ˘â‚¬Ë‡ i przeĂ„Ä…Ă˘â‚¬ĹˇÄ‚â€žĂ˘â‚¬Â¦czaÄ‚â€žĂ˘â‚¬Ë‡ siÄ‚â€žĂ˘â€žË miÄ‚â€žĂ˘â€žËdzy zakĂ„Ä…Ă˘â‚¬Ĺˇadkami, gdy scenariusz tego wymaga
+- uruchamiaÄ‚â€žĂ˘â‚¬Ë‡ przeglÄ‚â€žĂ˘â‚¬Â¦darkÄ‚â€žĂ˘â€žË z trwaĂ„Ä…Ă˘â‚¬Ĺˇym profilem uĂ„Ä…Ă„Ëťytkownika, aby zachowaÄ‚â€žĂ˘â‚¬Ë‡ sesjÄ‚â€žĂ˘â€žË logowania
 
-### 6.3 Sesja uĹĽytkownika i logowanie rÄ™czne
-Bot musi wspieraÄ‡ scenariusz, w ktĂłrym:
-- uĹĽytkownik uruchamia przeglÄ…darkÄ™ w trybie headed
-- uĹĽytkownik loguje siÄ™ rÄ™cznie, np. przez konto Google
-- bot zapisuje profil przeglÄ…darki i uĹĽywa go w kolejnych uruchomieniach
-- sesja moĹĽe byÄ‡ przypisana do nazwanego profilu, np. `default`, `google`, `prod`
-- tryb headless nadal pozostaje domyĹ›lny dla zwykĹ‚ych uruchomieĹ„
+### 6.3 Sesja uĂ„Ä…Ă„Ëťytkownika i logowanie rÄ‚â€žĂ˘â€žËczne
+Bot musi wspieraÄ‚â€žĂ˘â‚¬Ë‡ scenariusz, w ktĂ„â€šÄąâ€šrym:
+- uĂ„Ä…Ă„Ëťytkownik uruchamia przeglÄ‚â€žĂ˘â‚¬Â¦darkÄ‚â€žĂ˘â€žË w trybie headed
+- uĂ„Ä…Ă„Ëťytkownik loguje siÄ‚â€žĂ˘â€žË rÄ‚â€žĂ˘â€žËcznie, np. przez konto Google
+- bot zapisuje profil przeglÄ‚â€žĂ˘â‚¬Â¦darki i uĂ„Ä…Ă„Ëťywa go w kolejnych uruchomieniach
+- sesja moĂ„Ä…Ă„Ëťe byÄ‚â€žĂ˘â‚¬Ë‡ przypisana do nazwanego profilu, np. `default`, `google`, `prod`
+- tryb headless nadal pozostaje domyĂ„Ä…Ă˘â‚¬Ĺźlny dla zwykĂ„Ä…Ă˘â‚¬Ĺˇych uruchomieĂ„Ä…Ă˘â‚¬Ĺľ
 
 ### 6.4 Scenariusze
 Bot wykonuje kroki zapisane jako scenariusz.
@@ -90,45 +90,34 @@ Bot wykonuje kroki zapisane jako scenariusz.
 System zapisuje:
 - start procesu
 - wykonane kroki
-- bĹ‚Ä™dy
+- bĂ„Ä…Ă˘â‚¬ĹˇÄ‚â€žĂ˘â€žËdy
 - czas wykonania
 - odpowiedzi API
 
-### 6.6 ObsĹ‚uga bĹ‚Ä™dĂłw
-W przypadku bĹ‚Ä™du:
+### 6.6 ObsĂ„Ä…Ă˘â‚¬Ĺˇuga bĂ„Ä…Ă˘â‚¬ĹˇÄ‚â€žĂ˘â€žËdĂ„â€šÄąâ€šw
+W przypadku bĂ„Ä…Ă˘â‚¬ĹˇÄ‚â€žĂ˘â€žËdu:
 - screenshot
 - zapis HTML
 - retry
-- komunikat koĹ„cowy
+- komunikat koĂ„Ä…Ă˘â‚¬Ĺľcowy
 
 ### 6.7 Linux runtime
-Bot w MVP musi:
-- dziaĹ‚aÄ‡ na Linuxie jako aplikacja konsolowa
-- uruchamiaÄ‡ Chromium przez Playwright w trybie headless
-- wspieraÄ‡ tryb headed tylko wtedy, gdy dostÄ™pny jest serwer graficzny, np. X11/Xvfb
-- uĹĽywaÄ‡ przenoĹ›nych Ĺ›cieĹĽek plikĂłw i separatorĂłw
-- korzystaÄ‡ z konfiguracji przez pliki JSON i zmienne Ĺ›rodowiskowe
-- unikaÄ‡ zaleĹĽnoĹ›ci od Windows-only API, np. WPF, rejestru Windows, DPAPI jako jedynego mechanizmu sekretĂłw
-- dokumentowaÄ‡ instalacjÄ™ zaleĹĽnoĹ›ci Playwright na Linuxie
-
-## 7. Funkcje po MVP (v2+)
-- UI do budowy scenariuszy
-- Harmonogram
-- Kolejka zadań
-- Wiele botów równolegle
+### 6.7 Linux runtime`r`nBot w MVP musi:`r`n- dzialac na Linuxie jako aplikacja konsolowa`r`n- dzialac rowniez na Windows jako lokalny target developerski i testowy`r`n- uruchamiac Chromium przez Playwright w trybie headless`r`n- wspierac tryb headed tylko wtedy, gdy dostepny jest serwer graficzny, np. X11/Xvfb na Linuxie albo aktywna sesja graficzna na Windows`r`n- uzywac przenosnych sciezek plikow i separatorow`r`n- korzystac z konfiguracji przez pliki JSON i zmienne srodowiskowe`r`n- unikac zaleznosci od Windows-only API, np. WPF, rejestru Windows, DPAPI jako jedynego mechanizmu sekretow`r`n- dokumentowac instalacje zaleznosci Playwright na Linuxie`r`n- Harmonogram
+- Kolejka zadaÄąâ€ž
+- Wiele botÄ‚Ĺ‚w rÄ‚Ĺ‚wnolegle
 - OCR
 - AI decision engine
-- Obsługa aplikacji desktopowych jako osobny moduł zależny od systemu operacyjnego
+- ObsÄąâ€šuga aplikacji desktopowych jako osobny moduÄąâ€š zaleÄąÄ˝ny od systemu operacyjnego
 
 ## 8. User Stories
-- Jako użytkownik chcę uruchomić bota, aby sam wykonał proces w przeglądarce.
-- Jako użytkownik chcę pobrać dane z API, aby bot działał dynamicznie.
-- Jako użytkownik chcę dostać log błędu.
-- Jako użytkownik chcę łatwo dodawać nowe scenariusze.
+- Jako uÄąÄ˝ytkownik chcĂ„â„˘ uruchomiĂ„â€ˇ bota, aby sam wykonaÄąâ€š proces w przeglĂ„â€¦darce.
+- Jako uÄąÄ˝ytkownik chcĂ„â„˘ pobraĂ„â€ˇ dane z API, aby bot dziaÄąâ€šaÄąâ€š dynamicznie.
+- Jako uÄąÄ˝ytkownik chcĂ„â„˘ dostaĂ„â€ˇ log bÄąâ€šĂ„â„˘du.
+- Jako uÄąÄ˝ytkownik chcĂ„â„˘ Äąâ€šatwo dodawaĂ„â€ˇ nowe scenariusze.
 
 ## 9. Wymagania funkcjonalne
 ### API
-- obsługa REST
+- obsÄąâ€šuga REST
 - JSON request/response
 - timeout
 - retry
@@ -139,11 +128,11 @@ Bot w MVP musi:
 - Chromium
 - headless on/off
 - wiele kart
-- sesje użytkownika
+- sesje uÄąÄ˝ytkownika
 - Linux headless jako podstawowy tryb uruchomienia
 
 ### Scenariusze
-Typy kroków:
+Typy krokÄ‚Ĺ‚w:
 - OpenUrl
 - Click
 - FillText
@@ -161,16 +150,16 @@ Typy kroków:
 - logs/
 - screenshots/
 - scenarios/
-- ścieżki przenośne między Windows i Linux
+- Äąâ€şcieÄąÄ˝ki przenoÄąâ€şne miĂ„â„˘dzy Windows i Linux
 
 ## 10. Wymagania niefunkcjonalne
 - start < 5 sekund
 - modularna architektura
-- możliwość wielu scenariuszy
-- szyfrowanie sekretów
-- brak haseł w kodzie
-- zgodność z Linuxem jako środowiskiem docelowym
-- brak obowiązkowych zależności Windows-only
+- moÄąÄ˝liwoÄąâ€şĂ„â€ˇ wielu scenariuszy
+- szyfrowanie sekretÄ‚Ĺ‚w
+- brak haseÄąâ€š w kodzie
+- zgodnoÄąâ€şĂ„â€ˇ z Linuxem jako Äąâ€şrodowiskiem docelowym
+- brak obowiĂ„â€¦zkowych zaleÄąÄ˝noÄąâ€şci Windows-only
 - poprawna praca w trybie headless bez aktywnej sesji graficznej
 
 ## 11. Architektura techniczna
@@ -182,7 +171,7 @@ Typy kroków:
 - Serilog
 - Polly
 - Microsoft DI
-- Linux runtime: Ubuntu/Debian compatible jako główny target wdrożeniowy
+- Linux runtime: Ubuntu/Debian compatible jako gÄąâ€šÄ‚Ĺ‚wny target wdroÄąÄ˝eniowy
 
 ### Warstwy
 - Core
@@ -194,17 +183,17 @@ Typy kroków:
 ```text
 DesktopAutomationBot.sln
 src/
- ├── DesktopAutomationBot.Core
- ├── DesktopAutomationBot.Application
- ├── DesktopAutomationBot.Infrastructure
- ├── DesktopAutomationBot.Runner
- └── DesktopAutomationBot.UI
+ Ă˘â€ťĹ›Ă˘â€ťâ‚¬Ă˘â€ťâ‚¬ DesktopAutomationBot.Core
+ Ă˘â€ťĹ›Ă˘â€ťâ‚¬Ă˘â€ťâ‚¬ DesktopAutomationBot.Application
+ Ă˘â€ťĹ›Ă˘â€ťâ‚¬Ă˘â€ťâ‚¬ DesktopAutomationBot.Infrastructure
+ Ă˘â€ťĹ›Ă˘â€ťâ‚¬Ă˘â€ťâ‚¬ DesktopAutomationBot.Runner
+ Ă˘â€ťâ€ťĂ˘â€ťâ‚¬Ă˘â€ťâ‚¬ DesktopAutomationBot.UI
 ```
 
 ## 13. Model scenariusza JSON
 ```json
 {
-  "name": "Dodaj zgłoszenie",
+  "name": "Dodaj zgÄąâ€šoszenie",
   "steps": [
     { "type": "OpenUrl", "url": "https://app.local" },
     { "type": "FillText", "selector": "#title", "value": "{{title}}" },
@@ -214,8 +203,8 @@ src/
 }
 ```
 
-## 14. Flow działania
-Start → Załaduj scenariusz → Uruchom browser → Wykonaj kroki → Raport
+## 14. Flow dziaÄąâ€šania
+Start Ă˘â€ â€™ ZaÄąâ€šaduj scenariusz Ă˘â€ â€™ Uruchom browser Ă˘â€ â€™ Wykonaj kroki Ă˘â€ â€™ Raport
 
 ## 15. Roadmap
 ### Sprint 1
@@ -236,4 +225,4 @@ Start → Załaduj scenariusz → Uruchom browser → Wykonaj kroki → Raport
 - variables
 
 ### Sprint 4
-- UI panel cross-platform albo dalszy rozwój CLI/worker
+- UI panel cross-platform albo dalszy rozwÄ‚Ĺ‚j CLI/worker

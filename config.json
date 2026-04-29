@@ -1,0 +1,17 @@
+{
+  "bot": {
+    "scenarioPath": "scenarios/sample-open-url.json",
+    "browser": {
+      "headless": true,
+      "slowMoMs": 0,
+      "timeoutMs": 30000,
+      "viewportWidth": 1280,
+      "viewportHeight": 720
+    },
+    "storage": {
+      "scenariosDirectory": "scenarios",
+      "screenshotsDirectory": "screenshots",
+      "artifactsDirectory": "artifacts"
+    }
+  }
+}

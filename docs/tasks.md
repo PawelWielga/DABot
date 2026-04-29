@@ -7,8 +7,8 @@ Dokument powstal na podstawie `prd.md` i opisuje praktyczny backlog potrzebny do
 - Glowny cel MVP: uruchomienie scenariusza JSON, wykonanie akcji w Chromium przez Playwright, komunikacja z lokalnym REST API, zapis logow i artefaktow bledow.
 - Stack: .NET 8, C#, Playwright for .NET, HttpClient, Serilog, Polly, Microsoft.Extensions.DependencyInjection, Microsoft.Extensions.Options.
 - Glowny target runtime: Linux, najlepiej Ubuntu/Debian compatible, uruchamiany jako CLI/worker.
-- Windows moze byc srodowiskiem developerskim, ale kod MVP nie moze wymagac Windows-only API.
-- Browser domyslnie startuje w trybie headless. Tryb headed na Linuxie wymaga aktywnego X11/Wayland albo Xvfb.
+- Windows ma byc wspierany jako lokalny target developerski i testowy, o ile nie wymaga to Windows-only API.
+- Browser domyslnie startuje w trybie headless. Tryb headed na Linuxie wymaga aktywnego X11/Wayland albo Xvfb, a na Windows aktywnej sesji graficznej.
 - Architektura: `Core`, `Application`, `Infrastructure`, `Runner`, opcjonalnie cross-platform `UI`.
 - Storage lokalny: `config.json`, `scenarios/`, `logs/`, `screenshots/`, `artifacts/html/`.
 - Sekrety nie moga byc trzymane w kodzie ani commitowane w jawnej postaci.
@@ -648,7 +648,7 @@ Dokument powstal na podstawie `prd.md` i opisuje praktyczny backlog potrzebny do
 5. Dodac nazwe profilu w konfiguracji lub parametrze uruchomienia, zeby mozna bylo rozdzielic np. `default`, `google`, `prod`.
 6. Dla pierwszego logowania uruchamiac przegladarke w trybie headed, pozwolic uzytkownikowi zalogowac sie recznie, a potem ponownie uruchamiac bot z tym samym profilem.
 7. W scenariuszu przewidziec opcjonalne `pageName`.
-8. Na MVP zaimplementowac minimum: jedna aktywna karta plus mozliwosc utworzenia nowej, przeĹ‚Ä…czania sie miedzy kartami oraz ich zamykania.
+8. Na MVP zaimplementowac minimum: jedna aktywna karta plus mozliwosc utworzenia nowej, przeĂ„Ä…Ă˘â‚¬ĹˇÄ‚â€žĂ˘â‚¬Â¦czania sie miedzy kartami oraz ich zamykania.
 9. Przy zamknieciu zawsze sprzatac browser/context i zamykac nieuzywane karty.
 
 **Kryteria ukonczenia:** bot moze na Linuxie zachowac sesje uzytkownika miedzy uruchomieniami, jezeli wlaczono `userDataDir`, a reczne logowanie w headed dziala jako sposob inicjalnego zbudowania profilu.
@@ -904,35 +904,7 @@ Dokument powstal na podstawie `prd.md` i opisuje praktyczny backlog potrzebny do
 
 **Kryteria ukonczenia:** da sie teoretycznie uruchomic dwa scenariusze w osobnych kontekstach bez konfliktu katalogow i zmiennych.
 
-### 41. Walidacja Linux runtime i deployment
-
-**Cel:** potwierdzic, ze MVP naprawde dziala na Linuxie, a nie tylko kompiluje sie cross-platformowo.
-
-**Uzyc:** Ubuntu/Debian, bash, `dotnet publish`, Playwright headless, opcjonalnie Docker albo GitHub Actions.
-
-**Jak zrobic:**
-
-1. Przygotowac instrukcje uruchomienia na czystym Linuxie:
-   - instalacja .NET 8 SDK albo runtime
-   - instalacja `pwsh`, jezeli nie ma go w systemie
-   - `dotnet restore`
-   - `dotnet build`
-   - `pwsh .../playwright.ps1 install --with-deps chromium`
-2. Dodac smoke test CLI:
-   ```bash
-   dotnet run --project src/DesktopAutomationBot.Runner -- --scenario scenarios/sample-open-url.json --headless true
-   ```
-3. Dodac smoke test po publikacji:
-   ```bash
-   dotnet publish src/DesktopAutomationBot.Runner -c Release -o ./publish/dabot
-   ./publish/dabot/DesktopAutomationBot.Runner --scenario scenarios/sample-open-url.json --headless true
-   ```
-4. Sprawdzic, ze logi, screenshoty i raporty zapisuja sie do katalogow wzglednych albo skonfigurowanych sciezek bez problemow z uprawnieniami.
-5. Zweryfikowac, ze aplikacja nie wymaga aktywnej sesji graficznej dla domyslnego trybu headless.
-6. Opcjonalnie przygotowac plik `Dockerfile` albo workflow CI, ktory uruchamia `dotnet test` i smoke test na Linuxie.
-
-**Kryteria ukonczenia:** czysty Linux potrafi zbudowac, zainstalowac zaleznosci Playwright, uruchomic sample scenario headless i zapisac artefakty bez recznych poprawek.
-
+### 41. Walidacja runtime i deployment`r`n`r`n**Cel:** potwierdzic, ze MVP naprawde dziala na Linuxie jako runtime wdrozeniowy, a na Windows jako wspierane srodowisko developerskie/testowe.`r`n`r`n**Uzyc:** Ubuntu/Debian, Windows, bash albo PowerShell, `dotnet publish`, Playwright headless, opcjonalnie Docker albo GitHub Actions.`r`n`r`n**Jak zrobic:**`r`n`r`n1. Przygotowac instrukcje uruchomienia na czystym Linuxie:`r`n   - instalacja .NET 8 SDK albo runtime`r`n   - instalacja `pwsh`, jezeli nie ma go w systemie`r`n   - `dotnet restore``r`n   - `dotnet build``r`n   - `pwsh .../playwright.ps1 install --with-deps chromium``r`n2. Dodac smoke test CLI:`r`n   ```bash`r`n   dotnet run --project src/DesktopAutomationBot.Runner -- --scenario scenarios/sample-open-url.json --headless true`r`n   ````r`n3. Dodac smoke test po publikacji:`r`n   ```bash`r`n   dotnet publish src/DesktopAutomationBot.Runner -c Release -o ./publish/dabot`r`n   ./publish/dabot/DesktopAutomationBot.Runner --scenario scenarios/sample-open-url.json --headless true`r`n   ````r`n4. Sprawdzic, ze logi, screenshoty i raporty zapisuja sie do katalogow wzglednych albo skonfigurowanych sciezek bez problemow z uprawnieniami.`r`n5. Zweryfikowac, ze aplikacja nie wymaga aktywnej sesji graficznej dla domyslnego trybu headless.`r`n6. Opcjonalnie przygotowac plik `Dockerfile` albo workflow CI, ktory uruchamia `dotnet test` i smoke test na Linuxie oraz podstawowy smoke test na Windows.`r`n`r`n**Kryteria ukonczenia:** czysty Linux potrafi zbudowac, zainstalowac zaleznosci Playwright, uruchomic sample scenario headless i zapisac artefakty bez recznych poprawek, a Windows uruchamia sie lokalnie do testow i debugowania bez zmian architektury.
 ## Proponowana kolejnosc realizacji MVP
 
 1. Zadania 1-3: solution, standardy, testy.

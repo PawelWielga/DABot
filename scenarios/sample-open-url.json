@@ -1,0 +1,21 @@
+{
+  "name": "Sample open url",
+  "steps": [
+    {
+      "type": "OpenUrl",
+      "url": "https://example.com"
+    },
+    {
+      "type": "WaitFor",
+      "selector": "h1"
+    },
+    {
+      "type": "ReadText",
+      "selector": "h1",
+      "output": "pageTitle"
+    },
+    {
+      "type": "Screenshot"
+    }
+  ]
+}

@@ -2,30 +2,30 @@
 
 Data wykonania: 2026-04-29
 
-## Co zostało zrobione
+## Co zostaĹ‚o zrobione
 
-### 1. Utworzono solution i strukturę projektów
+### 1. Utworzono solution i strukturÄ™ projektĂłw
 
-Powstało klasyczne solution `DesktopAutomationBot.sln` oraz cztery projekty produkcyjne:
+PowstaĹ‚o klasyczne solution `DesktopAutomationBot.sln` oraz cztery projekty produkcyjne:
 
 - `src/DesktopAutomationBot.Core`
 - `src/DesktopAutomationBot.Application`
 - `src/DesktopAutomationBot.Infrastructure`
 - `src/DesktopAutomationBot.Runner`
 
-Dodano też dwa projekty testowe:
+Dodano teĹĽ dwa projekty testowe:
 
 - `tests/DesktopAutomationBot.Core.Tests`
 - `tests/DesktopAutomationBot.Application.Tests`
 
-### 2. Ustawiono zależności między projektami
+### 2. Ustawiono zaleĹĽnoĹ›ci miÄ™dzy projektami
 
-Zależności zostały ustawione zgodnie z założeniem:
+ZaleĹĽnoĹ›ci zostaĹ‚y ustawione zgodnie z zaĹ‚oĹĽeniem:
 
 - `Runner` referencjonuje `Core`, `Application` i `Infrastructure`
 - `Application` referencjonuje `Core`
 - `Infrastructure` referencjonuje `Core` i `Application`
-- projekty testowe referencjonują odpowiednie projekty produkcyjne
+- projekty testowe referencjonujÄ… odpowiednie projekty produkcyjne
 
 ### 3. Ujednolicono standardy repozytorium
 
@@ -34,14 +34,14 @@ Dodano:
 - `.editorconfig`
 - `.gitattributes`
 
-W plikach projektów włączono:
+W plikach projektĂłw wĹ‚Ä…czono:
 
 - `Nullable`
 - `ImplicitUsings`
 - `LangVersion` ustawione na `latest`
 - target `net8.0`
 
-### 4. Przygotowano bazę domenową scenariusza
+### 4. Przygotowano bazÄ™ domenowÄ… scenariusza
 
 W `Core` dodano minimalny model:
 
@@ -55,37 +55,39 @@ W `Core` dodano minimalny model:
 Walidator sprawdza na tym etapie:
 
 - czy scenariusz istnieje
-- czy ma nazwę
+- czy ma nazwÄ™
 - czy ma przynajmniej jeden krok
 - czy `OpenUrl` ma `url`
-- czy `Click`, `FillText`, `PasteText` i `ReadText` mają `selector`
-- czy `If` i `Loop` mają kroki potomne
+- czy `Click`, `FillText`, `PasteText` i `ReadText` majÄ… `selector`
+- czy `If` i `Loop` majÄ… kroki potomne
 
-### 5. Przygotowano warstwę Application
+### 5. Przygotowano warstwÄ™ Application
 
 Dodano:
 
 - `IScenarioValidationService`
 - `ScenarioValidationService`
 
-To daje punkt wejścia dla przyszłej orkiestracji logiki aplikacyjnej.
+To daje punkt wejĹ›cia dla przyszĹ‚ej orkiestracji logiki aplikacyjnej.
 
 ### 6. Podmieniono szablonowy Runner
 
-`Program.cs` został zastąpiony prostym uruchomieniem walidacji przykładowego scenariusza. Dzięki temu Runner już teraz odwołuje się do warstw aplikacyjnych i domenowych.
+`Program.cs` zostaĹ‚ zastÄ…piony prostym uruchomieniem walidacji przykĹ‚adowego scenariusza. DziÄ™ki temu Runner juĹĽ teraz odwoĹ‚uje siÄ™ do warstw aplikacyjnych i domenowych.
 
 ### 7. Dodano testy
 
-Zamiast pustych testów szablonu dodano:
+Zamiast pustych testĂłw szablonu dodano:
 
 - test walidatora w `Core.Tests`
-- test usługi walidacji w `Application.Tests`
 
-Testy sprawdzają:
+Obecne zalozenia runtime sa nadal Linux-first dla wdrozen, ale repo ma pozostawac uruchamialne i testowalne lokalnie na Windows, pod warunkiem zachowania zgodnosci cross-platform.
+- test usĹ‚ugi walidacji w `Application.Tests`
 
-- brak kroków w scenariuszu
+Testy sprawdzajÄ…:
+
+- brak krokĂłw w scenariuszu
 - brak `url` w `OpenUrl`
-- poprawny scenariusz przechodzi walidację
+- poprawny scenariusz przechodzi walidacjÄ™
 
 ## Weryfikacja
 
@@ -96,5 +98,5 @@ Po zmianach uruchomiono:
 
 ## Uwagi
 
-- `.gitignore` już zawierał kluczowe wpisy dla artefaktów runtime i lokalnej konfiguracji, więc nie było potrzeby znaczącej przebudowy tego pliku.
-- Solution utworzono w klasycznym formacie `.sln`, żeby zachować kompatybilność z typowymi narzędziami repozytoryjnymi.
+- `.gitignore` juĹĽ zawieraĹ‚ kluczowe wpisy dla artefaktĂłw runtime i lokalnej konfiguracji, wiÄ™c nie byĹ‚o potrzeby znaczÄ…cej przebudowy tego pliku.
+- Solution utworzono w klasycznym formacie `.sln`, ĹĽeby zachowaÄ‡ kompatybilnoĹ›Ä‡ z typowymi narzÄ™dziami repozytoryjnymi.

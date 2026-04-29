@@ -75,6 +75,24 @@ public sealed class ScenarioDefinitionValidator
             errors.Add($"{path}.url is required for OpenUrl.");
         }
 
+        if (string.IsNullOrWhiteSpace(step.Output) && step.Type == StepType.ReadText)
+        {
+            errors.Add($"{path}.output is required for ReadText.");
+        }
+
+        if (step.Type == StepType.Delay && !step.TimeoutMs.HasValue && string.IsNullOrWhiteSpace(step.Value))
+        {
+            errors.Add($"{path}.timeoutMs or value is required for Delay.");
+        }
+
+        if (step.Type == StepType.WaitFor &&
+            string.IsNullOrWhiteSpace(step.Selector) &&
+            string.IsNullOrWhiteSpace(step.Value) &&
+            (step.Parameters is null || step.Parameters.Count == 0))
+        {
+            errors.Add($"{path} requires selector, value or parameters for WaitFor.");
+        }
+
         if (step.Type is StepType.If or StepType.Loop && step.Children.Count == 0)
         {
             errors.Add($"{path}.children must contain at least one step for {step.Type}.");
