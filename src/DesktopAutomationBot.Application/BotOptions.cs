@@ -29,4 +29,6 @@ public sealed class StorageOptions
     public string ScreenshotsDirectory { get; init; } = Path.Combine("screenshots");
 
     public string ArtifactsDirectory { get; init; } = Path.Combine("artifacts");
+
+    public string DatabasePath { get; init; } = Path.Combine("data", "dabot.db");
 }
