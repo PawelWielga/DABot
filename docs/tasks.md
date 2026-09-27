@@ -80,6 +80,81 @@ Status legend:
 - [ ] Align Microsoft.Extensions package major versions.
 - [ ] Update Playwright to a current supported version before building new browser features.
 
+## Sprint 2.5 - Execution model hardening
+
+Goal: define deterministic execution and recovery semantics before durable persistence, suspend/resume, and the web editor depend on them.
+
+### Scenario model
+
+- [ ] Add top-level `schemaVersion`.
+- [ ] Add stable step IDs.
+- [ ] Introduce immutable scenario versions.
+- [ ] Persist scenario definition hash per version.
+- [ ] Define migration policy for future scenario schema versions.
+- [ ] Introduce typed internal step definitions or an equivalent compiled execution model.
+- [ ] Add a scenario compilation/normalization stage before execution.
+- [ ] Add a richer locator abstraction while preserving selector compatibility.
+
+### Execution state
+
+- [ ] Replace the assumption that a single numeric `CurrentStep` is sufficient.
+- [ ] Define `ExecutionCursor` / execution stack semantics for nested `If` and `Loop`.
+- [ ] Define serialization of the execution cursor.
+- [ ] Define formal run state transitions.
+- [ ] Define wait reason semantics for event/human/retry/schedule waits.
+- [ ] Make run execution always reference one immutable scenario version.
+
+### Step attempts and recovery
+
+- [ ] Add the `StepAttempt` concept.
+- [ ] Persist attempt start before executing potentially side-effecting work.
+- [ ] Persist attempt completion/failure.
+- [ ] Define recovery for attempts left in an unknown state after process failure.
+- [ ] Classify step retry behavior: safe/idempotent/verification-required/manual.
+- [ ] Route unsafe automatic recovery to `WaitingForHuman`.
+- [ ] Document crash behavior for browser actions and API actions.
+
+### Variables and secrets
+
+- [ ] Replace string-only runtime variables with structured values.
+- [ ] Preserve convenient string interpolation for simple scenarios.
+- [ ] Introduce `ISecretProvider` or an equivalent abstraction.
+- [ ] Keep secret references separate from persisted normal variables.
+- [ ] Define redaction rules for logs and diagnostics.
+
+### Browser semantics
+
+- [ ] Document that durable resume restores workflow state, not a live DOM/page.
+- [ ] Define how a resumed run rebuilds required browser state.
+- [ ] Avoid `NetworkIdle` as the universal default navigation contract.
+- [ ] Keep explicit scenario waits for stronger synchronization.
+
+### Events and durable work
+
+- [ ] Define event inbox semantics.
+- [ ] Define resume work-item/outbox semantics.
+- [ ] Ensure event acceptance, run transition, and future work scheduling can be committed atomically where possible.
+- [ ] Define uniqueness constraints for processed `EventId` values.
+
+### Engineering foundation
+
+- [ ] Add normal build/test CI.
+- [ ] Align Microsoft.Extensions package major versions.
+- [ ] Update the project runtime target as a dedicated compatibility change.
+- [ ] Update Playwright before adding browser-session features.
+- [ ] Remove unused template files.
+- [ ] Add executor tests using fake browser/session implementations.
+- [ ] Add tests for nested execution cursor behavior and crash recovery semantics.
+
+Acceptance criteria:
+
+- a nested workflow has a deterministic persisted resume position,
+- a run is permanently bound to the scenario version it started with,
+- a process crash during a side-effecting step has an explicitly defined recovery outcome,
+- duplicate external events cannot schedule duplicate continuations,
+- secrets are not represented as ordinary persisted variables,
+- the execution semantics are testable without requiring Chromium.
+
 ## Sprint 3 - Browser sessions and profiles
 
 Goal: remove the assumption that browser automation is one global singleton and prepare safe persistent sessions.
@@ -337,13 +412,14 @@ For new behavior add:
 
 The recommended next sequence is:
 
-1. Finish missing original runner capabilities from Sprint 2.
-2. Introduce browser session factory and persistent profiles.
-3. Add durable run model and SQLite persistence.
-4. Add `Suspend` / `Resume`.
-5. Add event model and idempotency.
-6. Add page observers.
-7. Add the web panel MVP.
-8. Add multi-worker coordination and operational features.
+1. Finish the practical missing runner capabilities from Sprint 2.
+2. Complete Sprint 2.5 and freeze the durable execution semantics.
+3. Introduce browser session factory and persistent profiles.
+4. Add immutable scenario versions, durable run model, execution cursor persistence, and SQLite storage.
+5. Add `Suspend` / `Resume` with step-attempt recovery semantics.
+6. Add event inbox/idempotency and durable resume work items.
+7. Add page observers.
+8. Add the web panel MVP.
+9. Add multi-worker coordination and operational features.
 
-This order keeps the existing runner useful at every stage and avoids making the web panel the owner of core runtime behavior.
+This order keeps the existing runner useful at every stage, avoids making the web panel the owner of core runtime behavior, and prevents persistence/UI code from being built around execution semantics that still need redesign.
