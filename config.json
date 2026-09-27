@@ -11,7 +11,8 @@
     "storage": {
       "scenariosDirectory": "scenarios",
       "screenshotsDirectory": "screenshots",
-      "artifactsDirectory": "artifacts"
+      "artifactsDirectory": "artifacts",
+      "databasePath": "data/dabot.db"
     }
   }
 }
