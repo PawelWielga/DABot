@@ -60,28 +60,59 @@ LeaseUntil
 
 ## ScenarioRunRequest
 
-The executor should no longer be limited to:
+The durable execution entry contract is now represented by `ScenarioRunRequest`.
 
-```csharp
-ExecuteAsync(ScenarioDefinition scenario)
-```
-
-The target shape should accept a request containing execution identity and initial state.
-
-Example:
+It intentionally requires an immutable `ScenarioVersion`, rather than a mutable `ScenarioDefinition`:
 
 ```csharp
 public sealed record ScenarioRunRequest
 {
-    public required ScenarioDefinition Scenario { get; init; }
+    public required ScenarioVersion ScenarioVersion { get; init; }
     public Guid? RunId { get; init; }
     public ExecutionCursor? Cursor { get; init; }
     public Dictionary<string, string> Variables { get; init; } = [];
 }
 ```
 
-The exact API may change, but `RunId` must be externally controllable.
+`RunId` is externally controllable. When omitted, a new GUID is generated.
 
+`CreateRun` produces an `AutomationRun` bound permanently to the supplied `ScenarioVersion.VersionId`. The current synchronous executor still accepts `ScenarioDefinition` for backward compatibility; moving execution orchestration to `ScenarioRunRequest` is a separate migration step.
+
+
+## AutomationRun
+
+`AutomationRun` is the durable runtime snapshot for one execution.
+
+It currently contains:
+
+```text
+RunId
+ScenarioId
+ScenarioVersionId
+RunState
+ExecutionCursor
+Variables
+CreatedAt
+UpdatedAt
+```
+
+Creation rules:
+
+- a caller may supply `RunId`; an omitted ID is generated,
+- `Guid.Empty` is rejected,
+- a new run starts in `Queued`,
+- its cursor must validate against the exact immutable scenario version,
+- a new queued run cannot begin with an already-completed cursor,
+- initial variables and cursor data are copied so caller mutation cannot mutate the run snapshot.
+
+Restore rules:
+
+- the same immutable `ScenarioVersion` is required to validate the persisted cursor,
+- `UpdatedAt` cannot precede `CreatedAt`,
+- a persisted `Completed` run must also have a completed cursor,
+- restored variable and cursor state is copied into the domain snapshot.
+
+The variable representation is still string-only at this stage. Structured runtime values remain a separate Sprint 2.5 change.
 
 ## Immutable scenario version binding
 
