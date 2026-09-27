@@ -8,6 +8,7 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddInfrastructure(this IServiceCollection services)
     {
         services.AddSingleton<IScenarioLoader, JsonScenarioLoader>();
+        services.AddSingleton<IRunStore, SqliteRunStore>();
         services.AddSingleton<IBrowserAutomation, PlaywrightBrowserAutomation>();
         return services;
     }
