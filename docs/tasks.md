@@ -102,13 +102,13 @@ Goal: define deterministic execution and recovery semantics before durable persi
 - [x] Define serialization of the execution cursor.
 - [x] Define formal run state transitions.
 - [x] Define wait reason semantics for event/human/retry/schedule waits.
-- [~] Make run execution always reference one immutable scenario version.
+- [~] Make run execution always reference one immutable scenario version. Durable execution is version-bound; the legacy synchronous executor remains for backward compatibility.
 
 ### Step attempts and recovery
 
 - [x] Add the `StepAttempt` concept.
-- [~] Persist attempt start before executing potentially side-effecting work. SQLite storage/ordering is implemented; executor wiring remains.
-- [~] Persist attempt completion/failure. SQLite lifecycle persistence is implemented; executor wiring remains.
+- [x] Persist attempt start before executing potentially side-effecting work.
+- [x] Persist attempt completion/failure.
 - [x] Define recovery for attempts left in an unknown state after process failure.
 - [x] Classify step retry behavior: safe/idempotent/verification-required/manual.
 - [~] Route unsafe automatic recovery to `Waiting` with reason `Human`.
@@ -143,7 +143,7 @@ Goal: define deterministic execution and recovery semantics before durable persi
 - [ ] Update the project runtime target as a dedicated compatibility change.
 - [ ] Update Playwright before adding browser-session features.
 - [x] Remove unused template files.
-- [ ] Add executor tests using fake browser/session implementations.
+- [x] Add executor tests using fake browser/session implementations.
 - [x] Add tests for nested execution cursor behavior and crash recovery semantics.
 
 Acceptance criteria:
@@ -191,8 +191,8 @@ Goal: separate reusable scenario definitions from persisted execution state.
 - [x] Introduce `IRunStore`.
 - [x] Add an initial SQLite run store.
 - [x] Add SQLite `StepAttempt` persistence with v1 -> v2 schema migration and restart recovery.
-- [ ] Group all runtime artifacts by stable `RunId`.
-- [ ] Define execution outcomes: Completed/Suspended/Failed/Cancelled.
+- [~] Group all runtime artifacts by stable `RunId`. Durable execution uses the stable run ID for its artifact directory; the legacy synchronous path still uses timestamp-based IDs.
+- [x] Define execution outcomes: Completed/Suspended/Failed/Cancelled.
 - [x] Ensure a process restart does not invalidate a persisted run.
 
 Acceptance criteria:
