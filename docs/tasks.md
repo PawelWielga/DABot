@@ -97,9 +97,9 @@ Goal: define deterministic execution and recovery semantics before durable persi
 
 ### Execution state
 
-- [ ] Replace the assumption that a single numeric `CurrentStep` is sufficient.
-- [ ] Define `ExecutionCursor` / execution stack semantics for nested `If` and `Loop`.
-- [ ] Define serialization of the execution cursor.
+- [x] Replace the assumption that a single numeric `CurrentStep` is sufficient.
+- [x] Define `ExecutionCursor` / execution stack semantics for nested `If` and `Loop`.
+- [x] Define serialization of the execution cursor.
 - [ ] Define formal run state transitions.
 - [ ] Define wait reason semantics for event/human/retry/schedule waits.
 - [ ] Make run execution always reference one immutable scenario version.
@@ -144,7 +144,7 @@ Goal: define deterministic execution and recovery semantics before durable persi
 - [ ] Update Playwright before adding browser-session features.
 - [ ] Remove unused template files.
 - [ ] Add executor tests using fake browser/session implementations.
-- [ ] Add tests for nested execution cursor behavior and crash recovery semantics.
+- [~] Add tests for nested execution cursor behavior and crash recovery semantics.
 
 Acceptance criteria:
 
