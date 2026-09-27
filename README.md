@@ -14,6 +14,8 @@ The project is designed to stay useful as a general automation tool rather than 
 - external events and correlation
 - page observation without blocking the main workflow
 - REST/API integration
+- MCP server/client integration and a dynamic tool registry
+- declarative reusable tools/workflows that can be authored by humans or agents
 - screenshots, HTML snapshots, logs, and diagnostics
 - CLI/worker operation on Linux
 - optional web panel for configuration and monitoring
@@ -27,6 +29,7 @@ The main layers are:
 - `DesktopAutomationBot.Infrastructure` - Playwright, persistence, integrations, event transport
 - `DesktopAutomationBot.Runner` - CLI/worker composition root
 - `DesktopAutomationBot.Web` - planned web management panel
+- `DesktopAutomationBot.Mcp` - planned MCP server/client adapter and tool registry integration
 
 The web panel is a client of the same application layer as the CLI. It must not become a requirement for running scenarios.
 
@@ -59,4 +62,5 @@ Short browser waits such as waiting for a selector remain normal blocking steps.
 - [Product requirements](docs/prd.md)
 - [Implementation backlog](docs/tasks.md)
 - [Durable workflow architecture](docs/durable-workflows.md)
+- [MCP and dynamic tools architecture](docs/mcp-and-dynamic-tools.md)
 - [Agent guidelines](AGENTS.md)
