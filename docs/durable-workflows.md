@@ -373,16 +373,29 @@ Core must not know whether the event arrived through:
 
 ## Persistence
 
-SQLite is the preferred first durable store for the web-enabled runtime.
+The first durable store is implemented through the Application-level `IRunStore` contract and the Infrastructure-level `SqliteRunStore`.
 
-Suggested tables:
+The initial SQLite schema uses:
+
+```text
+ScenarioVersions
+Runs
+```
+
+`ScenarioVersions` stores immutable canonical scenario snapshots, including `DefinitionHash`. `Runs` stores the stable run identity, scenario-version reference, run status/wait reason, serialized `ExecutionCursor`, string variables, and creation/update timestamps.
+
+Saving a run and its scenario version occurs in one SQLite transaction. Reusing an existing `VersionId` with different immutable scenario data is rejected. Reusing a `RunId` with a different scenario/version identity or creation timestamp is also rejected.
+
+The database schema currently uses SQLite `PRAGMA user_version = 1` as the migration boundary. The default database path is `data/dabot.db` and can be overridden with `bot.storage.databasePath`.
+
+A persisted run can be loaded by a fresh `SqliteRunStore` instance after process restart. Loading reconstructs and revalidates `ScenarioVersion`, `RunState`, `ExecutionCursor`, variables, and `AutomationRun` rather than trusting raw database fields.
+
+Planned tables remain:
 
 ```text
 Scenarios
-ScenarioVersions
-Runs
 StepAttempts
-RunVariables
+RunVariables (if variables move out of the run snapshot)
 ProcessedEvents
 Events
 BrowserProfiles
@@ -390,7 +403,7 @@ PageObservers
 Workers
 ```
 
-The persistence implementation stays behind interfaces.
+The persistence implementation remains behind Application interfaces.
 
 ## Worker model
 
@@ -563,7 +576,7 @@ The persistence layer added later must guarantee that the `Started` attempt is c
 - A crash during a step must leave enough data to determine whether retry is safe.
 - Non-idempotent actions may require an explicit retry policy.
 - Max attempts and max errors are configurable.
-- A run can move to `WaitingForHuman` when automatic recovery is unsafe.
+- A run can move to `Waiting` with reason `Human` when automatic recovery is unsafe.
 
 ## Compatibility
 
