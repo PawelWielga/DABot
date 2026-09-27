@@ -88,8 +88,8 @@ Goal: define deterministic execution and recovery semantics before durable persi
 
 - [x] Add top-level `schemaVersion`.
 - [x] Add stable step IDs.
-- [ ] Introduce immutable scenario versions.
-- [ ] Persist scenario definition hash per version.
+- [x] Introduce immutable scenario versions.
+- [~] Persist scenario definition hash per version.
 - [x] Define migration policy for future scenario schema versions.
 - [ ] Introduce typed internal step definitions or an equivalent compiled execution model.
 - [~] Add a scenario compilation/normalization stage before execution.
