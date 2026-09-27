@@ -296,6 +296,58 @@ The web panel is optional and uses Application services. It must not directly ow
 - [ ] Add Docker deployment option.
 - [ ] Add service/systemd deployment documentation.
 
+## Sprint 12 - MCP and dynamic tools
+
+Goal: expose DABot as a reusable execution layer for agents without creating a second automation engine.
+
+### Action and tool model
+
+- [ ] Introduce a neutral Action registry for trusted low-level primitives.
+- [ ] Define a versioned declarative Tool/Workflow definition with named inputs and outputs.
+- [ ] Add schema validation for tool inputs, outputs, and step parameters.
+- [ ] Add tool lifecycle states such as Draft/Enabled/Disabled.
+- [ ] Add tool version history and immutable run-time version references.
+- [ ] Add permission metadata per Action and Tool.
+- [ ] Add policy modes: manual only, AI drafts, AI safe auto-enable, fully autonomous.
+- [ ] Require explicit approval for configured high-risk capabilities such as unrestricted shell/filesystem/credentials.
+- [ ] Persist audit metadata for tool creation, edits, tests, activation, and disable operations.
+
+### MCP server
+
+- [ ] Add `DesktopAutomationBot.Mcp` without introducing MCP types into Core.
+- [ ] Expose active DABot Tools/Workflows as MCP tools.
+- [ ] Map MCP tool calls to Application use cases.
+- [ ] Expose selected built-in management operations such as tool list/create/update/test/enable/disable.
+- [ ] Refresh or notify clients when the active tool set changes.
+- [ ] Preserve normal run tracking, diagnostics, cancellation, permissions, and audit behavior for MCP calls.
+
+### MCP client
+
+- [ ] Add an MCP client abstraction in Application.
+- [ ] Add infrastructure implementation for connecting to configured external MCP servers.
+- [ ] Import/discover external tool metadata without copying protocol types into Core.
+- [ ] Add allowlists and per-server permissions.
+- [ ] Add timeout, cancellation, retry, and diagnostics.
+- [ ] Prevent external MCP tools from silently escalating local DABot permissions.
+
+### Web panel
+
+- [ ] Add Tools page.
+- [ ] Add visual/JSON/YAML tool editor.
+- [ ] Add tool test action and test history.
+- [ ] Add enable/disable/version history.
+- [ ] Show source/author such as manual, imported, or AI-generated.
+- [ ] Show required permissions and approval state.
+- [ ] Add MCP connections/status page.
+
+Acceptance criteria:
+
+- an agent can create a declarative tool from allowed Actions without writing arbitrary executable code,
+- a created tool can be validated and tested before activation,
+- active tools can be exposed through MCP and invoked through the same Application layer as CLI/web/HTTP,
+- DABot can call an allowlisted external MCP server through a controlled adapter,
+- disabling or changing a tool does not mutate historical run definitions.
+
 ## Cross-cutting requirements
 
 These apply to every sprint.
@@ -345,5 +397,6 @@ The recommended next sequence is:
 6. Add page observers.
 7. Add the web panel MVP.
 8. Add multi-worker coordination and operational features.
+9. Add the neutral Action/Tool registry, then MCP server/client adapters and AI-authored declarative tools.
 
 This order keeps the existing runner useful at every stage and avoids making the web panel the owner of core runtime behavior.
