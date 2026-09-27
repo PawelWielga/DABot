@@ -138,7 +138,7 @@ Goal: define deterministic execution and recovery semantics before durable persi
 
 ### Engineering foundation
 
-- [ ] Add normal build/test CI.
+- [x] Add normal build/test CI.
 - [ ] Align Microsoft.Extensions package major versions.
 - [ ] Update the project runtime target as a dedicated compatibility change.
 - [ ] Update Playwright before adding browser-session features.
