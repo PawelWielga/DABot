@@ -73,6 +73,24 @@ The field is optional. Omitting it keeps the default classification for the step
 
 This setting is about recovery after an interrupted/unknown attempt. It does not itself define how many normal retries are allowed; `retryCount` remains a separate concern.
 
+## Immutable scenario versions
+
+A durable run must execute against an immutable snapshot of a normalized scenario definition, not against a mutable scenario file that may later be edited.
+
+`ScenarioVersion.Capture` creates that snapshot by:
+
+1. normalizing the scenario so every step has a stable ID,
+2. serializing the normalized definition into canonical JSON,
+3. recursively sorting JSON object properties so dictionary/property insertion order does not affect identity,
+4. computing a lowercase SHA-256 `definitionHash` from that canonical JSON,
+5. storing the canonical JSON together with `ScenarioId`, `VersionId`, `VersionNumber`, schema version, and creation time.
+
+The hash covers the normalized scenario definition only. Scenario/version database identifiers and timestamps are metadata and do not change the definition hash.
+
+The snapshot owns its canonical JSON value. Materializing the definition returns a new object graph, so later mutation of the source scenario or of a previously materialized copy cannot change an existing version.
+
+The persistence layer must eventually store both the canonical definition JSON and `definitionHash`. A run must reference one immutable `VersionId` for its entire lifetime. Persisting that snapshot is still part of the durable store work.
+
 ## Migration policy
 
 Schema evolution follows these rules:
