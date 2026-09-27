@@ -159,6 +159,52 @@ Cancelled
 
 `Suspended` is a successful durable transition, not an error.
 
+## Durable run state machine
+
+Persisted run state uses a small status set plus a separate wait reason:
+
+```text
+Queued
+Running
+Waiting
+Completed
+Failed
+Cancelled
+```
+
+Only `Waiting` carries a `RunWaitReason`:
+
+```text
+Event
+Human
+Retry
+Schedule
+```
+
+The legal transitions are:
+
+| From | To |
+| --- | --- |
+| `Queued` | `Running`, `Cancelled` |
+| `Running` | `Waiting`, `Completed`, `Failed`, `Cancelled` |
+| `Waiting` | `Running`, `Failed`, `Cancelled` |
+| `Completed` | terminal |
+| `Failed` | terminal |
+| `Cancelled` | terminal |
+
+A run cannot switch directly from one wait reason to another. It must resume to `Running` first, then enter a new `Waiting` state if needed. This keeps the transition history explicit and prevents a persisted wait from being silently reinterpreted.
+
+Wait reason semantics:
+
+- `Event` means progress depends on a matching external event. Event identity/correlation data is persisted separately from the enum.
+- `Human` means automatic execution is intentionally blocked until an explicit administrative/user decision is recorded.
+- `Retry` means execution may continue automatically after retry policy permits another attempt. The due time/backoff belongs to persisted run metadata, not to the enum.
+- `Schedule` means execution is intentionally dormant until a scheduled time. The due timestamp is persisted separately.
+
+`RunState` validates these invariants in Core. A restored `Waiting` state without a reason is invalid, and non-waiting states cannot carry a wait reason.
+
+The future executor outcome `Suspended` is not a persisted run status. It describes the fact that active execution stopped cleanly after the run was durably moved to `Waiting`. This avoids having both `Suspended` and `Waiting` represent the same persisted condition.
+
 ## Suspend
 
 A `Suspend` step:
