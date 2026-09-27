@@ -83,6 +83,28 @@ public sealed record ScenarioRunRequest
 The exact API may change, but `RunId` must be externally controllable.
 
 
+## Immutable scenario version binding
+
+Before a run becomes durable, its scenario definition is captured as an immutable `ScenarioVersion`.
+
+Each version has:
+
+```text
+ScenarioId
+VersionId
+VersionNumber
+SchemaVersion
+DefinitionHash
+DefinitionJson
+CreatedAt
+```
+
+`DefinitionJson` is canonical JSON of the normalized scenario definition and `DefinitionHash` is SHA-256 over that canonical representation. This makes the stored definition independently verifiable and prevents incidental JSON property or dictionary ordering from producing different identities.
+
+A running workflow must keep the same `VersionId` from start through completion, suspension, resume, retries, and crash recovery. Editing the reusable scenario creates a later version; it must never rewrite the definition used by an already-started run.
+
+The durable persistence layer will store these snapshots and bind each run to one version. The current Core model defines the snapshot/hash semantics before that store is introduced.
+
 ## Execution cursor
 
 Durable execution uses a versioned `ExecutionCursor` rather than a single numeric step index.
