@@ -35,6 +35,8 @@ public sealed class JsonScenarioLoader : IScenarioLoader
             throw new ScenarioLoadException(resolvedPath, ["Scenario JSON could not be parsed."]);
         }
 
+        scenario = ScenarioDefinitionNormalizer.Normalize(scenario);
+
         var validation = _validator.Validate(scenario);
         if (!validation.IsValid)
         {
