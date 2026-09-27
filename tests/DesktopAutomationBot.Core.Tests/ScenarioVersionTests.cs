@@ -19,7 +19,6 @@ public sealed class ScenarioVersionTests
             scenario,
             createdAt);
 
-        scenario.Name = "Changed";
         scenario.Steps[0] = scenario.Steps[0] with
         {
             Url = "https://changed.example.com",
