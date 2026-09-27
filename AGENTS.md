@@ -1,98 +1,165 @@
 # AGENTS.md
 
-Guidelines for agents working in this repository. This project is the MVP of
-Desktop Automation Bot (DABot): a .NET 8 / C# Linux-first CLI worker that
-automates browser workflows with Playwright and talks to a local REST API.
+Guidelines for agents working in this repository.
 
-## Project goal
+DABot is a general-purpose .NET browser automation and durable workflow engine. It executes declarative scenarios, controls Chromium through Playwright, integrates with external systems, and is being extended with persisted runs, suspend/resume, events, page observers, and an optional web management panel.
 
-- Build a stable, extensible bot runner for Linux.
-- Keep Windows as a development convenience only; do not depend on Windows-only
-  APIs for MVP.
-- Prefer headless Chromium on Linux as the default runtime.
-- Keep the architecture modular so future UI, queueing, OCR, and AI features can
-  be added without rewriting the core.
+## Product direction
+
+- Keep DABot generic. Do not design Core around one website, vendor, or business process.
+- Existing synchronous scenarios must continue to work.
+- Add durable execution as an extension of the current scenario model.
+- Keep short browser waits separate from long-lived suspension.
+- The web panel is optional and must not become a runtime requirement for CLI or workers.
+- External transports and persistence mechanisms are infrastructure adapters.
+- Read `docs/prd.md`, `docs/tasks.md`, and `docs/durable-workflows.md` before changes that affect architecture or scope.
 
 ## Repository shape
 
-- `src/DesktopAutomationBot.Core` holds domain models and validation rules.
-- `src/DesktopAutomationBot.Application` holds orchestration, use cases, and
-  abstractions.
-- `src/DesktopAutomationBot.Infrastructure` holds Playwright, HTTP, storage,
-  logging, and other external integrations.
-- `src/DesktopAutomationBot.Runner` is the console entry point and composition
-  root.
-- `tests/` holds unit and integration tests.
+Current projects:
 
-## Non-negotiable constraints
+- `src/DesktopAutomationBot.Core` - domain models and validation.
+- `src/DesktopAutomationBot.Application` - orchestration, use cases, and abstractions.
+- `src/DesktopAutomationBot.Infrastructure` - Playwright and external integrations.
+- `src/DesktopAutomationBot.Runner` - CLI/worker composition root.
+- `tests/` - unit and integration tests.
 
-- Target runtime is Linux first, especially Ubuntu/Debian compatible systems.
-- Default browser mode is headless.
-- Do not introduce hard dependencies on WPF, Windows registry, DPAPI as the
-  only secret mechanism, or other Windows-only infrastructure.
-- Build file paths with `Path.Combine` or `Path.Join`. Do not concatenate
-  separators manually.
-- Keep secrets out of source control and out of logs.
-- Keep the codebase cross-platform where possible.
+Planned:
+
+- `src/DesktopAutomationBot.Web` - optional Blazor management panel.
 
 ## Architecture rules
 
-- Keep domain models in `Core`.
-- Keep use-case orchestration in `Application`.
-- Keep Playwright, HTTP, filesystem, and log sink implementations in
-  `Infrastructure`.
-- Keep CLI parsing and startup wiring in `Runner`.
-- Add new browser steps as separate handlers instead of growing a monolith.
-- Do not leak Playwright types into the domain model unless absolutely required.
-- Prefer interfaces in `Application` and implementations in `Infrastructure`.
+- Domain models belong in Core.
+- Use-case orchestration belongs in Application.
+- Playwright, HTTP, persistence, event transports, filesystem, and logging implementations belong in Infrastructure.
+- CLI parsing and worker startup belong in Runner.
+- The web project must use Application services. It must not directly control Playwright.
+- Do not leak Playwright types into Core.
+- Prefer interfaces in Application and implementations in Infrastructure.
+- Keep scenario definition separate from runtime state.
+- A scenario describes what to execute. A run describes the state of one execution.
+- Do not store mutable execution state by modifying the scenario definition.
+- `RunId` must be stable and externally passable for durable execution.
+- Resume processing must be idempotent.
+- Multiple workers must use leases/locks for mutable run state and persistent browser profiles.
 
-## Working rules
+## Browser rules
 
-- Read `docs/prd.md` and `docs/tasks.md` before making changes that affect scope.
-- Follow the sprint order in `docs/tasks.md` unless the user explicitly asks for a
-  different priority.
-- Keep changes small and coherent.
-- Do not revert user changes or unrelated edits.
-- Use ASCII by default in code and docs unless the file already uses a different
-  convention.
-- When editing files, prefer `apply_patch`.
+- Target runtime is Linux first, especially Ubuntu/Debian compatible systems.
+- Default browser mode is headless.
+- Headed mode is supported for development, diagnostics, and interactive profile setup.
+- Support both ephemeral and persistent browser sessions.
+- Persistent browser profiles must use dedicated user-data directories and must not be committed.
+- Do not keep `IBrowserAutomation` as a global singleton when session isolation or concurrency is required.
+- Add new generic browser operations as focused abstractions/handlers rather than growing a monolith.
+- Use Playwright synchronization primitives for short browser-local waits.
+
+## Durable workflow rules
+
+- `WaitFor` is for short waits inside an active browser execution.
+- `Suspend` is for waits that should survive process termination.
+- `Suspend` is not an error condition.
+- Persist run state before returning a suspended result.
+- Resume from a deterministic saved position.
+- Every external event must have an idempotency identity.
+- Duplicate event delivery must not execute the same continuation twice.
+- Page observers emit generic automation events rather than calling scenario-specific continuation code directly.
+- Transport-specific details must not enter Core.
+
+## Storage rules
+
+- Keep storage behind interfaces such as `IRunStore` and `IScenarioStore`.
+- SQLite is the preferred first durable store for the web-enabled runtime.
+- JSON/local files remain acceptable for simple configuration and import/export.
+- Runtime artifacts belong in predictable per-run paths.
+- Keep secrets out of source control and out of logs.
+- Build file paths with `Path.Combine` or `Path.Join`.
+
+## Web panel rules
+
+The planned web panel should initially cover:
+
+- dashboard,
+- scenarios,
+- visual + JSON scenario editor,
+- runs,
+- run details,
+- browser profiles,
+- configuration.
+
+Later features may include:
+
+- page observers,
+- event history,
+- workers,
+- schedules,
+- secret management,
+- audit logs.
+
+The panel must not duplicate domain logic already available in Application.
+
+## Scenario expectations
+
+Supported or planned generic step types include:
+
+- `OpenUrl`
+- `Click`
+- `FillText`
+- `PasteText`
+- `WaitFor`
+- `ReadText`
+- `Screenshot`
+- `CallApi`
+- `Delay`
+- `If`
+- `Loop`
+- `Suspend`
+
+Do not add service-specific step types when the same behavior can be expressed through generic browser steps and events.
+
+## Runtime and diagnostics
+
+Every run should produce useful diagnostics:
+
+- step outcomes,
+- timestamps/durations,
+- logs,
+- screenshots on failure,
+- HTML snapshots where useful,
+- event history for durable runs.
+
+A restart between `Suspend` and `Resume` must be supported.
 
 ## Current implementation priorities
 
-1. Repo foundation: solution, project structure, standards, and tests.
-2. Playwright setup and basic browser actions.
-3. API client, logging, screenshots, HTML artifacts, and retry behavior.
-4. Scenario executor, variable replacement, `If`, `Loop`, and other control
-   flow.
-5. Runner polish, sample scenarios, documentation, and Linux smoke testing.
-
-## Scenario and runtime expectations
-
-- Scenario definitions are JSON-based.
-- Supported MVP step types include `OpenUrl`, `Click`, `FillText`, `PasteText`,
-  `WaitFor`, `ReadText`, `Screenshot`, `CallApi`, `Delay`, `If`, and `Loop`
-  where implemented.
-- Every run should produce useful logs and, on failure, diagnostic artifacts such
-  as screenshot and HTML capture.
-- Keep runtime output in predictable folders such as `logs/`,
-  `screenshots/`, and `artifacts/`.
+1. Finish the original stable runner requirements: API, logging, retry, variables, control flow, diagnostics, Linux runtime.
+2. Add explicit browser session management and persistent profiles.
+3. Introduce `ScenarioRunRequest`, `AutomationRun`, statuses, and durable run storage.
+4. Add `Suspend` / `Resume` with idempotency.
+5. Add neutral event abstractions and event history.
+6. Add generic page observers.
+7. Add the optional Blazor management panel.
+8. Add worker coordination, leases, schedules, and operational hardening.
 
 ## Testing expectations
 
-- Add or update tests when behavior changes.
-- Prefer unit tests for validation and orchestration logic.
-- Add integration coverage for Playwright and API behavior when practical.
+- Add or update tests whenever behavior changes.
+- Prefer unit tests for domain validation and orchestration.
+- Add integration tests for persistence and Playwright behavior.
+- Add tests for suspend/resume and duplicate event delivery.
+- Add concurrency tests before enabling multiple workers.
 - Keep tests Linux-friendly and headless-friendly.
 
-## Documentation expectations
+## Working rules
 
-- Update docs when setup, runtime behavior, or required commands change.
-- Keep README and task documentation aligned with the actual implementation.
-- If you add a new dependency or runtime requirement, document the Linux impact.
+- Read the product and architecture docs before making scope changes.
+- Keep changes small and coherent.
+- Do not revert unrelated user changes.
+- Preserve backward compatibility for existing scenario JSON unless a migration is explicitly documented.
+- Prefer ASCII in source files unless an existing file requires another convention.
+- When changing an interface, update tests and documentation in the same change.
 
 ## When in doubt
 
-- Optimize for Linux compatibility, maintainability, and testability.
-- Choose the smallest change that advances the current sprint safely.
-- If a change has platform or architecture implications, surface the tradeoff in
-  the response before making it large.
+Prefer the smallest generic mechanism that solves the requirement without coupling DABot to a particular website or transport.
