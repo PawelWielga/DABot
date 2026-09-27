@@ -89,7 +89,7 @@ Goal: define deterministic execution and recovery semantics before durable persi
 - [x] Add top-level `schemaVersion`.
 - [x] Add stable step IDs.
 - [x] Introduce immutable scenario versions.
-- [~] Persist scenario definition hash per version.
+- [x] Persist scenario definition hash per version.
 - [x] Define migration policy for future scenario schema versions.
 - [ ] Introduce typed internal step definitions or an equivalent compiled execution model.
 - [~] Add a scenario compilation/normalization stage before execution.
@@ -186,13 +186,13 @@ Goal: separate reusable scenario definitions from persisted execution state.
 - [x] Add `AutomationRun`.
 - [x] Add `RunStatus`.
 - [x] Track `ExecutionCursor` in the run model.
-- [ ] Persist variables.
+- [x] Persist string run variables in the initial durable store.
 - [x] Track creation and update timestamps.
-- [ ] Introduce `IRunStore`.
-- [ ] Add an initial SQLite run store.
+- [x] Introduce `IRunStore`.
+- [x] Add an initial SQLite run store.
 - [ ] Group all runtime artifacts by stable `RunId`.
 - [ ] Define execution outcomes: Completed/Suspended/Failed/Cancelled.
-- [ ] Ensure a process restart does not invalidate a persisted run.
+- [x] Ensure a process restart does not invalidate a persisted run.
 
 Acceptance criteria:
 
