@@ -59,4 +59,5 @@ Short browser waits such as waiting for a selector remain normal blocking steps.
 - [Product requirements](docs/prd.md)
 - [Implementation backlog](docs/tasks.md)
 - [Durable workflow architecture](docs/durable-workflows.md)
+- [Architecture review and improvement plan](docs/architecture-review-2026-09-27.md)
 - [Agent guidelines](AGENTS.md)
