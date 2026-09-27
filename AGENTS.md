@@ -12,7 +12,9 @@ DABot is a general-purpose .NET browser automation and durable workflow engine. 
 - Keep short browser waits separate from long-lived suspension.
 - The web panel is optional and must not become a runtime requirement for CLI or workers.
 - External transports and persistence mechanisms are infrastructure adapters.
-- Read `docs/prd.md`, `docs/tasks.md`, and `docs/durable-workflows.md` before changes that affect architecture or scope.
+- MCP is an integration boundary, not a separate execution engine. MCP tools must delegate to the same Application/Core capabilities used by CLI, workers, HTTP, and the web panel.
+- Agents may author declarative reusable tools/workflows, but must not gain an unrestricted code-evaluation path as part of that feature.
+- Read `docs/prd.md`, `docs/tasks.md`, `docs/durable-workflows.md`, and `docs/mcp-and-dynamic-tools.md` before changes that affect architecture or scope.
 
 ## Repository shape
 
@@ -27,6 +29,7 @@ Current projects:
 Planned:
 
 - `src/DesktopAutomationBot.Web` - optional Blazor management panel.
+- `src/DesktopAutomationBot.Mcp` - optional MCP server/client adapter over Application services.
 
 ## Architecture rules
 
@@ -36,6 +39,9 @@ Planned:
 - CLI parsing and worker startup belong in Runner.
 - The web project must use Application services. It must not directly control Playwright.
 - Do not leak Playwright types into Core.
+- Do not leak MCP SDK/protocol types into Core or scenario domain models.
+- Treat low-level Actions as trusted implementation primitives and reusable Tools/Workflows as declarative compositions of those primitives.
+- Dynamic tool creation must use validation, permissions, versioning, testing, and audit metadata before activation.
 - Prefer interfaces in Application and implementations in Infrastructure.
 - Keep scenario definition separate from runtime state.
 - A scenario describes what to execute. A run describes the state of one execution.
