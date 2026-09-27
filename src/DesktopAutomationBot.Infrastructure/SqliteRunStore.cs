@@ -125,7 +125,7 @@ public sealed class SqliteRunStore : IRunStore
             ParseTimestamp(reader.GetString(13), "ScenarioVersion.CreatedAt"));
 
         var status = ParseEnum<RunStatus>(reader.GetString(1), "RunStatus");
-        var waitReason = reader.IsDBNull(2)
+        RunWaitReason? waitReason = reader.IsDBNull(2)
             ? null
             : ParseEnum<RunWaitReason>(reader.GetString(2), "RunWaitReason");
 
