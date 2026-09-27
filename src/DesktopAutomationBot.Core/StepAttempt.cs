@@ -90,9 +90,153 @@ public sealed record StepAttempt
         };
     }
 
+    public static StepAttempt Restore(
+        Guid attemptId,
+        Guid runId,
+        string stepId,
+        StepType stepType,
+        int attemptNumber,
+        StepRetrySafety retrySafety,
+        StepAttemptStatus status,
+        DateTimeOffset startedAt,
+        DateTimeOffset updatedAt,
+        DateTimeOffset? finishedAt,
+        string? errorMessage)
+    {
+        if (attemptId == Guid.Empty)
+        {
+            throw new ArgumentException("Attempt ID must not be empty.", nameof(attemptId));
+        }
+
+        if (runId == Guid.Empty)
+        {
+            throw new ArgumentException("Run ID must not be empty.", nameof(runId));
+        }
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(stepId);
+
+        if (!Enum.IsDefined(typeof(StepType), stepType))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(stepType),
+                stepType,
+                "Step type must be a defined value.");
+        }
+
+        if (attemptNumber < 1)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(attemptNumber),
+                attemptNumber,
+                "Attempt number must be at least 1.");
+        }
+
+        if (!Enum.IsDefined(typeof(StepRetrySafety), retrySafety))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(retrySafety),
+                retrySafety,
+                "Retry safety must be a defined value.");
+        }
+
+        if (!Enum.IsDefined(typeof(StepAttemptStatus), status))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(status),
+                status,
+                "Attempt status must be a defined value.");
+        }
+
+        if (updatedAt < startedAt)
+        {
+            throw new ArgumentException(
+                "Updated timestamp must not precede the attempt start.",
+                nameof(updatedAt));
+        }
+
+        switch (status)
+        {
+            case StepAttemptStatus.Started:
+            case StepAttemptStatus.Unknown:
+                if (finishedAt is not null)
+                {
+                    throw new ArgumentException(
+                        $"Attempt in '{status}' state must not have a finished timestamp.",
+                        nameof(finishedAt));
+                }
+
+                if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    throw new ArgumentException(
+                        $"Attempt in '{status}' state must not have an error message.",
+                        nameof(errorMessage));
+                }
+
+                break;
+
+            case StepAttemptStatus.Completed:
+                if (finishedAt is null)
+                {
+                    throw new ArgumentException(
+                        "Completed attempt must have a finished timestamp.",
+                        nameof(finishedAt));
+                }
+
+                if (finishedAt.Value != updatedAt)
+                {
+                    throw new ArgumentException(
+                        "Completed attempt finished timestamp must match its updated timestamp.",
+                        nameof(finishedAt));
+                }
+
+                if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    throw new ArgumentException(
+                        "Completed attempt must not have an error message.",
+                        nameof(errorMessage));
+                }
+
+                break;
+
+            case StepAttemptStatus.Failed:
+                if (finishedAt is null)
+                {
+                    throw new ArgumentException(
+                        "Failed attempt must have a finished timestamp.",
+                        nameof(finishedAt));
+                }
+
+                if (finishedAt.Value != updatedAt)
+                {
+                    throw new ArgumentException(
+                        "Failed attempt finished timestamp must match its updated timestamp.",
+                        nameof(finishedAt));
+                }
+
+                ArgumentException.ThrowIfNullOrWhiteSpace(errorMessage);
+                break;
+        }
+
+        return new StepAttempt
+        {
+            AttemptId = attemptId,
+            RunId = runId,
+            StepId = stepId.Trim(),
+            StepType = stepType,
+            AttemptNumber = attemptNumber,
+            RetrySafety = retrySafety,
+            Status = status,
+            StartedAt = startedAt,
+            UpdatedAt = updatedAt,
+            FinishedAt = finishedAt,
+            ErrorMessage = errorMessage,
+        };
+    }
+
     public StepAttempt MarkCompleted(DateTimeOffset completedAt)
     {
         EnsureStarted();
+        EnsureTransitionTimestamp(completedAt);
 
         return this with
         {
@@ -107,6 +251,7 @@ public sealed record StepAttempt
     {
         EnsureStarted();
         ArgumentException.ThrowIfNullOrWhiteSpace(errorMessage);
+        EnsureTransitionTimestamp(failedAt);
 
         return this with
         {
@@ -120,6 +265,7 @@ public sealed record StepAttempt
     public StepAttempt MarkUnknown(DateTimeOffset detectedAt)
     {
         EnsureStarted();
+        EnsureTransitionTimestamp(detectedAt);
 
         return this with
         {
@@ -136,6 +282,17 @@ public sealed record StepAttempt
         {
             throw new InvalidOperationException(
                 $"Step attempt '{AttemptId}' cannot transition from '{Status}'.");
+        }
+    }
+
+    private void EnsureTransitionTimestamp(DateTimeOffset timestamp)
+    {
+        if (timestamp < StartedAt)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(timestamp),
+                timestamp,
+                "Attempt transition timestamp must not precede the start timestamp.");
         }
     }
 }
