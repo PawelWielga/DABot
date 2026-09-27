@@ -6,9 +6,9 @@ using Microsoft.Data.Sqlite;
 
 namespace DesktopAutomationBot.Infrastructure;
 
-public sealed class SqliteRunStore : IRunStore
+public sealed class SqliteRunStore : IRunStore, IStepAttemptStore
 {
-    private const int StoreSchemaVersion = 1;
+    private const int StoreSchemaVersion = 2;
 
     private readonly string _connectionString;
     private readonly SemaphoreSlim _initializationLock = new(1, 1);
@@ -145,6 +145,224 @@ public sealed class SqliteRunStore : IRunStore
         return new StoredAutomationRun(run, scenarioVersion);
     }
 
+    public async Task SaveStepAttemptAsync(
+        StepAttempt attempt,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(attempt);
+
+        var validatedAttempt = RestoreAttempt(attempt);
+
+        await EnsureInitializedAsync(cancellationToken);
+
+        await using var connection = await OpenConnectionAsync(cancellationToken);
+        await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken);
+
+        if (!await RunExistsAsync(
+                connection,
+                transaction,
+                validatedAttempt.RunId,
+                cancellationToken))
+        {
+            throw new InvalidOperationException(
+                $"Run '{validatedAttempt.RunId}' must be persisted before its step attempts.");
+        }
+
+        var existing = await LoadStepAttemptByIdAsync(
+            connection,
+            transaction,
+            validatedAttempt.AttemptId,
+            cancellationToken);
+
+        if (existing is null)
+        {
+            if (validatedAttempt.Status != StepAttemptStatus.Started)
+            {
+                throw new InvalidOperationException(
+                    $"Step attempt '{validatedAttempt.AttemptId}' must be persisted as Started before it can be finalized.");
+            }
+
+            try
+            {
+                await InsertStepAttemptAsync(
+                    connection,
+                    transaction,
+                    validatedAttempt,
+                    cancellationToken);
+            }
+            catch (SqliteException exception) when (exception.SqliteErrorCode == 19)
+            {
+                throw new InvalidOperationException(
+                    $"Step attempt number '{validatedAttempt.AttemptNumber}' already exists for run '{validatedAttempt.RunId}' and step '{validatedAttempt.StepId}', or its persisted identity conflicts.",
+                    exception);
+            }
+
+            await transaction.CommitAsync(cancellationToken);
+            return;
+        }
+
+        EnsureAttemptIdentityMatches(existing, validatedAttempt);
+
+        if (existing == validatedAttempt)
+        {
+            await transaction.CommitAsync(cancellationToken);
+            return;
+        }
+
+        if (existing.Status != StepAttemptStatus.Started)
+        {
+            throw new InvalidOperationException(
+                $"Step attempt '{validatedAttempt.AttemptId}' is already finalized as '{existing.Status}' and cannot be changed.");
+        }
+
+        if (validatedAttempt.Status == StepAttemptStatus.Started)
+        {
+            throw new InvalidOperationException(
+                $"Persisted Started attempt '{validatedAttempt.AttemptId}' cannot be mutated without finalizing it.");
+        }
+
+        await FinalizeStepAttemptAsync(
+            connection,
+            transaction,
+            validatedAttempt,
+            cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<StepAttempt>> LoadStepAttemptsAsync(
+        Guid runId,
+        CancellationToken cancellationToken = default)
+    {
+        if (runId == Guid.Empty)
+        {
+            throw new ArgumentException("Run ID must not be empty.", nameof(runId));
+        }
+
+        await EnsureInitializedAsync(cancellationToken);
+
+        await using var connection = await OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT
+                AttemptId,
+                RunId,
+                StepId,
+                StepType,
+                AttemptNumber,
+                RetrySafety,
+                Status,
+                StartedAt,
+                UpdatedAt,
+                FinishedAt,
+                ErrorMessage
+            FROM StepAttempts
+            WHERE RunId = $runId
+            ORDER BY StartedAt, AttemptNumber, AttemptId;
+            """;
+        command.Parameters.AddWithValue("$runId", runId.ToString("D"));
+
+        var attempts = new List<StepAttempt>();
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            attempts.Add(ReadStepAttempt(reader));
+        }
+
+        return attempts;
+    }
+
+    public async Task<IReadOnlyList<StepAttempt>> MarkStartedAttemptsUnknownAsync(
+        Guid runId,
+        DateTimeOffset detectedAt,
+        CancellationToken cancellationToken = default)
+    {
+        if (runId == Guid.Empty)
+        {
+            throw new ArgumentException("Run ID must not be empty.", nameof(runId));
+        }
+
+        await EnsureInitializedAsync(cancellationToken);
+
+        await using var connection = await OpenConnectionAsync(cancellationToken);
+        await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken);
+
+        var startedAttempts = new List<StepAttempt>();
+
+        await using (var select = connection.CreateCommand())
+        {
+            select.Transaction = transaction;
+            select.CommandText =
+                """
+                SELECT
+                    AttemptId,
+                    RunId,
+                    StepId,
+                    StepType,
+                    AttemptNumber,
+                    RetrySafety,
+                    Status,
+                    StartedAt,
+                    UpdatedAt,
+                    FinishedAt,
+                    ErrorMessage
+                FROM StepAttempts
+                WHERE RunId = $runId
+                  AND Status = $startedStatus
+                ORDER BY StartedAt, AttemptNumber, AttemptId;
+                """;
+            select.Parameters.AddWithValue("$runId", runId.ToString("D"));
+            select.Parameters.AddWithValue("$startedStatus", StepAttemptStatus.Started.ToString());
+
+            await using var reader = await select.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                startedAttempts.Add(ReadStepAttempt(reader));
+            }
+        }
+
+        var interrupted = new List<StepAttempt>();
+
+        foreach (var attempt in startedAttempts)
+        {
+            if (attempt.StartedAt > detectedAt)
+            {
+                continue;
+            }
+
+            var unknown = attempt.MarkUnknown(detectedAt);
+
+            await using var update = connection.CreateCommand();
+            update.Transaction = transaction;
+            update.CommandText =
+                """
+                UPDATE StepAttempts
+                SET
+                    Status = $status,
+                    UpdatedAt = $updatedAt,
+                    FinishedAt = NULL,
+                    ErrorMessage = NULL
+                WHERE AttemptId = $attemptId
+                  AND Status = $startedStatus;
+                """;
+            update.Parameters.AddWithValue("$status", StepAttemptStatus.Unknown.ToString());
+            update.Parameters.AddWithValue("$updatedAt", FormatTimestamp(unknown.UpdatedAt));
+            update.Parameters.AddWithValue("$attemptId", unknown.AttemptId.ToString("D"));
+            update.Parameters.AddWithValue("$startedStatus", StepAttemptStatus.Started.ToString());
+
+            var changed = await update.ExecuteNonQueryAsync(cancellationToken);
+            if (changed == 1)
+            {
+                interrupted.Add(unknown);
+            }
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+        return interrupted;
+    }
+
     private async Task EnsureInitializedAsync(CancellationToken cancellationToken)
     {
         if (_initialized)
@@ -176,6 +394,13 @@ public sealed class SqliteRunStore : IRunStore
             if (currentVersion == 0)
             {
                 await CreateSchemaAsync(connection, cancellationToken);
+            }
+            else if (currentVersion < StoreSchemaVersion)
+            {
+                await UpgradeSchemaAsync(
+                    connection,
+                    currentVersion,
+                    cancellationToken);
             }
 
             _initialized = true;
@@ -241,7 +466,94 @@ public sealed class SqliteRunStore : IRunStore
             CREATE INDEX IX_Runs_ScenarioVersionId
                 ON Runs(ScenarioVersionId);
 
-            PRAGMA user_version = 1;
+            CREATE TABLE StepAttempts (
+                AttemptId TEXT NOT NULL PRIMARY KEY,
+                RunId TEXT NOT NULL,
+                StepId TEXT NOT NULL,
+                StepType TEXT NOT NULL,
+                AttemptNumber INTEGER NOT NULL CHECK (AttemptNumber >= 1),
+                RetrySafety TEXT NOT NULL,
+                Status TEXT NOT NULL,
+                StartedAt TEXT NOT NULL,
+                UpdatedAt TEXT NOT NULL,
+                FinishedAt TEXT NULL,
+                ErrorMessage TEXT NULL,
+                UNIQUE (RunId, StepId, AttemptNumber),
+                FOREIGN KEY (RunId)
+                    REFERENCES Runs(RunId)
+                    ON DELETE CASCADE
+            );
+
+            CREATE INDEX IX_StepAttempts_RunId
+                ON StepAttempts(RunId);
+
+            CREATE INDEX IX_StepAttempts_RunId_Status
+                ON StepAttempts(RunId, Status);
+
+            PRAGMA user_version = 2;
+            """;
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    private static async Task UpgradeSchemaAsync(
+        SqliteConnection connection,
+        int currentVersion,
+        CancellationToken cancellationToken)
+    {
+        var version = currentVersion;
+
+        while (version < StoreSchemaVersion)
+        {
+            switch (version)
+            {
+                case 1:
+                    await MigrateV1ToV2Async(connection, cancellationToken);
+                    version = 2;
+                    break;
+
+                default:
+                    throw new InvalidOperationException(
+                        $"SQLite run store schema version '{version}' cannot be upgraded to '{StoreSchemaVersion}'.");
+            }
+        }
+    }
+
+    private static async Task MigrateV1ToV2Async(
+        SqliteConnection connection,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText =
+            """
+            CREATE TABLE StepAttempts (
+                AttemptId TEXT NOT NULL PRIMARY KEY,
+                RunId TEXT NOT NULL,
+                StepId TEXT NOT NULL,
+                StepType TEXT NOT NULL,
+                AttemptNumber INTEGER NOT NULL CHECK (AttemptNumber >= 1),
+                RetrySafety TEXT NOT NULL,
+                Status TEXT NOT NULL,
+                StartedAt TEXT NOT NULL,
+                UpdatedAt TEXT NOT NULL,
+                FinishedAt TEXT NULL,
+                ErrorMessage TEXT NULL,
+                UNIQUE (RunId, StepId, AttemptNumber),
+                FOREIGN KEY (RunId)
+                    REFERENCES Runs(RunId)
+                    ON DELETE CASCADE
+            );
+
+            CREATE INDEX IX_StepAttempts_RunId
+                ON StepAttempts(RunId);
+
+            CREATE INDEX IX_StepAttempts_RunId_Status
+                ON StepAttempts(RunId, Status);
+
+            PRAGMA user_version = 2;
             """;
 
         await command.ExecuteNonQueryAsync(cancellationToken);
@@ -403,6 +715,217 @@ public sealed class SqliteRunStore : IRunStore
         upsert.Parameters.AddWithValue("$updatedAt", FormatTimestamp(run.UpdatedAt));
 
         await upsert.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task<bool> RunExistsAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        Guid runId,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText =
+            """
+            SELECT 1
+            FROM Runs
+            WHERE RunId = $runId;
+            """;
+        command.Parameters.AddWithValue("$runId", runId.ToString("D"));
+
+        return await command.ExecuteScalarAsync(cancellationToken) is not null;
+    }
+
+    private static async Task<StepAttempt?> LoadStepAttemptByIdAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        Guid attemptId,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText =
+            """
+            SELECT
+                AttemptId,
+                RunId,
+                StepId,
+                StepType,
+                AttemptNumber,
+                RetrySafety,
+                Status,
+                StartedAt,
+                UpdatedAt,
+                FinishedAt,
+                ErrorMessage
+            FROM StepAttempts
+            WHERE AttemptId = $attemptId;
+            """;
+        command.Parameters.AddWithValue("$attemptId", attemptId.ToString("D"));
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        return await reader.ReadAsync(cancellationToken)
+            ? ReadStepAttempt(reader)
+            : null;
+    }
+
+    private static async Task InsertStepAttemptAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        StepAttempt attempt,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText =
+            """
+            INSERT INTO StepAttempts (
+                AttemptId,
+                RunId,
+                StepId,
+                StepType,
+                AttemptNumber,
+                RetrySafety,
+                Status,
+                StartedAt,
+                UpdatedAt,
+                FinishedAt,
+                ErrorMessage)
+            VALUES (
+                $attemptId,
+                $runId,
+                $stepId,
+                $stepType,
+                $attemptNumber,
+                $retrySafety,
+                $status,
+                $startedAt,
+                $updatedAt,
+                $finishedAt,
+                $errorMessage);
+            """;
+        AddStepAttemptParameters(command, attempt);
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    private static async Task FinalizeStepAttemptAsync(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        StepAttempt attempt,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText =
+            """
+            UPDATE StepAttempts
+            SET
+                Status = $status,
+                UpdatedAt = $updatedAt,
+                FinishedAt = $finishedAt,
+                ErrorMessage = $errorMessage
+            WHERE AttemptId = $attemptId
+              AND Status = $startedStatus;
+            """;
+        command.Parameters.AddWithValue("$status", attempt.Status.ToString());
+        command.Parameters.AddWithValue("$updatedAt", FormatTimestamp(attempt.UpdatedAt));
+        command.Parameters.AddWithValue(
+            "$finishedAt",
+            attempt.FinishedAt is { } finishedAt
+                ? FormatTimestamp(finishedAt)
+                : DBNull.Value);
+        command.Parameters.AddWithValue(
+            "$errorMessage",
+            attempt.ErrorMessage is { } errorMessage
+                ? errorMessage
+                : DBNull.Value);
+        command.Parameters.AddWithValue("$attemptId", attempt.AttemptId.ToString("D"));
+        command.Parameters.AddWithValue("$startedStatus", StepAttemptStatus.Started.ToString());
+
+        var changed = await command.ExecuteNonQueryAsync(cancellationToken);
+        if (changed != 1)
+        {
+            throw new InvalidOperationException(
+                $"Step attempt '{attempt.AttemptId}' was concurrently finalized and could not be updated.");
+        }
+    }
+
+    private static void AddStepAttemptParameters(
+        SqliteCommand command,
+        StepAttempt attempt)
+    {
+        command.Parameters.AddWithValue("$attemptId", attempt.AttemptId.ToString("D"));
+        command.Parameters.AddWithValue("$runId", attempt.RunId.ToString("D"));
+        command.Parameters.AddWithValue("$stepId", attempt.StepId);
+        command.Parameters.AddWithValue("$stepType", attempt.StepType.ToString());
+        command.Parameters.AddWithValue("$attemptNumber", attempt.AttemptNumber);
+        command.Parameters.AddWithValue("$retrySafety", attempt.RetrySafety.ToString());
+        command.Parameters.AddWithValue("$status", attempt.Status.ToString());
+        command.Parameters.AddWithValue("$startedAt", FormatTimestamp(attempt.StartedAt));
+        command.Parameters.AddWithValue("$updatedAt", FormatTimestamp(attempt.UpdatedAt));
+        command.Parameters.AddWithValue(
+            "$finishedAt",
+            attempt.FinishedAt is { } finishedAt
+                ? FormatTimestamp(finishedAt)
+                : DBNull.Value);
+        command.Parameters.AddWithValue(
+            "$errorMessage",
+            attempt.ErrorMessage is { } errorMessage
+                ? errorMessage
+                : DBNull.Value);
+    }
+
+    private static StepAttempt ReadStepAttempt(SqliteDataReader reader) =>
+        StepAttempt.Restore(
+            ParseGuid(reader.GetString(0), "StepAttempt.AttemptId"),
+            ParseGuid(reader.GetString(1), "StepAttempt.RunId"),
+            reader.GetString(2),
+            ParseEnum<StepType>(reader.GetString(3), "StepAttempt.StepType"),
+            reader.GetInt32(4),
+            ParseEnum<StepRetrySafety>(reader.GetString(5), "StepAttempt.RetrySafety"),
+            ParseEnum<StepAttemptStatus>(reader.GetString(6), "StepAttempt.Status"),
+            ParseTimestamp(reader.GetString(7), "StepAttempt.StartedAt"),
+            ParseTimestamp(reader.GetString(8), "StepAttempt.UpdatedAt"),
+            reader.IsDBNull(9)
+                ? null
+                : ParseTimestamp(reader.GetString(9), "StepAttempt.FinishedAt"),
+            reader.IsDBNull(10)
+                ? null
+                : reader.GetString(10));
+
+    private static StepAttempt RestoreAttempt(StepAttempt attempt) =>
+        StepAttempt.Restore(
+            attempt.AttemptId,
+            attempt.RunId,
+            attempt.StepId,
+            attempt.StepType,
+            attempt.AttemptNumber,
+            attempt.RetrySafety,
+            attempt.Status,
+            attempt.StartedAt,
+            attempt.UpdatedAt,
+            attempt.FinishedAt,
+            attempt.ErrorMessage);
+
+    private static void EnsureAttemptIdentityMatches(
+        StepAttempt persisted,
+        StepAttempt candidate)
+    {
+        var matches =
+            persisted.AttemptId == candidate.AttemptId &&
+            persisted.RunId == candidate.RunId &&
+            string.Equals(persisted.StepId, candidate.StepId, StringComparison.Ordinal) &&
+            persisted.StepType == candidate.StepType &&
+            persisted.AttemptNumber == candidate.AttemptNumber &&
+            persisted.RetrySafety == candidate.RetrySafety &&
+            persisted.StartedAt == candidate.StartedAt;
+
+        if (!matches)
+        {
+            throw new InvalidOperationException(
+                $"Step attempt '{candidate.AttemptId}' already exists with different immutable identity data.");
+        }
     }
 
     private static string SerializeVariables(
