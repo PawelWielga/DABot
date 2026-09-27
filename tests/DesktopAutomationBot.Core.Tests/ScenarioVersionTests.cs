@@ -158,6 +158,106 @@ public sealed class ScenarioVersionTests
         act.Should().Throw<ArgumentOutOfRangeException>();
     }
 
+    [Fact]
+    public void Restore_PreservesPersistedVersionIdentity()
+    {
+        var captured = ScenarioVersion.Capture(
+            Guid.NewGuid(),
+            3,
+            CreateScenario(),
+            DateTimeOffset.Parse("2026-09-27T11:30:00+02:00"));
+
+        var restored = ScenarioVersion.Restore(
+            captured.ScenarioId,
+            captured.VersionId,
+            captured.VersionNumber,
+            captured.SchemaVersion,
+            captured.DefinitionHash,
+            captured.DefinitionJson,
+            captured.CreatedAt);
+
+        restored.ScenarioId.Should().Be(captured.ScenarioId);
+        restored.VersionId.Should().Be(captured.VersionId);
+        restored.VersionNumber.Should().Be(captured.VersionNumber);
+        restored.DefinitionHash.Should().Be(captured.DefinitionHash);
+        restored.DefinitionJson.Should().Be(captured.DefinitionJson);
+        restored.MaterializeDefinition().Should().BeEquivalentTo(
+            captured.MaterializeDefinition());
+    }
+
+    [Fact]
+    public void Restore_WhenDefinitionHashDoesNotMatch_Throws()
+    {
+        var captured = ScenarioVersion.Capture(
+            Guid.NewGuid(),
+            1,
+            CreateScenario(),
+            DateTimeOffset.UtcNow);
+
+        var act = () => ScenarioVersion.Restore(
+            captured.ScenarioId,
+            captured.VersionId,
+            captured.VersionNumber,
+            captured.SchemaVersion,
+            new string('0', 64),
+            captured.DefinitionJson,
+            captured.CreatedAt);
+
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("*hash does not match*");
+    }
+
+    [Fact]
+    public void Restore_WhenDefinitionJsonIsNotCanonical_Throws()
+    {
+        var captured = ScenarioVersion.Capture(
+            Guid.NewGuid(),
+            1,
+            CreateScenario(),
+            DateTimeOffset.UtcNow);
+        var nonCanonicalJson = JsonSerializer.Serialize(
+            captured.MaterializeDefinition());
+
+        var hash = Convert.ToHexString(
+                System.Security.Cryptography.SHA256.HashData(
+                    System.Text.Encoding.UTF8.GetBytes(nonCanonicalJson)))
+            .ToLowerInvariant();
+
+        var act = () => ScenarioVersion.Restore(
+            captured.ScenarioId,
+            captured.VersionId,
+            captured.VersionNumber,
+            captured.SchemaVersion,
+            hash,
+            nonCanonicalJson,
+            captured.CreatedAt);
+
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("*not the canonical normalized representation*");
+    }
+
+    [Fact]
+    public void Restore_WhenVersionIdIsEmpty_Throws()
+    {
+        var captured = ScenarioVersion.Capture(
+            Guid.NewGuid(),
+            1,
+            CreateScenario(),
+            DateTimeOffset.UtcNow);
+
+        var act = () => ScenarioVersion.Restore(
+            captured.ScenarioId,
+            Guid.Empty,
+            captured.VersionNumber,
+            captured.SchemaVersion,
+            captured.DefinitionHash,
+            captured.DefinitionJson,
+            captured.CreatedAt);
+
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("*version ID*empty*");
+    }
+
     private static ScenarioDefinition CreateScenario() =>
         new()
         {
