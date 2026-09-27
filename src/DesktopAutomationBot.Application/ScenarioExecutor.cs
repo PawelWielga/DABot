@@ -23,6 +23,7 @@ public sealed class ScenarioExecutor : IScenarioExecutor
 
     public async Task<ScenarioExecutionResult> ExecuteAsync(ScenarioDefinition scenario, CancellationToken cancellationToken = default)
     {
+        scenario = ScenarioDefinitionNormalizer.Normalize(scenario);
         _validationService.ValidateOrThrow(scenario);
 
         var context = new ScenarioExecutionContext(scenario, _browserAutomation, _options);
