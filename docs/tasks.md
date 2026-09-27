@@ -102,7 +102,7 @@ Goal: define deterministic execution and recovery semantics before durable persi
 - [x] Define serialization of the execution cursor.
 - [x] Define formal run state transitions.
 - [x] Define wait reason semantics for event/human/retry/schedule waits.
-- [ ] Make run execution always reference one immutable scenario version.
+- [~] Make run execution always reference one immutable scenario version.
 
 ### Step attempts and recovery
 
@@ -181,13 +181,13 @@ Acceptance criteria:
 
 Goal: separate reusable scenario definitions from persisted execution state.
 
-- [ ] Add `ScenarioRunRequest`.
-- [ ] Allow externally supplied `RunId`.
-- [ ] Add `AutomationRun`.
+- [x] Add `ScenarioRunRequest`.
+- [x] Allow externally supplied `RunId`.
+- [x] Add `AutomationRun`.
 - [x] Add `RunStatus`.
-- [~] Track `ExecutionCursor`.
+- [x] Track `ExecutionCursor` in the run model.
 - [ ] Persist variables.
-- [ ] Track creation and update timestamps.
+- [x] Track creation and update timestamps.
 - [ ] Introduce `IRunStore`.
 - [ ] Add an initial SQLite run store.
 - [ ] Group all runtime artifacts by stable `RunId`.
