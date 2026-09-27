@@ -48,6 +48,31 @@ If a generated structural ID conflicts with an explicit ID, a deterministic nume
 
 These generated IDs preserve compatibility with existing files, but they are structural: reordering legacy steps can change them. Once a scenario is edited or exported by a future management UI, generated IDs should be persisted into the scenario definition so subsequent reordering does not change logical step identity.
 
+
+## Per-step retry safety
+
+A step may override DABot's default crash-recovery classification with `retrySafety`:
+
+```json
+{
+  "id": "submit-order",
+  "type": "Click",
+  "selector": "#submit",
+  "retrySafety": "NeverRetryAutomatically"
+}
+```
+
+Supported values are:
+
+- `SafeToRetry`
+- `Idempotent`
+- `NeedsVerification`
+- `NeverRetryAutomatically`
+
+The field is optional. Omitting it keeps the default classification for the step type, so existing schema-v1 scenarios remain compatible.
+
+This setting is about recovery after an interrupted/unknown attempt. It does not itself define how many normal retries are allowed; `retryCount` remains a separate concern.
+
 ## Migration policy
 
 Schema evolution follows these rules:
