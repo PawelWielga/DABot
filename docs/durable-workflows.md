@@ -134,7 +134,7 @@ CreatedAt
 
 A running workflow must keep the same `VersionId` from start through completion, suspension, resume, retries, and crash recovery. Editing the reusable scenario creates a later version; it must never rewrite the definition used by an already-started run.
 
-The durable persistence layer will store these snapshots and bind each run to one version. The current Core model defines the snapshot/hash semantics before that store is introduced.
+The durable persistence layer stores these snapshots and binds each run to one version. The current SQLite store revalidates the snapshot/hash semantics when loading persisted data.
 
 `ScenarioVersion.Restore` supports process-restart and persistence flows. It restores the original `ScenarioId` and `VersionId`, verifies that persisted JSON is still the canonical normalized representation, and recomputes SHA-256 so corrupted or mismatched stored definitions are rejected.
 
@@ -373,28 +373,32 @@ Core must not know whether the event arrived through:
 
 ## Persistence
 
-The first durable store is implemented through the Application-level `IRunStore` contract and the Infrastructure-level `SqliteRunStore`.
+The first durable store is implemented through the Application-level `IRunStore` and `IStepAttemptStore` contracts and the Infrastructure-level `SqliteRunStore`.
 
-The initial SQLite schema uses:
+The current SQLite schema uses:
 
 ```text
 ScenarioVersions
 Runs
+StepAttempts
 ```
 
-`ScenarioVersions` stores immutable canonical scenario snapshots, including `DefinitionHash`. `Runs` stores the stable run identity, scenario-version reference, run status/wait reason, serialized `ExecutionCursor`, string variables, and creation/update timestamps.
+`ScenarioVersions` stores immutable canonical scenario snapshots, including `DefinitionHash`. `Runs` stores the stable run identity, scenario-version reference, run status/wait reason, serialized `ExecutionCursor`, string variables, and creation/update timestamps. `StepAttempts` stores the persisted lifecycle of each step execution, including retry-safety classification and failure diagnostics.
 
 Saving a run and its scenario version occurs in one SQLite transaction. Reusing an existing `VersionId` with different immutable scenario data is rejected. Reusing a `RunId` with a different scenario/version identity or creation timestamp is also rejected.
 
-The database schema currently uses SQLite `PRAGMA user_version = 1` as the migration boundary. The default database path is `data/dabot.db` and can be overridden with `bot.storage.databasePath`.
+A step attempt must first be persisted as `Started`. The store rejects inserting a new attempt directly as `Completed`, `Failed`, or `Unknown`. Once persisted, the same attempt can transition exactly once from `Started` to a final state, while immutable attempt identity fields remain unchanged. This makes the required "persist before side effect" ordering enforceable by the durable executor.
 
-A persisted run can be loaded by a fresh `SqliteRunStore` instance after process restart. Loading reconstructs and revalidates `ScenarioVersion`, `RunState`, `ExecutionCursor`, variables, and `AutomationRun` rather than trusting raw database fields.
+After a process restart, `MarkStartedAttemptsUnknownAsync` converts still-persisted `Started` attempts into `Unknown` so the recovery policy can decide whether to retry automatically, verify first, or wait for a human.
+
+The database schema uses SQLite `PRAGMA user_version = 2`. Existing version-1 databases are upgraded transactionally by adding the `StepAttempts` table and indexes without replacing existing scenario/run data. The default database path is `data/dabot.db` and can be overridden with `bot.storage.databasePath`.
+
+A persisted run can be loaded by a fresh `SqliteRunStore` instance after process restart. Loading reconstructs and revalidates `ScenarioVersion`, `RunState`, `ExecutionCursor`, variables, `AutomationRun`, and `StepAttempt` data rather than trusting raw database fields.
 
 Planned tables remain:
 
 ```text
 Scenarios
-StepAttempts
 RunVariables (if variables move out of the run snapshot)
 ProcessedEvents
 Events
