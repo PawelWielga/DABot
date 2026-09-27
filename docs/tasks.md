@@ -100,8 +100,8 @@ Goal: define deterministic execution and recovery semantics before durable persi
 - [x] Replace the assumption that a single numeric `CurrentStep` is sufficient.
 - [x] Define `ExecutionCursor` / execution stack semantics for nested `If` and `Loop`.
 - [x] Define serialization of the execution cursor.
-- [ ] Define formal run state transitions.
-- [ ] Define wait reason semantics for event/human/retry/schedule waits.
+- [x] Define formal run state transitions.
+- [x] Define wait reason semantics for event/human/retry/schedule waits.
 - [ ] Make run execution always reference one immutable scenario version.
 
 ### Step attempts and recovery
@@ -111,7 +111,7 @@ Goal: define deterministic execution and recovery semantics before durable persi
 - [ ] Persist attempt completion/failure.
 - [x] Define recovery for attempts left in an unknown state after process failure.
 - [x] Classify step retry behavior: safe/idempotent/verification-required/manual.
-- [~] Route unsafe automatic recovery to `WaitingForHuman`.
+- [~] Route unsafe automatic recovery to `Waiting` with reason `Human`.
 - [x] Document crash behavior for browser actions and API actions.
 
 ### Variables and secrets
@@ -184,8 +184,8 @@ Goal: separate reusable scenario definitions from persisted execution state.
 - [ ] Add `ScenarioRunRequest`.
 - [ ] Allow externally supplied `RunId`.
 - [ ] Add `AutomationRun`.
-- [ ] Add `RunStatus`.
-- [ ] Track `CurrentStep`.
+- [x] Add `RunStatus`.
+- [~] Track `ExecutionCursor`.
 - [ ] Persist variables.
 - [ ] Track creation and update timestamps.
 - [ ] Introduce `IRunStore`.
@@ -212,7 +212,7 @@ Goal: allow a workflow to stop without blocking a process and continue later.
 - [ ] Add application-level `ResumeRun` use case.
 - [ ] Add CLI `resume` command.
 - [ ] Add CLI `cancel` command.
-- [ ] Add `WaitingForHuman` transition for unsafe automatic recovery.
+- [~] Add `Waiting` / `Human` transition for unsafe automatic recovery.
 - [ ] Add max attempt / max error guardrails.
 
 Acceptance criteria:
