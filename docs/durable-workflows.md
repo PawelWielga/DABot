@@ -46,7 +46,7 @@ Suggested run fields:
 RunId
 ScenarioId / ScenarioVersion
 Status
-CurrentStep
+ExecutionCursor
 Variables
 WaitingForEvent
 CorrelationId
@@ -75,12 +75,54 @@ public sealed record ScenarioRunRequest
 {
     public required ScenarioDefinition Scenario { get; init; }
     public Guid? RunId { get; init; }
-    public int? ResumeFromStep { get; init; }
+    public ExecutionCursor? Cursor { get; init; }
     public Dictionary<string, string> Variables { get; init; } = [];
 }
 ```
 
 The exact API may change, but `RunId` must be externally controllable.
+
+
+## Execution cursor
+
+Durable execution uses a versioned `ExecutionCursor` rather than a single numeric step index.
+
+The cursor points to the **next step to execute** and stores the active control-flow stack from outermost to innermost container.
+
+Example:
+
+```json
+{
+  "version": 1,
+  "nextStepId": "read-value",
+  "frames": [
+    {
+      "stepId": "outer-loop",
+      "kind": "Loop",
+      "nextChildIndex": 0,
+      "iteration": 3
+    },
+    {
+      "stepId": "inner-if",
+      "kind": "If",
+      "nextChildIndex": 0,
+      "iteration": null
+    }
+  ]
+}
+```
+
+Semantics:
+
+- `nextStepId` is the stable ID of the next scenario step to execute.
+- `frames` are ordered from the outermost active control-flow container to the innermost.
+- `nextChildIndex` identifies the child path that leads to `nextStepId`.
+- a `Loop` frame also stores a zero-based `iteration`.
+- an `If` frame must not store an iteration.
+- a completed cursor has `nextStepId = null` and no frames.
+- cursor JSON is versioned independently from scenario JSON so cursor storage can evolve without silently changing durable resume semantics.
+
+Before resume, the cursor must be validated against the immutable scenario version used by the run. The referenced step and every control-flow frame must still exist and the frame stack must match the ancestry of the next step.
 
 ## Execution outcomes
 
