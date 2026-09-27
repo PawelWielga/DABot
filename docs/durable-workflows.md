@@ -76,8 +76,33 @@ public sealed record ScenarioRunRequest
 
 `RunId` is externally controllable. When omitted, a new GUID is generated.
 
-`CreateRun` produces an `AutomationRun` bound permanently to the supplied `ScenarioVersion.VersionId`. The current synchronous executor still accepts `ScenarioDefinition` for backward compatibility; moving execution orchestration to `ScenarioRunRequest` is a separate migration step.
+`CreateRun` produces an `AutomationRun` bound permanently to the supplied `ScenarioVersion.VersionId`. `DurableScenarioExecutor` executes this version-bound path while the original synchronous executor continues to accept `ScenarioDefinition` for backward compatibility.
 
+
+
+## DurableScenarioExecutor
+
+`DurableScenarioExecutor` is the first Application-level orchestration path that executes a `ScenarioRunRequest` rather than a mutable scenario definition.
+
+For a new durable run it:
+
+1. persists the initial `Queued` run,
+2. transitions and persists it as `Running`,
+3. opens the browser,
+4. resolves the step named by the persisted `ExecutionCursor`,
+5. persists a `StepAttempt` in `Started` state,
+6. invokes the existing generic `IStepHandler`,
+7. persists the attempt as `Completed`, `Failed`, or `Unknown`,
+8. advances and persists the cursor and variables,
+9. completes, fails, or cancels the run.
+
+The `Started` write happens before the handler is invoked. After a handler returns successfully, attempt finalization and the updated run snapshot are written with a non-cancelled persistence token so a caller cancellation cannot interrupt the durability boundary after a side effect has already completed.
+
+Cancellation while a handler is executing conservatively marks the attempt `Unknown`, because the process cannot prove whether the browser-side effect occurred before cancellation was observed. The run then transitions to `Cancelled`.
+
+Durable execution uses the stable GUID `RunId` as the execution-context artifact directory name. This starts moving screenshots and later diagnostics under one durable identity.
+
+The current implementation intentionally executes only top-level steps. Persisted nested `If` / `Loop` cursor frames are already modeled and validated in Core, but their durable execution semantics remain a separate control-flow implementation step.
 
 ## AutomationRun
 
