@@ -189,10 +189,6 @@ public sealed class ExecutionCursorValidator
                 continue;
             }
 
-            var childAncestors = ancestors
-                .Concat([new AncestorInfo(step, childIndex: 0)])
-                .ToArray();
-
             for (var nestedIndex = 0; nestedIndex < step.Children.Count; nestedIndex++)
             {
                 var nestedStep = step.Children[nestedIndex];
