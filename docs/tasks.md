@@ -107,8 +107,8 @@ Goal: define deterministic execution and recovery semantics before durable persi
 ### Step attempts and recovery
 
 - [x] Add the `StepAttempt` concept.
-- [ ] Persist attempt start before executing potentially side-effecting work.
-- [ ] Persist attempt completion/failure.
+- [~] Persist attempt start before executing potentially side-effecting work. SQLite storage/ordering is implemented; executor wiring remains.
+- [~] Persist attempt completion/failure. SQLite lifecycle persistence is implemented; executor wiring remains.
 - [x] Define recovery for attempts left in an unknown state after process failure.
 - [x] Classify step retry behavior: safe/idempotent/verification-required/manual.
 - [~] Route unsafe automatic recovery to `Waiting` with reason `Human`.
@@ -190,6 +190,7 @@ Goal: separate reusable scenario definitions from persisted execution state.
 - [x] Track creation and update timestamps.
 - [x] Introduce `IRunStore`.
 - [x] Add an initial SQLite run store.
+- [x] Add SQLite `StepAttempt` persistence with v1 -> v2 schema migration and restart recovery.
 - [ ] Group all runtime artifacts by stable `RunId`.
 - [ ] Define execution outcomes: Completed/Suspended/Failed/Cancelled.
 - [x] Ensure a process restart does not invalidate a persisted run.
