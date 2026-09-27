@@ -106,13 +106,13 @@ Goal: define deterministic execution and recovery semantics before durable persi
 
 ### Step attempts and recovery
 
-- [ ] Add the `StepAttempt` concept.
+- [x] Add the `StepAttempt` concept.
 - [ ] Persist attempt start before executing potentially side-effecting work.
 - [ ] Persist attempt completion/failure.
-- [ ] Define recovery for attempts left in an unknown state after process failure.
-- [ ] Classify step retry behavior: safe/idempotent/verification-required/manual.
-- [ ] Route unsafe automatic recovery to `WaitingForHuman`.
-- [ ] Document crash behavior for browser actions and API actions.
+- [x] Define recovery for attempts left in an unknown state after process failure.
+- [x] Classify step retry behavior: safe/idempotent/verification-required/manual.
+- [~] Route unsafe automatic recovery to `WaitingForHuman`.
+- [x] Document crash behavior for browser actions and API actions.
 
 ### Variables and secrets
 
@@ -142,9 +142,9 @@ Goal: define deterministic execution and recovery semantics before durable persi
 - [ ] Align Microsoft.Extensions package major versions.
 - [ ] Update the project runtime target as a dedicated compatibility change.
 - [ ] Update Playwright before adding browser-session features.
-- [ ] Remove unused template files.
+- [x] Remove unused template files.
 - [ ] Add executor tests using fake browser/session implementations.
-- [~] Add tests for nested execution cursor behavior and crash recovery semantics.
+- [x] Add tests for nested execution cursor behavior and crash recovery semantics.
 
 Acceptance criteria:
 
