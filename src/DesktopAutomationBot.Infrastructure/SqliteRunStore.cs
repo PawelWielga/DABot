@@ -55,7 +55,7 @@ public sealed class SqliteRunStore : IRunStore
         await EnsureInitializedAsync(cancellationToken);
 
         await using var connection = await OpenConnectionAsync(cancellationToken);
-        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken);
 
         await SaveScenarioVersionAsync(
             connection,
@@ -207,7 +207,7 @@ public sealed class SqliteRunStore : IRunStore
         SqliteConnection connection,
         CancellationToken cancellationToken)
     {
-        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken);
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText =
