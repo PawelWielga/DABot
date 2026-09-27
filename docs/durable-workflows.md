@@ -136,6 +136,8 @@ A running workflow must keep the same `VersionId` from start through completion,
 
 The durable persistence layer will store these snapshots and bind each run to one version. The current Core model defines the snapshot/hash semantics before that store is introduced.
 
+`ScenarioVersion.Restore` supports process-restart and persistence flows. It restores the original `ScenarioId` and `VersionId`, verifies that persisted JSON is still the canonical normalized representation, and recomputes SHA-256 so corrupted or mismatched stored definitions are rejected.
+
 ## Execution cursor
 
 Durable execution uses a versioned `ExecutionCursor` rather than a single numeric step index.
