@@ -280,7 +280,7 @@ Suggested tables:
 Scenarios
 ScenarioVersions
 Runs
-RunSteps
+StepAttempts
 RunVariables
 ProcessedEvents
 Events
@@ -378,6 +378,78 @@ public interface IEventConsumer
 ```
 
 One possible transport can be used for remote wake-up/notification while SQLite remains the source of truth for run state.
+
+
+## Step attempts and crash recovery
+
+Every durable step execution is represented by a persisted `StepAttempt`.
+
+A step attempt is created in `Started` state **before** executing the step's potentially side-effecting operation. After the operation returns, the same attempt is finalized as either `Completed` or `Failed`.
+
+If a worker/process disappears while an attempt is still `Started`, recovery marks it `Unknown`. `Unknown` does not mean the step failed; it means DABot cannot prove whether the side effect happened before the process stopped.
+
+The attempt lifecycle is:
+
+```text
+Started -> Completed
+        -> Failed
+        -> Unknown   (worker/process interruption detected)
+```
+
+A finalized `Completed` or `Failed` attempt is not reopened.
+
+Each attempt stores at least:
+
+```text
+AttemptId
+RunId
+StepId
+StepType
+AttemptNumber
+RetrySafety
+Status
+StartedAt
+UpdatedAt
+FinishedAt
+ErrorMessage
+```
+
+### Retry safety
+
+DABot separates ordinary retry count from recovery safety. A retry may be allowed by configuration but still be unsafe after an interrupted side effect.
+
+The default classifications are:
+
+| Step type | Default retry safety | Reason |
+| --- | --- | --- |
+| `ReadText`, `WaitFor`, `Screenshot`, `Delay`, `If`, `Loop` | `SafeToRetry` | No remote mutation is expected. |
+| `OpenUrl`, `FillText`, `PasteText` | `Idempotent` | Repeating the same operation is expected to converge to the same browser state. |
+| `Click` | `NeedsVerification` | A click may already have submitted or triggered an action. |
+| `CallApi` | `NeverRetryAutomatically` | The generic API call may have arbitrary external side effects. |
+
+A scenario can override the default per step with `retrySafety` when the author knows more about the target system.
+
+Recovery maps an interrupted attempt to one of these actions:
+
+```text
+SafeToRetry / Idempotent       -> RetryAutomatically
+NeedsVerification              -> VerifyBeforeRetry
+NeverRetryAutomatically        -> WaitingForHuman
+```
+
+`VerifyBeforeRetry` is intentionally not the same as automatic retry. A future verification strategy may inspect browser/API state and only retry when it can prove the side effect did not already happen.
+
+### Examples
+
+If DABot crashes after a `ReadText`, repeating the read is safe.
+
+If it crashes after `FillText`, repeating the same fill is treated as idempotent by default.
+
+If it crashes after `Click`, DABot must not blindly click again. The click may already have submitted a form, sent a message, confirmed an order, or triggered another action.
+
+If it crashes during `CallApi`, the default is `WaitingForHuman` because DABot cannot assume an arbitrary remote endpoint is idempotent. A scenario may opt into a less restrictive policy only when the endpoint semantics are known.
+
+The persistence layer added later must guarantee that the `Started` attempt is committed before the side-effecting operation begins. Without that ordering, crash recovery cannot distinguish "never started" from "possibly executed".
 
 ## Failure and recovery rules
 
