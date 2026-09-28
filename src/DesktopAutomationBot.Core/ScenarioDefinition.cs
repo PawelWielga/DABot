@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace DesktopAutomationBot.Core;
 
@@ -33,6 +34,11 @@ public sealed record ScenarioStep
     public int? TimeoutMs { get; init; }
 
     public int? RetryCount { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? RetryDelayMs { get; init; }
+
+    public StepRetrySafety? RetrySafety { get; init; }
 
     public Dictionary<string, JsonElement>? Parameters { get; init; }
 
