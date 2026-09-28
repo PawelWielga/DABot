@@ -77,7 +77,7 @@ dotnet run --project src/DesktopAutomationBot.Runner
 
 The runner reads `config.json`, which points to `scenarios/sample-open-url.json` by default.
 
-CI performs the same restore/build/browser-install flow on Ubuntu and then runs a self-contained browser scenario, so the documented setup path is continuously smoke-tested.
+CI performs the restore/build flow on Ubuntu, creates a framework-dependent `linux-x64` publish, starts the published runner, installs Chromium, and runs a self-contained browser scenario. The Linux deployment path is therefore continuously smoke-tested. See [Linux publish and smoke test](docs/linux-publish.md).
 
 ## Minimal scenario
 
@@ -262,6 +262,7 @@ Treat non-zero codes as failures. Code `3` is intended for problems that can be 
 - [Product requirements](docs/prd.md)
 - [Product positioning and differentiation](docs/product-positioning.md)
 - [Implementation backlog](docs/tasks.md)
+- [Linux publish and smoke test](docs/linux-publish.md)
 - [Durable workflow architecture](docs/durable-workflows.md)
 - [MCP and dynamic tools architecture](docs/mcp-and-dynamic-tools.md)
 - [Scenario schema and migration policy](docs/scenario-schema.md)

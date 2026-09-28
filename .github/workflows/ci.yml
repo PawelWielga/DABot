@@ -68,6 +68,29 @@ jobs:
             exit 1
           fi
 
+      - name: Publish Linux runner
+        run: >
+          dotnet publish src/DesktopAutomationBot.Runner/DesktopAutomationBot.Runner.csproj
+          --configuration Release
+          --runtime linux-x64
+          --self-contained false
+          --output artifacts/publish/linux-x64
+
+      - name: Smoke test published Linux runner
+        shell: bash
+        run: |
+          test -x artifacts/publish/linux-x64/DesktopAutomationBot.Runner
+
+          set +e
+          artifacts/publish/linux-x64/DesktopAutomationBot.Runner invalid-command
+          publish_exit=$?
+          set -e
+
+          if [ "$publish_exit" -ne 2 ]; then
+            echo "Expected published runner invalid command to exit with 2, got $publish_exit."
+            exit 1
+          fi
+
       - name: Install Playwright Chromium
         run: pwsh src/DesktopAutomationBot.Infrastructure/bin/Release/net8.0/playwright.ps1 install --with-deps chromium
 
