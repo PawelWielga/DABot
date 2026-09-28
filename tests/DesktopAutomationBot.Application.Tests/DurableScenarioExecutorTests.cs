@@ -311,6 +311,61 @@ public sealed class DurableScenarioExecutorTests : IDisposable
         }
     }
 
+    [Fact]
+    public async Task ExecuteAsync_InterpolatesInitialVariablesAndRunIdBeforeHandler()
+    {
+        var events = new List<string>();
+        var runStore = new RecordingRunStore(events);
+        var attemptStore = new RecordingStepAttemptStore(events);
+        var browser = new RecordingBrowserAutomation(events);
+        var runId = Guid.NewGuid();
+        string? resolvedUrl = null;
+
+        var handler = new RecordingStepHandler(
+            StepType.OpenUrl,
+            events,
+            (step, _, index, _) =>
+            {
+                resolvedUrl = step.Url;
+
+                return Task.FromResult(
+                    new StepExecutionResult
+                    {
+                        Index = index,
+                        Type = step.Type,
+                        Success = true,
+                    });
+            });
+
+        var executor = CreateExecutor(
+            [handler],
+            browser,
+            runStore,
+            attemptStore);
+
+        var result = await executor.ExecuteAsync(
+            new ScenarioRunRequest
+            {
+                ScenarioVersion = CreateVersion(
+                    new ScenarioStep
+                    {
+                        Id = "open",
+                        Type = StepType.OpenUrl,
+                        Url = "https://{{host}}/runs/{{runId}}",
+                    }),
+                RunId = runId,
+                Variables = new Dictionary<string, string>(
+                    StringComparer.OrdinalIgnoreCase)
+                {
+                    ["host"] = "example.com",
+                },
+            });
+
+        result.Success.Should().BeTrue();
+        resolvedUrl.Should().Be(
+            $"https://example.com/runs/{runId:D}");
+    }
+
     private DurableScenarioExecutor CreateExecutor(
         IEnumerable<IStepHandler> handlers,
         IBrowserAutomation browser,
