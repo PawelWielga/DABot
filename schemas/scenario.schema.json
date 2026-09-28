@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/PawelWielga/DABot/main/schemas/scenario.schema.json",
+  "title": "DABot scenario",
+  "description": "Machine-readable contract for DABot JSON scenario files. Step types may exist in the domain model before they have an executable handler; see each type description and README project status.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "steps"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional editor/tooling reference to this schema."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable scenario name."
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/step"
+      }
+    }
+  },
+  "$defs": {
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "description": "Scenario step type. OpenUrl, Click, FillText, PasteText, ReadText, WaitFor and Screenshot are currently executable. Other listed values are reserved by the domain model and roadmap.",
+          "oneOf": [
+            { "const": "OpenUrl", "description": "Available: navigate to a URL." },
+            { "const": "Click", "description": "Available: click an element selected by selector." },
+            { "const": "FillText", "description": "Available: fill an element with text." },
+            { "const": "PasteText", "description": "Available: focus an element and insert text through the keyboard path." },
+            { "const": "ReadText", "description": "Available: read element text into a named output." },
+            { "const": "WaitFor", "description": "Available: wait for selector, text, URL or load state." },
+            { "const": "Screenshot", "description": "Available: capture a full-page screenshot artifact." },
+            { "const": "CallApi", "description": "Planned: domain value exists, executable handler is not implemented yet." },
+            { "const": "Delay", "description": "Planned: domain value exists, executable handler is not implemented yet." },
+            { "const": "If", "description": "Planned: domain value exists, executable handler is not implemented yet." },
+            { "const": "Loop", "description": "Planned: domain value exists, executable handler is not implemented yet." }
+          ]
+        },
+        "selector": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Playwright selector used by element-oriented steps."
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1,
+          "description": "URL used by OpenUrl, or optionally by WaitFor URL mode."
+        },
+        "value": {
+          "type": "string",
+          "description": "Text/value consumed by a step."
+        },
+        "output": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Output variable name used by ReadText."
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "description": "Optional step-specific timeout in milliseconds."
+        },
+        "retryCount": {
+          "type": "integer",
+          "description": "Reserved for planned retry support. The current executor does not apply retries."
+        },
+        "parameters": {
+          "type": "object",
+          "description": "Generic step parameters. WaitFor currently recognizes parameter 'mode'.",
+          "additionalProperties": true
+        },
+        "children": {
+          "type": "array",
+          "description": "Nested steps reserved for control-flow steps such as If and Loop.",
+          "items": {
+            "$ref": "#/$defs/step"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "type": { "const": "OpenUrl" } },
+            "required": ["type"]
+          },
+          "then": { "required": ["url"] }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": { "enum": ["Click", "FillText", "PasteText", "ReadText"] }
+            },
+            "required": ["type"]
+          },
+          "then": { "required": ["selector"] }
+        },
+        {
+          "if": {
+            "properties": { "type": { "const": "ReadText" } },
+            "required": ["type"]
+          },
+          "then": { "required": ["output"] }
+        },
+        {
+          "if": {
+            "properties": { "type": { "const": "WaitFor" } },
+            "required": ["type"]
+          },
+          "then": {
+            "anyOf": [
+              { "required": ["selector"] },
+              { "required": ["value"] },
+              {
+                "required": ["parameters"],
+                "properties": {
+                  "parameters": { "minProperties": 1 }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": { "type": { "const": "Delay" } },
+            "required": ["type"]
+          },
+          "then": {
+            "anyOf": [
+              { "required": ["timeoutMs"] },
+              { "required": ["value"] }
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": { "type": { "enum": ["If", "Loop"] } },
+            "required": ["type"]
+          },
+          "then": {
+            "required": ["children"],
+            "properties": {
+              "children": { "minItems": 1 }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
