@@ -126,7 +126,8 @@ public sealed class DurableRunRecoveryService : IDurableRunRecoveryService
                 scenarioVersion,
                 RunWaitReason.Retry,
                 detectedAt,
-                cancellationToken);
+                cancellationToken,
+                currentStep);
 
             return CreateResult(
                 waitingForRetry,
@@ -311,7 +312,8 @@ public sealed class DurableRunRecoveryService : IDurableRunRecoveryService
                 scenarioVersion,
                 RunWaitReason.Retry,
                 detectedAt,
-                cancellationToken);
+                cancellationToken,
+                currentStep);
 
             return CreateResult(
                 waitingForRetry,
@@ -418,7 +420,8 @@ public sealed class DurableRunRecoveryService : IDurableRunRecoveryService
             scenarioVersion,
             run.State.Wait(RunWaitReason.Retry),
             nextCursor,
-            detectedAt);
+            detectedAt,
+            retryNotBefore: detectedAt);
 
         await _runStore.SaveAsync(
             readyToContinue,
@@ -436,14 +439,22 @@ public sealed class DurableRunRecoveryService : IDurableRunRecoveryService
         ScenarioVersion scenarioVersion,
         RunWaitReason reason,
         DateTimeOffset updatedAt,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ScenarioStep? retryStep = null)
     {
+        var retryNotBefore = reason == RunWaitReason.Retry
+            ? DurableRetryPolicy.GetRetryNotBefore(
+                retryStep ?? throw new ArgumentNullException(nameof(retryStep)),
+                updatedAt)
+            : null;
+
         var waiting = RestoreRun(
             run,
             scenarioVersion,
             run.State.Wait(reason),
             run.Cursor,
-            updatedAt);
+            updatedAt,
+            retryNotBefore);
 
         await _runStore.SaveAsync(
             waiting,
@@ -487,7 +498,8 @@ public sealed class DurableRunRecoveryService : IDurableRunRecoveryService
         ScenarioVersion scenarioVersion,
         RunState state,
         ExecutionCursor cursor,
-        DateTimeOffset updatedAt) =>
+        DateTimeOffset updatedAt,
+        DateTimeOffset? retryNotBefore = null) =>
         AutomationRun.Restore(
             run.RunId,
             scenarioVersion,
@@ -495,7 +507,8 @@ public sealed class DurableRunRecoveryService : IDurableRunRecoveryService
             cursor,
             run.Variables,
             run.CreatedAt,
-            updatedAt);
+            updatedAt,
+            retryNotBefore);
 
     private static DurableStepRecoveryDecision CreateDecision(
         StepAttempt attempt) =>
