@@ -59,7 +59,7 @@ public sealed class PlaywrightBrowserAutomation : IBrowserAutomation
         var page = await GetPageAsync(cancellationToken);
         await page.GotoAsync(url, new PageGotoOptions
         {
-            WaitUntil = WaitUntilState.NetworkIdle,
+            WaitUntil = WaitUntilState.Load,
             Timeout = GetTimeout(timeoutMs),
         }).WaitAsync(cancellationToken);
     }
