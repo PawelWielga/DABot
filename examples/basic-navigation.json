@@ -1,4 +1,5 @@
 {
+  "$schema": "../schemas/scenario.schema.json",
   "name": "Basic navigation",
   "steps": [
     {
