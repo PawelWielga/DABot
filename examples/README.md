@@ -1,6 +1,6 @@
 # DABot examples
 
-These scenarios use only step types that are currently registered by the DABot application layer.
+These scenarios use only step types that are currently registered by the DABot application layer. Each JSON file references `../schemas/scenario.schema.json` through `$schema` so editors and agents can validate the scenario contract.
 
 To run an example today, point `bot.scenarioPath` in the repository-root `config.json` at the selected JSON file, then run the runner from the repository root:
 
@@ -15,3 +15,5 @@ Examples:
 - `paste-text.json` uses a self-contained `data:` page to demonstrate paste-style input, reading text, and a screenshot.
 
 The self-contained examples avoid depending on a third-party test website.
+
+When adding or changing a scenario-facing feature, update the schema, examples, runtime validation tests, README project status, and backlog together.
