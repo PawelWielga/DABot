@@ -55,22 +55,15 @@ A successful check proves that the Linux apphost starts, loads the runtime, and 
 
 ## Browser smoke test
 
-After Chromium is installed, configure a self-contained scenario and execute the published runner from the repository root:
+After Chromium is installed, execute a self-contained scenario with the published runner from the repository root:
 
 ```bash
-cat > config.local.json <<'JSON'
-{
-  "bot": {
-    "scenarioPath": "examples/form-interaction.json"
-  }
-}
-JSON
-
-artifacts/publish/linux-x64/DesktopAutomationBot.Runner run
-rm -f config.local.json
+artifacts/publish/linux-x64/DesktopAutomationBot.Runner \
+  run \
+  --scenario examples/form-interaction.json
 ```
 
-The command should exit with code `0`.
+The command should exit with code `0`. The CLI scenario path overrides `bot.scenarioPath` without modifying deployment configuration.
 
 ## CI coverage
 
