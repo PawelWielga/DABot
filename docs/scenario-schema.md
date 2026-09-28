@@ -73,6 +73,24 @@ The field is optional. Omitting it keeps the default classification for the step
 
 This setting is about recovery after an interrupted/unknown attempt. It does not itself define how many normal retries are allowed; `retryCount` remains a separate concern.
 
+## Variable interpolation
+
+String-valued execution inputs may reference runtime variables with `{{variableName}}`.
+
+Currently interpolated fields are:
+
+- `selector`,
+- `url`,
+- `value`,
+- string-valued entries in `parameters`,
+- the same fields inside nested child steps.
+
+Variables are resolved immediately before a step handler executes. Resolution uses the run's case-insensitive variable bag, so values produced by an earlier `ReadText` step are available to later steps. Durable runs may also start with variables supplied through `ScenarioRunRequest`.
+
+Every execution exposes its stable `runId` as a built-in variable. An undefined variable is an execution error; DABot does not silently leave a recognized placeholder unresolved.
+
+Interpolation creates an execution-time copy of the step. It does not mutate the immutable scenario definition or change the scenario-version hash.
+
 ## Immutable scenario versions
 
 A durable run must execute against an immutable snapshot of a normalized scenario definition, not against a mutable scenario file that may later be edited.
