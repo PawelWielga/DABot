@@ -149,6 +149,15 @@ public sealed class DurableScenarioExecutor :
                 errorMessage);
         }
 
+        if (run.RetryNotBefore is { } retryNotBefore &&
+            _timeProvider.GetUtcNow() < retryNotBefore)
+        {
+            return CreateResult(
+                run,
+                DurableExecutionOutcome.Suspended,
+                []);
+        }
+
         run = RestoreSnapshot(
             run,
             scenarioVersion,
@@ -287,6 +296,7 @@ public sealed class DurableScenarioExecutor :
                         run,
                         scenarioVersion,
                         step,
+                        failedAttempt,
                         variables,
                         stepResults,
                         exception.Message);
@@ -372,6 +382,7 @@ public sealed class DurableScenarioExecutor :
         AutomationRun run,
         ScenarioVersion scenarioVersion,
         ScenarioStep step,
+        StepAttempt failedAttempt,
         IReadOnlyDictionary<string, string> variables,
         IReadOnlyList<StepExecutionResult> stepResults,
         string errorMessage)
@@ -406,7 +417,8 @@ public sealed class DurableScenarioExecutor :
                     run,
                     scenarioVersion,
                     variables,
-                    RunWaitReason.Retry);
+                    RunWaitReason.Retry,
+                    step);
 
                 return CreateResult(
                     waiting,
@@ -452,15 +464,24 @@ public sealed class DurableScenarioExecutor :
         AutomationRun run,
         ScenarioVersion scenarioVersion,
         IReadOnlyDictionary<string, string> variables,
-        RunWaitReason reason)
+        RunWaitReason reason,
+        ScenarioStep? retryStep = null)
     {
+        var updatedAt = NextTimestamp(run.UpdatedAt);
+        var retryNotBefore = reason == RunWaitReason.Retry
+            ? DurableRetryPolicy.GetRetryNotBefore(
+                retryStep ?? throw new ArgumentNullException(nameof(retryStep)),
+                updatedAt)
+            : null;
+
         var waiting = RestoreSnapshot(
             run,
             scenarioVersion,
             run.State.Wait(reason),
             run.Cursor,
             variables,
-            NextTimestamp(run.UpdatedAt));
+            updatedAt,
+            retryNotBefore);
 
         await _runStore.SaveAsync(
             waiting,
@@ -532,7 +553,8 @@ public sealed class DurableScenarioExecutor :
         RunState state,
         ExecutionCursor cursor,
         IReadOnlyDictionary<string, string> variables,
-        DateTimeOffset updatedAt) =>
+        DateTimeOffset updatedAt,
+        DateTimeOffset? retryNotBefore = null) =>
         AutomationRun.Restore(
             run.RunId,
             scenarioVersion,
@@ -540,7 +562,8 @@ public sealed class DurableScenarioExecutor :
             cursor,
             variables,
             run.CreatedAt,
-            updatedAt);
+            updatedAt,
+            retryNotBefore);
 
     private static void CaptureOutputVariable(
         IDictionary<string, string> variables,
