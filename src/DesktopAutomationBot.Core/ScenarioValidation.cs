@@ -111,7 +111,12 @@ public sealed class ScenarioDefinitionValidator
             errors.Add($"{path}.output is required for ReadText.");
         }
 
-        if (step.Type == StepType.CallApi && step.TimeoutMs is <= 0)\n        {\n            errors.Add($"{path}.timeoutMs must be greater than zero for CallApi.");\n        }\n\n        if (step.Type == StepType.Delay)
+        if (step.Type == StepType.CallApi && step.TimeoutMs is <= 0)
+        {
+            errors.Add($"{path}.timeoutMs must be greater than zero for CallApi.");
+        }
+
+        if (step.Type == StepType.Delay)
         {
             if (!step.TimeoutMs.HasValue && string.IsNullOrWhiteSpace(step.Value))
             {
