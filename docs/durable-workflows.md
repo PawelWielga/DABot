@@ -263,6 +263,42 @@ Wait reason semantics:
 
 The future executor outcome `Suspended` is not a persisted run status. It describes the fact that active execution stopped cleanly after the run was durably moved to `Waiting`. This avoids having both `Suspended` and `Waiting` represent the same persisted condition.
 
+
+## Crash recovery reconciliation
+
+`DurableRunRecoveryService` reconciles a persisted run after a worker/process disappears. Recovery is explicit and operates on one stable `RunId`.
+
+Only a run still persisted as `Running` needs crash reconciliation. `Queued`, `Waiting`, and terminal runs are left unchanged.
+
+Recovery performs these steps:
+
+1. load the run together with its immutable scenario version,
+2. mark still-persisted `Started` attempts as `Unknown`,
+3. inspect the attempt associated with the cursor's current step,
+4. reconcile the run state and cursor without invoking a browser handler,
+5. persist a safe waiting or terminal state.
+
+The recovery outcomes are:
+
+```text
+NoAction
+AutomaticResume
+VerificationRequired
+HumanDecisionRequired
+Completed
+Failed
+```
+
+Interrupted safe/idempotent attempts move the run to `Waiting / Retry`. Interrupted attempts requiring verification, including the default `Click` policy, move the run to `Waiting / Human`. Attempts that must never be retried automatically also move to `Waiting / Human`.
+
+Recovery also handles crashes between two durability writes. If a `Completed` attempt was persisted but the run cursor was not advanced yet, DABot does not blindly execute the same side effect again. For a completed step without a runtime output, recovery advances the cursor. If that was the last step, the run becomes `Completed`; otherwise it becomes `Waiting / Retry` at the next step.
+
+A completed step whose output variable was not yet persisted is treated differently. If its retry safety permits automatic replay, recovery keeps the cursor on the step and moves the run to `Waiting / Retry` so the output can be rebuilt. If replay is unsafe, recovery requires human intervention instead of losing the output or repeating an unsafe side effect.
+
+If the latest attempt for the current step is `Failed` but the run still says `Running`, recovery finalizes the run as `Failed`.
+
+Durable recovery restores workflow state only. It never assumes that the browser process, page, DOM, JavaScript state, or network connections from the previous worker still exist. A later resume operation must establish the browser/session state required by the scenario before continuing.
+
 ## Suspend
 
 A `Suspend` step:
