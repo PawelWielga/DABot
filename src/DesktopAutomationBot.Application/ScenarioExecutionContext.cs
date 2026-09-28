@@ -24,6 +24,8 @@ public sealed class ScenarioExecutionContext
                 Variables.Set(name, value);
             }
         }
+
+        Variables.Set("runId", RunId);
     }
 
     public ScenarioDefinition Scenario { get; }
