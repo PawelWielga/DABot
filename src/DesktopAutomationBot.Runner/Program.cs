@@ -36,7 +36,7 @@ try
     if (command == "retry-worker")
     {
         var worker = provider.GetRequiredService<IDurableRetryWorker>();
-        var options = provider.GetRequiredService<BotOptions>();
+        var workerOptions = provider.GetRequiredService<BotOptions>();
 
         using var cancellation = new CancellationTokenSource();
         ConsoleCancelEventHandler cancelHandler = (_, eventArgs) =>
@@ -50,8 +50,8 @@ try
         try
         {
             Console.WriteLine(
-                $"Retry worker started. Poll interval: {options.RetryWorker.PollIntervalMs} ms; " +
-                $"batch size: {options.RetryWorker.BatchSize}. Press Ctrl+C to stop.");
+                $"Retry worker started. Poll interval: {workerOptions.RetryWorker.PollIntervalMs} ms; " +
+                $"batch size: {workerOptions.RetryWorker.BatchSize}. Press Ctrl+C to stop.");
 
             await worker.RunAsync(cancellation.Token);
             return 0;
