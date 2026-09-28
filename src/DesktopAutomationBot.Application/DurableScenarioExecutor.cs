@@ -2,7 +2,9 @@ using DesktopAutomationBot.Core;
 
 namespace DesktopAutomationBot.Application;
 
-public sealed class DurableScenarioExecutor : IDurableScenarioExecutor
+public sealed class DurableScenarioExecutor :
+    IDurableScenarioExecutor,
+    IDurableRunResumeService
 {
     private readonly BotOptions _options;
     private readonly IScenarioValidationService _validationService;
@@ -42,6 +44,117 @@ public sealed class DurableScenarioExecutor : IDurableScenarioExecutor
         _validationService.ValidateOrThrow(scenario);
 
         var run = request.CreateRun(_timeProvider.GetUtcNow());
+
+        await _runStore.SaveAsync(
+            run,
+            scenarioVersion,
+            cancellationToken);
+
+        run = RestoreSnapshot(
+            run,
+            scenarioVersion,
+            run.State.Start(),
+            run.Cursor,
+            run.Variables,
+            NextTimestamp(run.UpdatedAt));
+
+        await _runStore.SaveAsync(
+            run,
+            scenarioVersion,
+            cancellationToken);
+
+        return await ExecuteRunningRunAsync(
+            run,
+            scenarioVersion,
+            cancellationToken);
+    }
+
+    public async Task<DurableScenarioExecutionResult> ResumeAsync(
+        Guid runId,
+        CancellationToken cancellationToken = default)
+    {
+        if (runId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Run ID must not be empty.",
+                nameof(runId));
+        }
+
+        var stored = await _runStore.LoadAsync(
+            runId,
+            cancellationToken);
+
+        if (stored is null)
+        {
+            throw new KeyNotFoundException(
+                $"Durable run '{runId}' does not exist.");
+        }
+
+        var run = stored.Run;
+        var scenarioVersion = stored.ScenarioVersion;
+
+        if (run.State.Status != RunStatus.Waiting ||
+            run.State.WaitReason != RunWaitReason.Retry)
+        {
+            throw new InvalidOperationException(
+                $"Run '{runId}' can be resumed automatically only from 'Waiting / Retry'. " +
+                $"Current state is '{run.State.Status}'" +
+                (run.State.WaitReason is null
+                    ? "."
+                    : $" with reason '{run.State.WaitReason}'."));
+        }
+
+        if (run.Cursor.IsCompleted)
+        {
+            throw new InvalidOperationException(
+                $"Run '{runId}' cannot resume because its execution cursor is already completed.");
+        }
+
+        var attempts = await _stepAttemptStore.LoadStepAttemptsAsync(
+            run.RunId,
+            cancellationToken);
+
+        if (attempts.Any(attempt => attempt.Status == StepAttemptStatus.Started))
+        {
+            throw new InvalidOperationException(
+                $"Run '{runId}' still contains a started step attempt. " +
+                "Crash recovery must reconcile started attempts before resume.");
+        }
+
+        var scenario = scenarioVersion.MaterializeDefinition();
+        _validationService.ValidateOrThrow(scenario);
+
+        run = RestoreSnapshot(
+            run,
+            scenarioVersion,
+            run.State.Resume(),
+            run.Cursor,
+            run.Variables,
+            NextTimestamp(run.UpdatedAt));
+
+        await _runStore.SaveAsync(
+            run,
+            scenarioVersion,
+            cancellationToken);
+
+        return await ExecuteRunningRunAsync(
+            run,
+            scenarioVersion,
+            cancellationToken);
+    }
+
+    private async Task<DurableScenarioExecutionResult> ExecuteRunningRunAsync(
+        AutomationRun run,
+        ScenarioVersion scenarioVersion,
+        CancellationToken cancellationToken)
+    {
+        if (run.State.Status != RunStatus.Running)
+        {
+            throw new InvalidOperationException(
+                $"Durable execution requires a running run. Current state is '{run.State.Status}'.");
+        }
+
+        var scenario = scenarioVersion.MaterializeDefinition();
         var variables = new Dictionary<string, string>(
             run.Variables,
             StringComparer.OrdinalIgnoreCase);
@@ -54,24 +167,6 @@ public sealed class DurableScenarioExecutor : IDurableScenarioExecutor
             variables);
 
         Directory.CreateDirectory(context.ScreenshotDirectory);
-
-        await _runStore.SaveAsync(
-            run,
-            scenarioVersion,
-            cancellationToken);
-
-        run = RestoreSnapshot(
-            run,
-            scenarioVersion,
-            run.State.Start(),
-            run.Cursor,
-            variables,
-            _timeProvider.GetUtcNow());
-
-        await _runStore.SaveAsync(
-            run,
-            scenarioVersion,
-            cancellationToken);
 
         try
         {
@@ -103,15 +198,20 @@ public sealed class DurableScenarioExecutor : IDurableScenarioExecutor
                         $"Step type '{step.Type}' is not supported yet.");
                 }
 
+                var attemptNumber = await GetNextAttemptNumberAsync(
+                    run.RunId,
+                    step.Id!,
+                    cancellationToken);
+
                 var startedAttempt = StepAttempt.Start(
                     run.RunId,
                     step,
-                    attemptNumber: 1,
-                    _timeProvider.GetUtcNow());
+                    attemptNumber,
+                    NextTimestamp(run.UpdatedAt));
 
                 await _stepAttemptStore.SaveStepAttemptAsync(
                     startedAttempt,
-                    cancellationToken);
+                    CancellationToken.None);
 
                 StepExecutionResult stepResult;
 
@@ -127,7 +227,7 @@ public sealed class DurableScenarioExecutor : IDurableScenarioExecutor
                     when (cancellationToken.IsCancellationRequested)
                 {
                     var unknownAttempt = startedAttempt.MarkUnknown(
-                        _timeProvider.GetUtcNow());
+                        NextTimestamp(startedAttempt.UpdatedAt));
 
                     await _stepAttemptStore.SaveStepAttemptAsync(
                         unknownAttempt,
@@ -147,7 +247,7 @@ public sealed class DurableScenarioExecutor : IDurableScenarioExecutor
                 {
                     var failedAttempt = startedAttempt.MarkFailed(
                         exception.Message,
-                        _timeProvider.GetUtcNow());
+                        NextTimestamp(startedAttempt.UpdatedAt));
 
                     await _stepAttemptStore.SaveStepAttemptAsync(
                         failedAttempt,
@@ -170,7 +270,7 @@ public sealed class DurableScenarioExecutor : IDurableScenarioExecutor
                     stepResult);
 
                 var completedAttempt = startedAttempt.MarkCompleted(
-                    _timeProvider.GetUtcNow());
+                    NextTimestamp(startedAttempt.UpdatedAt));
 
                 await _stepAttemptStore.SaveStepAttemptAsync(
                     completedAttempt,
@@ -193,7 +293,7 @@ public sealed class DurableScenarioExecutor : IDurableScenarioExecutor
                     nextState,
                     nextCursor,
                     variables,
-                    _timeProvider.GetUtcNow());
+                    NextTimestamp(run.UpdatedAt));
 
                 await _runStore.SaveAsync(
                     run,
@@ -241,6 +341,28 @@ public sealed class DurableScenarioExecutor : IDurableScenarioExecutor
         }
     }
 
+    private async Task<int> GetNextAttemptNumberAsync(
+        Guid runId,
+        string stepId,
+        CancellationToken cancellationToken)
+    {
+        var attempts = await _stepAttemptStore.LoadStepAttemptsAsync(
+            runId,
+            cancellationToken);
+
+        var lastAttemptNumber = attempts
+            .Where(
+                attempt => string.Equals(
+                    attempt.StepId,
+                    stepId,
+                    StringComparison.OrdinalIgnoreCase))
+            .Select(attempt => attempt.AttemptNumber)
+            .DefaultIfEmpty(0)
+            .Max();
+
+        return checked(lastAttemptNumber + 1);
+    }
+
     private async Task<AutomationRun> FailAsync(
         AutomationRun run,
         ScenarioVersion scenarioVersion,
@@ -252,7 +374,7 @@ public sealed class DurableScenarioExecutor : IDurableScenarioExecutor
             run.State.Fail(),
             run.Cursor,
             variables,
-            _timeProvider.GetUtcNow());
+            NextTimestamp(run.UpdatedAt));
 
         await _runStore.SaveAsync(
             failed,
@@ -278,7 +400,7 @@ public sealed class DurableScenarioExecutor : IDurableScenarioExecutor
             run.State.Cancel(),
             run.Cursor,
             variables,
-            _timeProvider.GetUtcNow());
+            NextTimestamp(run.UpdatedAt));
 
         await _runStore.SaveAsync(
             cancelled,
@@ -286,6 +408,15 @@ public sealed class DurableScenarioExecutor : IDurableScenarioExecutor
             CancellationToken.None);
 
         return cancelled;
+    }
+
+    private DateTimeOffset NextTimestamp(
+        DateTimeOffset minimum)
+    {
+        var now = _timeProvider.GetUtcNow();
+        return now < minimum
+            ? minimum
+            : now;
     }
 
     private static AutomationRun RestoreSnapshot(
