@@ -54,6 +54,25 @@ Start -> steps -> Suspend
 
 Short browser waits such as waiting for a selector remain normal blocking steps. Long waits are represented as durable suspension and later resume.
 
+## Runner modes
+
+The runner keeps the existing one-shot scenario execution as the default:
+
+```bash
+dotnet run --project src/DesktopAutomationBot.Runner
+dotnet run --project src/DesktopAutomationBot.Runner -- run
+```
+
+Durable retries can be processed continuously with:
+
+```bash
+dotnet run --project src/DesktopAutomationBot.Runner -- retry-worker
+```
+
+The retry worker polls SQLite using `bot.retryWorker.pollIntervalMs` and processes at most `bot.retryWorker.batchSize` due runs per sweep. Ctrl+C requests a graceful stop: an active durable retry is allowed to finish, then the worker stops before starting the next run.
+
+The current retry worker is intentionally single-worker. Do not run multiple retry workers against the same durable store until run leases / compare-and-swap claiming are implemented.
+
 ## Documentation
 
 - [Product requirements](docs/prd.md)
