@@ -10,7 +10,14 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<TimeProvider>(TimeProvider.System);
         services.AddSingleton<IScenarioValidationService, ScenarioValidationService>();
         services.AddSingleton<IScenarioExecutor, ScenarioExecutor>();
-        services.AddSingleton<IDurableScenarioExecutor, DurableScenarioExecutor>();
+        services.AddSingleton<DurableScenarioExecutor>();
+        services.AddSingleton<IDurableScenarioExecutor>(
+            static provider => provider.GetRequiredService<DurableScenarioExecutor>());
+        services.AddSingleton<IDurableRunResumeService>(
+            static provider => provider.GetRequiredService<DurableScenarioExecutor>());
+        services.AddSingleton<IDurableRunRecoveryService, DurableRunRecoveryService>();
+        services.AddSingleton<IDurableRetryScheduler, DurableRetryScheduler>();
+        services.AddSingleton<IDurableRetryWorker, DurableRetryWorker>();
         services.AddSingleton<IStepHandler, OpenUrlStepHandler>();
         services.AddSingleton<IStepHandler, ClickStepHandler>();
         services.AddSingleton<IStepHandler, FillTextStepHandler>();

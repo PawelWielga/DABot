@@ -13,6 +13,10 @@
       "screenshotsDirectory": "screenshots",
       "artifactsDirectory": "artifacts",
       "databasePath": "data/dabot.db"
+    },
+    "retryWorker": {
+      "pollIntervalMs": 1000,
+      "batchSize": 100
     }
   }
 }

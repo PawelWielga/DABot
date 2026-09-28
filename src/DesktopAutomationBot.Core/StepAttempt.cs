@@ -338,7 +338,12 @@ public static class StepAttemptRecoveryPolicy
             return StepRecoveryAction.None;
         }
 
-        return attempt.RetrySafety switch
+        return Decide(attempt.RetrySafety);
+    }
+
+    public static StepRecoveryAction Decide(
+        StepRetrySafety retrySafety) =>
+        retrySafety switch
         {
             StepRetrySafety.SafeToRetry => StepRecoveryAction.RetryAutomatically,
             StepRetrySafety.Idempotent => StepRecoveryAction.RetryAutomatically,
@@ -346,5 +351,4 @@ public static class StepAttemptRecoveryPolicy
             StepRetrySafety.NeverRetryAutomatically => StepRecoveryAction.WaitingForHuman,
             _ => StepRecoveryAction.WaitingForHuman,
         };
-    }
 }
