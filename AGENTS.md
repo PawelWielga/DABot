@@ -170,6 +170,7 @@ Treat the public repository presentation as part of the product, not as a one-ti
 - Keep `docs/comparison.md` accurate when DABot's capabilities or boundaries relative to raw Playwright change. Do not use misleading marketing claims.
 - Keep architecture, PRD, backlog, and feature-status documentation synchronized with implementation changes. Do not leave completed work marked as planned or planned work presented as released.
 - Keep CI configuration and README badges accurate when build, test, target framework, or workflow names change.
+- Keep the CI browser smoke test aligned with the documented Quick Start and at least one self-contained executable scenario.
 - Keep the MIT license file present unless the project owner explicitly decides to change licensing.
 - Keep release-readiness tracking current. When work satisfies or invalidates criteria for the next release, update the relevant release issue/checklist in the same work session.
 - Review GitHub repository description and topics when the product scope, primary technology, or discoverability keywords materially change. Update them when access allows; otherwise record the required metadata change explicitly.
