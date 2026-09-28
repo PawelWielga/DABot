@@ -1,4 +1,5 @@
 {
+  "$schema": "../schemas/scenario.schema.json",
   "name": "Self-contained form interaction",
   "steps": [
     {
