@@ -14,7 +14,7 @@ Examples:
 - `form-interaction.json` uses a self-contained `data:` page to demonstrate filling a field, clicking a button, waiting for text, and reading the result.
 - `paste-text.json` uses a self-contained `data:` page to demonstrate paste-style input, reading text, and a screenshot.
 - `delay.json` uses a self-contained `data:` page to demonstrate a fixed millisecond delay between browser steps.
-- `variable-interpolation.json` reads a value into an output and reuses it, together with the built-in `runId`, in a later step.
+- `variable-interpolation.json` reads a value into an output and reuses it, together with the built-in `runId`, in a later step.\n- `call-api.json` calls a public JSON API with GET and maps a JSON response property into an output variable.
 
 The self-contained examples avoid depending on a third-party test website.
 
