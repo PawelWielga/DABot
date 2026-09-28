@@ -75,6 +75,8 @@ dotnet run --project src/DesktopAutomationBot.Runner
 
 The runner reads `config.json`, which points to `scenarios/sample-open-url.json` by default.
 
+CI performs the same restore/build/browser-install flow on Ubuntu and then runs a self-contained browser scenario, so the documented setup path is continuously smoke-tested.
+
 ## Minimal scenario
 
 A DABot scenario is a JSON document containing an ordered list of steps. The machine-readable contract is [schemas/scenario.schema.json](schemas/scenario.schema.json).
