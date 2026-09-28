@@ -124,6 +124,31 @@ public sealed class DurableScenarioExecutor :
         var scenario = scenarioVersion.MaterializeDefinition();
         _validationService.ValidateOrThrow(scenario);
 
+        var (step, _) =
+            DurableExecutionCursorNavigator.ResolveTopLevelStep(
+                scenario,
+                run.Cursor);
+
+        if (!DurableRetryPolicy.HasRemainingAttempt(
+                step,
+                attempts))
+        {
+            var errorMessage =
+                $"Retry limit exhausted for step '{step.Id}'. " +
+                $"Configured retryCount is {step.RetryCount ?? 0}.";
+
+            run = await FailAsync(
+                run,
+                scenarioVersion,
+                run.Variables);
+
+            return CreateResult(
+                run,
+                DurableExecutionOutcome.Failed,
+                [],
+                errorMessage);
+        }
+
         run = RestoreSnapshot(
             run,
             scenarioVersion,
@@ -198,10 +223,15 @@ public sealed class DurableScenarioExecutor :
                         $"Step type '{step.Type}' is not supported yet.");
                 }
 
-                var attemptNumber = await GetNextAttemptNumberAsync(
-                    run.RunId,
-                    step.Id!,
-                    cancellationToken);
+                var attempts =
+                    await _stepAttemptStore.LoadStepAttemptsAsync(
+                        run.RunId,
+                        cancellationToken);
+
+                var attemptNumber =
+                    DurableRetryPolicy.GetNextAttemptNumber(
+                        step,
+                        attempts);
 
                 var startedAttempt = StepAttempt.Start(
                     run.RunId,
@@ -253,14 +283,11 @@ public sealed class DurableScenarioExecutor :
                         failedAttempt,
                         CancellationToken.None);
 
-                    run = await FailAsync(
+                    return await HandleFailedAttemptAsync(
                         run,
                         scenarioVersion,
-                        variables);
-
-                    return CreateResult(
-                        run,
-                        DurableExecutionOutcome.Failed,
+                        step,
+                        variables,
                         stepResults,
                         exception.Message);
                 }
@@ -341,26 +368,106 @@ public sealed class DurableScenarioExecutor :
         }
     }
 
-    private async Task<int> GetNextAttemptNumberAsync(
-        Guid runId,
-        string stepId,
-        CancellationToken cancellationToken)
+    private async Task<DurableScenarioExecutionResult> HandleFailedAttemptAsync(
+        AutomationRun run,
+        ScenarioVersion scenarioVersion,
+        ScenarioStep step,
+        IReadOnlyDictionary<string, string> variables,
+        IReadOnlyList<StepExecutionResult> stepResults,
+        string errorMessage)
     {
         var attempts = await _stepAttemptStore.LoadStepAttemptsAsync(
-            runId,
-            cancellationToken);
+            run.RunId,
+            CancellationToken.None);
 
-        var lastAttemptNumber = attempts
-            .Where(
-                attempt => string.Equals(
-                    attempt.StepId,
-                    stepId,
-                    StringComparison.OrdinalIgnoreCase))
-            .Select(attempt => attempt.AttemptNumber)
-            .DefaultIfEmpty(0)
-            .Max();
+        if (!DurableRetryPolicy.HasRemainingAttempt(
+                step,
+                attempts))
+        {
+            var failed = await FailAsync(
+                run,
+                scenarioVersion,
+                variables);
 
-        return checked(lastAttemptNumber + 1);
+            return CreateResult(
+                failed,
+                DurableExecutionOutcome.Failed,
+                stepResults,
+                errorMessage);
+        }
+
+        var action = DurableRetryPolicy.GetRecoveryAction(step);
+
+        switch (action)
+        {
+            case StepRecoveryAction.RetryAutomatically:
+            {
+                var waiting = await WaitAsync(
+                    run,
+                    scenarioVersion,
+                    variables,
+                    RunWaitReason.Retry);
+
+                return CreateResult(
+                    waiting,
+                    DurableExecutionOutcome.Suspended,
+                    stepResults,
+                    errorMessage);
+            }
+
+            case StepRecoveryAction.VerifyBeforeRetry:
+            case StepRecoveryAction.WaitingForHuman:
+            {
+                var waiting = await WaitAsync(
+                    run,
+                    scenarioVersion,
+                    variables,
+                    RunWaitReason.Human);
+
+                return CreateResult(
+                    waiting,
+                    DurableExecutionOutcome.Suspended,
+                    stepResults,
+                    errorMessage);
+            }
+
+            case StepRecoveryAction.None:
+            default:
+            {
+                var failed = await FailAsync(
+                    run,
+                    scenarioVersion,
+                    variables);
+
+                return CreateResult(
+                    failed,
+                    DurableExecutionOutcome.Failed,
+                    stepResults,
+                    errorMessage);
+            }
+        }
+    }
+
+    private async Task<AutomationRun> WaitAsync(
+        AutomationRun run,
+        ScenarioVersion scenarioVersion,
+        IReadOnlyDictionary<string, string> variables,
+        RunWaitReason reason)
+    {
+        var waiting = RestoreSnapshot(
+            run,
+            scenarioVersion,
+            run.State.Wait(reason),
+            run.Cursor,
+            variables,
+            NextTimestamp(run.UpdatedAt));
+
+        await _runStore.SaveAsync(
+            waiting,
+            scenarioVersion,
+            CancellationToken.None);
+
+        return waiting;
     }
 
     private async Task<AutomationRun> FailAsync(
