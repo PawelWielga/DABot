@@ -448,7 +448,7 @@ public sealed class DurableRunRecoveryService : IDurableRunRecoveryService
         ScenarioStep? retryStep = null,
         DateTimeOffset? retryAnchor = null)
     {
-        var retryNotBefore = reason == RunWaitReason.Retry
+        DateTimeOffset? retryNotBefore = reason == RunWaitReason.Retry
             ? DurableRetryPolicy.GetRetryNotBefore(
                 retryStep ?? throw new ArgumentNullException(nameof(retryStep)),
                 retryAnchor ?? updatedAt)
