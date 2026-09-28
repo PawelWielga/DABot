@@ -91,6 +91,21 @@ Every execution exposes its stable `runId` as a built-in variable. An undefined 
 
 Interpolation creates an execution-time copy of the step. It does not mutate the immutable scenario definition or change the scenario-version hash.
 
+## Navigation synchronization
+
+`OpenUrl` uses the browser's normal `load` event as its default navigation completion condition.
+
+DABot intentionally does not use Playwright `NetworkIdle` as the universal default. Many modern applications keep analytics, streaming, polling, or other background requests active, so network silence is not a reliable definition of application readiness.
+
+Scenarios that need stronger synchronization should add an explicit `WaitFor` step after `OpenUrl`. Supported waits include:
+
+- selector visibility,
+- text visibility,
+- URL matching,
+- load state.
+
+`WaitFor` load-state mode may still request `networkidle` when that is explicitly appropriate for a particular workflow. The important contract is that this behavior is opt-in rather than implicit in every navigation.
+
 ## Immutable scenario versions
 
 A durable run must execute against an immutable snapshot of a normalized scenario definition, not against a mutable scenario file that may later be edited.
