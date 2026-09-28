@@ -113,3 +113,20 @@ Its current responsibilities are:
 - assign deterministic IDs to legacy steps that do not have one.
 
 Normalization is intentionally separate from browser execution so future compilation steps can add execution metadata without coupling the scenario format to Playwright.
+
+
+## Retry semantics
+
+`retryCount` is optional and must be zero or greater.
+
+It means the number of **additional** attempts after the initial execution:
+
+| retryCount | Maximum attempts |
+| ---: | ---: |
+| omitted / 0 | 1 |
+| 1 | 2 |
+| 2 | 3 |
+
+Durable execution persists each attempt number. Retry budgets therefore survive process restarts and cannot be reset by restarting DABot.
+
+Retry safety is evaluated separately from the numeric budget. Having retry budget available does not make an unsafe operation automatically retryable.
