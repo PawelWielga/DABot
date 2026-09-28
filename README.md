@@ -75,7 +75,7 @@ Run the default sample from the repository root:
 dotnet run --project src/DesktopAutomationBot.Runner
 ```
 
-The runner reads `config.json`, which points to `scenarios/sample-open-url.json` by default.
+The runner reads `config.json`, which points to `scenarios/sample-open-url.json` by default. A scenario path passed on the command line overrides `bot.scenarioPath` for that run.
 
 CI performs the restore/build flow on Ubuntu, creates a framework-dependent `linux-x64` publish, starts the published runner, installs Chromium, and runs a self-contained browser scenario. The Linux deployment path is therefore continuously smoke-tested. See [Linux publish and smoke test](docs/linux-publish.md).
 
@@ -108,7 +108,13 @@ A DABot scenario is a JSON document containing an ordered list of steps. The mac
 }
 ```
 
-To run a different scenario with the current runner, change `bot.scenarioPath` in `config.json`.
+To run a different scenario without changing configuration:
+
+```bash
+dotnet run --project src/DesktopAutomationBot.Runner -- run --scenario examples/form-interaction.json
+```
+
+The shorter `-s` alias is also supported.
 
 More examples are available in [examples](examples/README.md).
 
@@ -227,7 +233,10 @@ The runner keeps the existing one-shot scenario execution as the default:
 ```bash
 dotnet run --project src/DesktopAutomationBot.Runner
 dotnet run --project src/DesktopAutomationBot.Runner -- run
+dotnet run --project src/DesktopAutomationBot.Runner -- run --scenario examples/form-interaction.json
 ```
+
+Use `--help` or `-h` to print the CLI contract. `--scenario` (or `-s`) overrides `bot.scenarioPath` only for the current run.
 
 Durable retries can be processed continuously with:
 
