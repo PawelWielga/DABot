@@ -1,0 +1,21 @@
+{
+  "name": "Basic navigation",
+  "steps": [
+    {
+      "type": "OpenUrl",
+      "url": "https://example.com"
+    },
+    {
+      "type": "WaitFor",
+      "selector": "h1"
+    },
+    {
+      "type": "ReadText",
+      "selector": "h1",
+      "output": "heading"
+    },
+    {
+      "type": "Screenshot"
+    }
+  ]
+}
