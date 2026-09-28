@@ -1,37 +1,40 @@
+using System.Text.Json;
 using DesktopAutomationBot.Application;
+using DesktopAutomationBot.Core;
 using DesktopAutomationBot.Infrastructure;
+using DesktopAutomationBot.Runner;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
-var configuration = new ConfigurationBuilder()
-    .SetBasePath(Directory.GetCurrentDirectory())
-    .AddJsonFile("config.json", optional: false, reloadOnChange: false)
-    .AddJsonFile("config.local.json", optional: true, reloadOnChange: false)
-    .Build();
+var command = args.Length == 0
+    ? "run"
+    : args[0].Trim().ToLowerInvariant();
 
-var services = new ServiceCollection();
-services.AddSingleton<IConfiguration>(configuration);
-services.Configure<BotOptions>(configuration.GetSection("bot"));
-services.AddSingleton(sp => sp.GetRequiredService<IOptions<BotOptions>>().Value);
-services.AddApplication();
-services.AddInfrastructure();
-
-await using var provider = services.BuildServiceProvider();
+if (args.Length > 1 ||
+    command is not ("run" or "retry-worker"))
+{
+    Console.Error.WriteLine(
+        "Usage: DesktopAutomationBot.Runner [run|retry-worker]");
+    return RunnerExitCodes.UsageError;
+}
 
 try
 {
-    var command = args.Length == 0
-        ? "run"
-        : args[0].Trim().ToLowerInvariant();
+    var configuration = new ConfigurationBuilder()
+        .SetBasePath(Directory.GetCurrentDirectory())
+        .AddJsonFile("config.json", optional: false, reloadOnChange: false)
+        .AddJsonFile("config.local.json", optional: true, reloadOnChange: false)
+        .Build();
 
-    if (args.Length > 1 ||
-        command is not ("run" or "retry-worker"))
-    {
-        Console.Error.WriteLine(
-            "Usage: DesktopAutomationBot.Runner [run|retry-worker]");
-        return 2;
-    }
+    var services = new ServiceCollection();
+    services.AddSingleton<IConfiguration>(configuration);
+    services.Configure<BotOptions>(configuration.GetSection("bot"));
+    services.AddSingleton(sp => sp.GetRequiredService<IOptions<BotOptions>>().Value);
+    services.AddApplication();
+    services.AddInfrastructure();
+
+    await using var provider = services.BuildServiceProvider();
 
     if (command == "retry-worker")
     {
@@ -54,7 +57,7 @@ try
                 $"batch size: {workerOptions.RetryWorker.BatchSize}. Press Ctrl+C to stop.");
 
             await worker.RunAsync(cancellation.Token);
-            return 0;
+            return RunnerExitCodes.Success;
         }
         finally
         {
@@ -66,7 +69,8 @@ try
     var loader = provider.GetRequiredService<IScenarioLoader>();
     var executor = provider.GetRequiredService<IScenarioExecutor>();
 
-    var scenarioPath = options.ScenarioPath ?? Path.Combine(options.Storage.ScenariosDirectory, "sample-open-url.json");
+    var scenarioPath = options.ScenarioPath ??
+        Path.Combine(options.Storage.ScenariosDirectory, "sample-open-url.json");
     var scenario = await loader.LoadAsync(scenarioPath);
     var result = await executor.ExecuteAsync(scenario);
 
@@ -75,7 +79,8 @@ try
 
     foreach (var step in result.Steps)
     {
-        Console.WriteLine($"[{step.Index + 1}] {step.Type} => {(step.Success ? "OK" : "Failed")}");
+        Console.WriteLine(
+            $"[{step.Index + 1}] {step.Type} => {(step.Success ? "OK" : "Failed")}");
 
         if (!string.IsNullOrWhiteSpace(step.OutputName))
         {
@@ -88,15 +93,18 @@ try
         }
     }
 
-    if (!result.Success && !string.IsNullOrWhiteSpace(result.ErrorMessage))
+    if (!result.Success)
     {
-        Console.Error.WriteLine(result.ErrorMessage);
-        return 1;
+        if (!string.IsNullOrWhiteSpace(result.ErrorMessage))
+        {
+            Console.Error.WriteLine(result.ErrorMessage);
+        }
+
+        return RunnerExitCodes.ExecutionFailed;
     }
 
-    return 0;
+    return RunnerExitCodes.Success;
 }
-
 catch (ScenarioLoadException exception)
 {
     Console.Error.WriteLine(exception.Message);
@@ -105,10 +113,35 @@ catch (ScenarioLoadException exception)
         Console.Error.WriteLine($"- {error}");
     }
 
-    return 1;
+    return RunnerExitCodes.InputError;
+}
+catch (ScenarioValidationException exception)
+{
+    Console.Error.WriteLine(exception.Message);
+    foreach (var error in exception.Errors)
+    {
+        Console.Error.WriteLine($"- {error}");
+    }
+
+    return RunnerExitCodes.InputError;
+}
+catch (FileNotFoundException exception)
+{
+    Console.Error.WriteLine(exception.Message);
+    return RunnerExitCodes.InputError;
+}
+catch (InvalidDataException exception)
+{
+    Console.Error.WriteLine(exception.Message);
+    return RunnerExitCodes.InputError;
+}
+catch (JsonException exception)
+{
+    Console.Error.WriteLine(exception.Message);
+    return RunnerExitCodes.InputError;
 }
 catch (Exception exception)
 {
     Console.Error.WriteLine(exception.Message);
-    return 1;
+    return RunnerExitCodes.UnexpectedError;
 }

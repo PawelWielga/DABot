@@ -239,6 +239,20 @@ The retry worker polls SQLite using `bot.retryWorker.pollIntervalMs` and process
 
 The current retry worker is intentionally single-worker. Do not run multiple retry workers against the same durable store until run leases / compare-and-swap claiming are implemented.
 
+### Runner exit codes
+
+The runner returns stable process exit codes so shell scripts, CI jobs, and service wrappers can distinguish failure classes:
+
+| Code | Meaning |
+| ---: | --- |
+| `0` | Successful scenario execution or graceful retry-worker stop |
+| `1` | Unexpected/internal runner error |
+| `2` | Invalid CLI usage or unsupported command |
+| `3` | Invalid or missing configuration/scenario input |
+| `4` | Scenario execution completed with a failure |
+
+Treat non-zero codes as failures. Code `3` is intended for problems that can be corrected before execution, while code `4` means the scenario started but did not complete successfully.
+
 ## Documentation
 
 - [Documentation index](docs/README.md)
