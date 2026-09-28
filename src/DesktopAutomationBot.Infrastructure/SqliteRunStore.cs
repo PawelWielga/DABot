@@ -6,7 +6,7 @@ using Microsoft.Data.Sqlite;
 
 namespace DesktopAutomationBot.Infrastructure;
 
-public sealed class SqliteRunStore : IRunStore, IStepAttemptStore
+public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStore
 {
     private const int StoreSchemaVersion = 3;
 
@@ -151,6 +151,61 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore
             retryNotBefore);
 
         return new StoredAutomationRun(run, scenarioVersion);
+    }
+
+    public async Task<IReadOnlyList<Guid>> LoadDueRetryRunIdsAsync(
+        DateTimeOffset dueAt,
+        int limit = 100,
+        CancellationToken cancellationToken = default)
+    {
+        if (limit <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(limit),
+                limit,
+                "Limit must be greater than zero.");
+        }
+
+        await EnsureInitializedAsync(cancellationToken);
+
+        await using var connection = await OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT RunId
+            FROM Runs
+            WHERE Status = $waitingStatus
+              AND WaitReason = $retryReason
+              AND (
+                    RetryNotBefore IS NULL
+                    OR julianday(RetryNotBefore) <= julianday($dueAt)
+                  )
+            ORDER BY
+                julianday(COALESCE(RetryNotBefore, UpdatedAt)),
+                julianday(UpdatedAt),
+                RunId
+            LIMIT $limit;
+            """;
+        command.Parameters.AddWithValue(
+            "$waitingStatus",
+            RunStatus.Waiting.ToString());
+        command.Parameters.AddWithValue(
+            "$retryReason",
+            RunWaitReason.Retry.ToString());
+        command.Parameters.AddWithValue(
+            "$dueAt",
+            FormatTimestamp(dueAt));
+        command.Parameters.AddWithValue("$limit", limit);
+
+        var runIds = new List<Guid>();
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            runIds.Add(ParseGuid(reader.GetString(0), "RunId"));
+        }
+
+        return runIds;
     }
 
     public async Task SaveStepAttemptAsync(
