@@ -85,8 +85,8 @@ Status legend:
 - [ ] Add Linux publish/smoke-test instructions.
 - [x] Add browser installation instructions.
 - [x] Add at least one Playwright integration/smoke test.
-- [ ] Align Microsoft.Extensions package major versions.
-- [ ] Update Playwright to a current supported version before building new browser features.
+- [x] Align Microsoft.Extensions package major versions.
+- [x] Update Playwright to a current supported version before building new browser features. Verified on Microsoft.Playwright 1.63.0.
 
 ## Sprint 2.5 - Execution model hardening
 
@@ -147,9 +147,9 @@ Goal: define deterministic execution and recovery semantics before durable persi
 ### Engineering foundation
 
 - [x] Add normal build/test CI.
-- [ ] Align Microsoft.Extensions package major versions.
+- [x] Align Microsoft.Extensions package major versions.
 - [ ] Update the project runtime target as a dedicated compatibility change.
-- [ ] Update Playwright before adding browser-session features.
+- [x] Update Playwright before adding browser-session features. Microsoft.Playwright 1.63.0 is current.
 - [x] Remove unused template files.
 - [x] Add executor tests using fake browser/session implementations.
 - [x] Add tests for nested execution cursor behavior and crash recovery semantics.
