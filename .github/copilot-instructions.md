@@ -11,3 +11,6 @@
 - Treat README, examples, schema, docs, CI, release checklist, and discoverability metadata as part of the definition of done when a change affects them.
 - Never present planned functionality as implemented.
 - Never commit secrets, credentials, browser profiles, or sensitive runtime artifacts.
+- Before starting new repository work, inspect the repository-wide list of open PRs, including Dependabot/bot PRs; resolve and merge them before unrelated new work.
+- After creating a PR, review its diff/mergeability/checks and merge it to `main` in the same work session when correct; fix conflicts or failing CI first.
+- After merging, verify the latest `main` CI and fix regressions before continuing with unrelated work.
