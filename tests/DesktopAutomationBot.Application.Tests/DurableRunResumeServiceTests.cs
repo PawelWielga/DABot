@@ -121,6 +121,47 @@ public sealed class DurableRunResumeServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ResumeAsync_WhenRetryBudgetIsExhausted_FailsWithoutOpeningBrowser()
+    {
+        var version = CreateVersion(
+            new ScenarioStep
+            {
+                Id = "open",
+                Type = StepType.OpenUrl,
+                Url = "https://example.com",
+                RetryCount = 0,
+            });
+        var running = CreateRunningRun(version);
+        var waiting = Restore(
+            running,
+            version,
+            running.State.Wait(RunWaitReason.Retry),
+            running.Cursor,
+            running.UpdatedAt.AddSeconds(1));
+        var firstAttempt = StepAttempt.Start(
+                waiting.RunId,
+                version.MaterializeDefinition().Steps[0],
+                1,
+                waiting.CreatedAt.AddSeconds(2))
+            .MarkUnknown(waiting.CreatedAt.AddSeconds(3));
+        var browser = new FakeBrowserAutomation();
+        var handler = new FakeStepHandler(StepType.OpenUrl);
+        var executor = CreateExecutor(
+            [handler],
+            browser,
+            new InMemoryRunStore(waiting, version),
+            new InMemoryStepAttemptStore(firstAttempt));
+
+        var result = await executor.ResumeAsync(waiting.RunId);
+
+        result.Outcome.Should().Be(DurableExecutionOutcome.Failed);
+        result.Run.State.Status.Should().Be(RunStatus.Failed);
+        result.ErrorMessage.Should().Contain("Retry limit exhausted");
+        handler.ExecutionCount.Should().Be(0);
+        browser.OpenCount.Should().Be(0);
+    }
+
+    [Fact]
     public async Task ResumeAsync_FromHumanWait_IsRejectedWithoutExecuting()
     {
         var version = CreateVersion(
@@ -278,6 +319,7 @@ public sealed class DurableRunResumeServiceTests : IDisposable
                         Id = "open",
                         Type = StepType.OpenUrl,
                         Url = "https://example.com",
+                        RetryCount = 1,
                     },
                 ],
             },
