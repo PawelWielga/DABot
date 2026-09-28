@@ -22,7 +22,7 @@ DABot can currently:
 - interpolate `{{variableName}}` references in string step inputs, including built-in `runId`,
 - wait for selectors, text, URLs, and page load states,
 - pause execution for a fixed delay,
-- capture screenshots,
+- capture screenshots,\n- call HTTP APIs with GET/POST/PUT and map response values into scenario outputs,
 - execute scenarios through the .NET runner,
 - cancel an active one-shot run with Ctrl+C,
 - validate scenario definitions before execution.
@@ -164,7 +164,7 @@ Agents should use the README and implementation backlog to distinguish current f
 | Screenshots and step results | Available |
 | CLI-style .NET runner | Available |
 | Structured logging and failure artifacts | Planned |
-| HTTP/API scenario steps | Planned |
+| HTTP/API scenario steps | Available |
 | Variable interpolation | Available |
 | Durable retry recovery/scheduling | Partial |
 | Conditions and loops | Planned |
@@ -290,7 +290,7 @@ Treat non-zero codes as failures. Code `3` is intended for problems that can be 
 
 ## Roadmap
 
-The roadmap is maintained as an implementation backlog rather than a marketing feature list. Planned work includes complete runner diagnostics, API steps, persistent browser sessions, durable runs, suspend/resume, external events, observers, a web panel, and MCP/tool-registry integration.
+The roadmap is maintained as an implementation backlog rather than a marketing feature list. Planned work includes complete runner diagnostics, persistent browser sessions, durable runs, suspend/resume, external events, observers, a web panel, and MCP/tool-registry integration.
 
 See [docs/tasks.md](docs/tasks.md) for acceptance criteria and implementation order.
 
