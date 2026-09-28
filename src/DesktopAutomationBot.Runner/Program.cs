@@ -76,39 +76,65 @@ try
     var scenarioPath = commandLine.ScenarioPath ??
         options.ScenarioPath ??
         Path.Combine(options.Storage.ScenariosDirectory, "sample-open-url.json");
-    var scenario = await loader.LoadAsync(scenarioPath);
-    var result = await executor.ExecuteAsync(scenario);
 
-    Console.WriteLine($"Scenario: {result.ScenarioName}");
-    Console.WriteLine($"Success: {result.Success}");
-
-    foreach (var step in result.Steps)
+    using var cancellation = new CancellationTokenSource();
+    ConsoleCancelEventHandler cancelHandler = (_, eventArgs) =>
     {
-        Console.WriteLine(
-            $"[{step.Index + 1}] {step.Type} => {(step.Success ? "OK" : "Failed")}");
+        eventArgs.Cancel = true;
+        cancellation.Cancel();
+    };
 
-        if (!string.IsNullOrWhiteSpace(step.OutputName))
-        {
-            Console.WriteLine($"    {step.OutputName} = {step.OutputValue}");
-        }
+    Console.CancelKeyPress += cancelHandler;
 
-        if (!string.IsNullOrWhiteSpace(step.ArtifactPath))
-        {
-            Console.WriteLine($"    artifact: {step.ArtifactPath}");
-        }
-    }
-
-    if (!result.Success)
+    try
     {
-        if (!string.IsNullOrWhiteSpace(result.ErrorMessage))
+        var scenario = await loader.LoadAsync(
+            scenarioPath,
+            cancellation.Token);
+        var result = await executor.ExecuteAsync(
+            scenario,
+            cancellation.Token);
+
+        Console.WriteLine($"Scenario: {result.ScenarioName}");
+        Console.WriteLine($"Success: {result.Success}");
+
+        foreach (var step in result.Steps)
         {
-            Console.Error.WriteLine(result.ErrorMessage);
+            Console.WriteLine(
+                $"[{step.Index + 1}] {step.Type} => {(step.Success ? "OK" : "Failed")}");
+
+            if (!string.IsNullOrWhiteSpace(step.OutputName))
+            {
+                Console.WriteLine($"    {step.OutputName} = {step.OutputValue}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(step.ArtifactPath))
+            {
+                Console.WriteLine($"    artifact: {step.ArtifactPath}");
+            }
         }
 
-        return RunnerExitCodes.ExecutionFailed;
-    }
+        if (!result.Success)
+        {
+            if (!string.IsNullOrWhiteSpace(result.ErrorMessage))
+            {
+                Console.Error.WriteLine(result.ErrorMessage);
+            }
 
-    return RunnerExitCodes.Success;
+            return RunnerExitCodes.ExecutionFailed;
+        }
+
+        return RunnerExitCodes.Success;
+    }
+    finally
+    {
+        Console.CancelKeyPress -= cancelHandler;
+    }
+}
+catch (OperationCanceledException)
+{
+    Console.Error.WriteLine("Execution cancelled.");
+    return RunnerExitCodes.Cancelled;
 }
 catch (ScenarioLoadException exception)
 {
