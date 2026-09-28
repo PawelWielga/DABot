@@ -25,11 +25,7 @@ public sealed class CallApiStepHandlerTests
             Value = """{"name":"test"}""",
         };
 
-        var result = await handler.ExecuteAsync(
-            step,
-            CreateContext(),
-            0,
-            CancellationToken.None);
+        var result = await handler.ExecuteAsync(step, CreateContext(), 0, CancellationToken.None);
 
         result.OutputName.Should().Be("itemId");
         result.OutputValue.Should().Be("42");
@@ -62,9 +58,7 @@ public sealed class CallApiStepHandlerTests
     {
         public HttpAutomationRequest? Request { get; private set; }
 
-        public Task<HttpAutomationResponse> SendAsync(
-            HttpAutomationRequest request,
-            CancellationToken cancellationToken)
+        public Task<HttpAutomationResponse> SendAsync(HttpAutomationRequest request, CancellationToken cancellationToken)
         {
             Request = request;
             return Task.FromResult(response);
@@ -74,16 +68,16 @@ public sealed class CallApiStepHandlerTests
     private sealed class FakeBrowserAutomation : IBrowserAutomation
     {
         public Task OpenAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task NavigateAsync(string url, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task ClickAsync(string selector, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task FillTextAsync(string selector, string value, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task PasteTextAsync(string selector, string value, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task<string> ReadTextAsync(string selector, CancellationToken cancellationToken = default) => Task.FromResult(string.Empty);
+        public Task NavigateAsync(string url, int? timeoutMs = null, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task ClickAsync(string selector, int? timeoutMs = null, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task FillTextAsync(string selector, string value, int? timeoutMs = null, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task PasteTextAsync(string selector, string value, int? timeoutMs = null, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<string> ReadTextAsync(string selector, int? timeoutMs = null, CancellationToken cancellationToken = default) => Task.FromResult(string.Empty);
         public Task WaitForSelectorAsync(string selector, int? timeoutMs = null, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task WaitForTextAsync(string text, int? timeoutMs = null, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task WaitForUrlAsync(string url, int? timeoutMs = null, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task WaitForLoadStateAsync(string state, int? timeoutMs = null, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task<string> ScreenshotAsync(string path, CancellationToken cancellationToken = default) => Task.FromResult(path);
+        public Task<string> TakeScreenshotAsync(string path, CancellationToken cancellationToken = default) => Task.FromResult(path);
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 }
