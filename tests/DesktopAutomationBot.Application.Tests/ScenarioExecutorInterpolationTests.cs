@@ -39,7 +39,7 @@ public sealed class ScenarioExecutorInterpolationTests : IDisposable
         var result = await executor.ExecuteAsync(
             new ScenarioDefinition
             {
-                Name = "Interpolation test",
+                Name = "interpolation-test",
                 Steps =
                 [
                     new ScenarioStep
@@ -59,9 +59,7 @@ public sealed class ScenarioExecutorInterpolationTests : IDisposable
         result.Success.Should().BeTrue();
         browser.NavigatedUrl.Should().StartWith("https://example.com/runs/");
         browser.NavigatedUrl.Should().NotContain("{{");
-        Guid.TryParse(browser.NavigatedUrl!["https://example.com/runs/".Length..], out _)
-            .Should()
-            .BeTrue();
+        browser.NavigatedUrl.Should().EndWith("-interpolation-test");
     }
 
     public void Dispose()
