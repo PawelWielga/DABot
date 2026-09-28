@@ -49,12 +49,12 @@ Status legend:
 
 ### API integration
 
-- [ ] Add `IHttpAutomationClient` or equivalent neutral abstraction.
-- [ ] Implement GET/POST/PUT.
-- [ ] Support configurable timeout.
-- [ ] Support bearer token without storing secrets in repository files.
-- [ ] Map response values into scenario variables.
-- [ ] Implement `CallApiStepHandler`.
+- [x] Add `IHttpAutomationClient` or equivalent neutral abstraction.
+- [x] Implement GET/POST/PUT.
+- [x] Support configurable timeout.
+- [x] Support bearer token without storing secrets in repository files.
+- [x] Map response values into scenario variables.
+- [x] Implement `CallApiStepHandler`.
 
 ### Logging and diagnostics
 

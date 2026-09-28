@@ -36,7 +36,7 @@
       ],
       "properties": {
         "type": {
-          "description": "Scenario step type. OpenUrl, Click, FillText, PasteText, ReadText, WaitFor, Delay and Screenshot are currently executable. Other listed values are reserved by the domain model and roadmap.",
+          "description": "Scenario step type. OpenUrl, Click, FillText, PasteText, ReadText, WaitFor, CallApi, Delay and Screenshot are currently executable. Other listed values are reserved by the domain model and roadmap.",
           "oneOf": [
             {
               "const": "OpenUrl",
@@ -68,7 +68,7 @@
             },
             {
               "const": "CallApi",
-              "description": "Planned: domain value exists, executable handler is not implemented yet."
+              "description": "Available: call an HTTP endpoint with GET, POST or PUT. Configure method, responsePath and bearerTokenEnv in parameters."
             },
             {
               "const": "Delay",
@@ -92,7 +92,7 @@
         "url": {
           "type": "string",
           "minLength": 1,
-          "description": "URL used by OpenUrl, or optionally by WaitFor URL mode. OpenUrl waits for the normal page load event by default; stronger synchronization should be expressed with a following WaitFor step. Supports {{variableName}} interpolation."
+          "description": "URL used by OpenUrl or CallApi, or optionally by WaitFor URL mode. Supports {{variableName}} interpolation."
         },
         "value": {
           "type": "string",
@@ -101,11 +101,11 @@
         "output": {
           "type": "string",
           "minLength": 1,
-          "description": "Output variable name used by ReadText. Outputs can be referenced by later steps as {{name}}."
+          "description": "Output variable name used by ReadText or CallApi. Outputs can be referenced by later steps as {{name}}."
         },
         "timeoutMs": {
           "type": "integer",
-          "description": "Optional step-specific timeout in milliseconds. For Delay this is the delay duration."
+          "description": "Optional step-specific timeout in milliseconds. For Delay this is the delay duration; CallApi requires a positive value when specified."
         },
         "retryCount": {
           "type": "integer",
@@ -113,7 +113,7 @@
         },
         "parameters": {
           "type": "object",
-          "description": "Generic step parameters. String-valued parameters support {{variableName}} interpolation. WaitFor currently recognizes parameter 'mode'.",
+          "description": "Generic step parameters. String-valued parameters support {{variableName}} interpolation. WaitFor recognizes mode; CallApi recognizes method, responsePath and bearerTokenEnv.",
           "properties": {
             "mode": {
               "oneOf": [
@@ -149,7 +149,10 @@
           "if": {
             "properties": {
               "type": {
-                "const": "OpenUrl"
+                "enum": [
+                  "OpenUrl",
+                  "CallApi"
+                ]
               }
             },
             "required": [
@@ -400,6 +403,44 @@
             "required": [
               "value"
             ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "CallApi"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "timeoutMs": {
+                "minimum": 1
+              },
+              "parameters": {
+                "properties": {
+                  "method": {
+                    "enum": [
+                      "GET",
+                      "POST",
+                      "PUT"
+                    ]
+                  },
+                  "responsePath": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "bearerTokenEnv": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            }
           }
         }
       ]

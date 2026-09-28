@@ -1,0 +1,17 @@
+{
+  "$schema": "../schemas/scenario.schema.json",
+  "name": "Call JSON API",
+  "steps": [
+    {
+      "id": "fetch-todo",
+      "type": "CallApi",
+      "url": "https://jsonplaceholder.typicode.com/todos/1",
+      "output": "todoTitle",
+      "timeoutMs": 10000,
+      "parameters": {
+        "method": "GET",
+        "responsePath": "title"
+      }
+    }
+  ]
+}
