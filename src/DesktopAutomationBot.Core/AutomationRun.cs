@@ -12,7 +12,8 @@ public sealed class AutomationRun
         ExecutionCursor cursor,
         IReadOnlyDictionary<string, string> variables,
         DateTimeOffset createdAt,
-        DateTimeOffset updatedAt)
+        DateTimeOffset updatedAt,
+        DateTimeOffset? retryNotBefore)
     {
         RunId = runId;
         ScenarioId = scenarioId;
@@ -22,6 +23,7 @@ public sealed class AutomationRun
         Variables = variables;
         CreatedAt = createdAt;
         UpdatedAt = updatedAt;
+        RetryNotBefore = retryNotBefore;
     }
 
     public Guid RunId { get; }
@@ -39,6 +41,8 @@ public sealed class AutomationRun
     public DateTimeOffset CreatedAt { get; }
 
     public DateTimeOffset UpdatedAt { get; }
+
+    public DateTimeOffset? RetryNotBefore { get; }
 
     public static AutomationRun Create(
         ScenarioVersion scenarioVersion,
@@ -70,7 +74,8 @@ public sealed class AutomationRun
             CopyCursor(resolvedCursor),
             CopyVariables(variables),
             createdAt,
-            createdAt);
+            createdAt,
+            retryNotBefore: null);
     }
 
     public static AutomationRun Restore(
@@ -80,7 +85,8 @@ public sealed class AutomationRun
         ExecutionCursor cursor,
         IReadOnlyDictionary<string, string>? variables,
         DateTimeOffset createdAt,
-        DateTimeOffset updatedAt)
+        DateTimeOffset updatedAt,
+        DateTimeOffset? retryNotBefore = null)
     {
         if (runId == Guid.Empty)
         {
@@ -97,6 +103,8 @@ public sealed class AutomationRun
                 "Run updated timestamp must not be earlier than its creation timestamp.",
                 nameof(updatedAt));
         }
+
+        ValidateRetrySchedule(state, updatedAt, retryNotBefore);
 
         var definition = scenarioVersion.MaterializeDefinition();
         ValidateCursor(definition, cursor);
@@ -116,7 +124,8 @@ public sealed class AutomationRun
             CopyCursor(cursor),
             CopyVariables(variables),
             createdAt,
-            updatedAt);
+            updatedAt,
+            retryNotBefore);
     }
 
     private static Guid ResolveRunId(Guid? runId)
@@ -127,6 +136,31 @@ public sealed class AutomationRun
         }
 
         return runId ?? Guid.NewGuid();
+    }
+
+    private static void ValidateRetrySchedule(
+        RunState state,
+        DateTimeOffset updatedAt,
+        DateTimeOffset? retryNotBefore)
+    {
+        var isRetryWait =
+            state.Status == RunStatus.Waiting &&
+            state.WaitReason == RunWaitReason.Retry;
+
+        if (!isRetryWait && retryNotBefore is not null)
+        {
+            throw new ArgumentException(
+                "RetryNotBefore can only be set for a run waiting with reason Retry.",
+                nameof(retryNotBefore));
+        }
+
+        if (retryNotBefore is { } dueAt &&
+            dueAt < updatedAt)
+        {
+            throw new ArgumentException(
+                "RetryNotBefore must not be earlier than the run updated timestamp.",
+                nameof(retryNotBefore));
+        }
     }
 
     private static void ValidateCursor(
