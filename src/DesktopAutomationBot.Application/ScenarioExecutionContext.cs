@@ -40,6 +40,8 @@ public sealed class ScenarioExecutionContext
 
     public string ScreenshotDirectory => Path.Combine(Options.Storage.ScreenshotsDirectory, RunId);
 
+    public string ArtifactDirectory => Path.Combine(Options.Storage.ArtifactsDirectory, RunId);
+
     public void CaptureOutput(StepExecutionResult result)
     {
         ArgumentNullException.ThrowIfNull(result);
