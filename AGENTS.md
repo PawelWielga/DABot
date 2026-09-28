@@ -188,6 +188,18 @@ Treat the public repository presentation as part of the product, not as a one-ti
 - When changing an interface, update tests and documentation in the same change.
 - Documentation and repository discoverability updates required by the change are part of the definition of done, not optional follow-up work.
 
+## Pull request workflow
+
+- Before starting new repository work, inspect all open pull requests for the repository, including Dependabot and other bot-authored PRs. Use a repository-wide open-PR listing rather than an author-scoped search.
+- When the user asks to continue work on the repository and any PRs are open, review and resolve those PRs before starting unrelated new work.
+- Treat PR review and merge as part of completing the change, not as a separate follow-up step.
+- After creating a PR, immediately inspect its diff, changed files, mergeability, and available CI/check results.
+- If the PR is correct and mergeable, merge it to `main` in the same work session without waiting for a separate merge instruction.
+- If the PR has conflicts or failing checks, fix the problem, update/re-check the PR, and merge it to `main` before moving on to unrelated work.
+- For stacked PRs, merge them in a dependency-safe order so that every intended change ultimately lands on `main`.
+- After merging, verify the latest `main` CI run. If the merge causes CI to fail, fix that failure before starting unrelated work.
+- Do not leave a ready, mergeable PR open at the end of normal repository work unless the user explicitly asks to keep it open, leave it as a draft, or delay the merge.
+
 ## When in doubt
 
 Prefer the smallest generic mechanism that solves the requirement without coupling DABot to a particular website or transport.
