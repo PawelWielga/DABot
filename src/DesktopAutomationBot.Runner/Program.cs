@@ -7,16 +7,20 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
-var command = args.Length == 0
-    ? "run"
-    : args[0].Trim().ToLowerInvariant();
-
-if (args.Length > 1 ||
-    command is not ("run" or "retry-worker"))
+if (!RunnerCommandLine.TryParse(
+        args,
+        out var commandLine,
+        out var commandLineError))
 {
-    Console.Error.WriteLine(
-        "Usage: DesktopAutomationBot.Runner [run|retry-worker]");
+    Console.Error.WriteLine(commandLineError);
+    Console.Error.WriteLine(RunnerCommandLine.Usage);
     return RunnerExitCodes.UsageError;
+}
+
+if (commandLine.ShowHelp)
+{
+    Console.WriteLine(RunnerCommandLine.Usage);
+    return RunnerExitCodes.Success;
 }
 
 try
@@ -36,7 +40,7 @@ try
 
     await using var provider = services.BuildServiceProvider();
 
-    if (command == "retry-worker")
+    if (commandLine.Command == RunnerCommand.RetryWorker)
     {
         var worker = provider.GetRequiredService<IDurableRetryWorker>();
         var workerOptions = provider.GetRequiredService<BotOptions>();
@@ -69,7 +73,8 @@ try
     var loader = provider.GetRequiredService<IScenarioLoader>();
     var executor = provider.GetRequiredService<IScenarioExecutor>();
 
-    var scenarioPath = options.ScenarioPath ??
+    var scenarioPath = commandLine.ScenarioPath ??
+        options.ScenarioPath ??
         Path.Combine(options.Storage.ScenariosDirectory, "sample-open-url.json");
     var scenario = await loader.LoadAsync(scenarioPath);
     var result = await executor.ExecuteAsync(scenario);
