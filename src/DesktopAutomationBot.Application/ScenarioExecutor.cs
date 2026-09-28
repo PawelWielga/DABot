@@ -25,6 +25,9 @@ public sealed class ScenarioExecutor : IScenarioExecutor
     {
         scenario = ScenarioDefinitionNormalizer.Normalize(scenario);
         _validationService.ValidateOrThrow(scenario);
+        ScenarioHandlerValidator.ValidateOrThrow(
+            scenario,
+            _handlers.Keys);
 
         var context = new ScenarioExecutionContext(scenario, _browserAutomation, _options);
         Directory.CreateDirectory(context.ScreenshotDirectory);
