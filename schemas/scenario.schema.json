@@ -76,6 +76,13 @@
         "parameters": {
           "type": "object",
           "description": "Generic step parameters. WaitFor currently recognizes parameter 'mode'.",
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": ["selector", "url", "loadstate", "text"],
+              "description": "WaitFor mode recognized by the current handler."
+            }
+          },
           "additionalProperties": true
         },
         "children": {
