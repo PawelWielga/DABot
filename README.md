@@ -209,6 +209,7 @@ All clients are intended to converge on the same Application use cases rather th
 - [Scenario JSON Schema](schemas/scenario.schema.json)
 - [Configuration JSON Schema](schemas/config.schema.json)
 - [Product requirements](docs/prd.md)
+- [Product positioning and differentiation](docs/product-positioning.md)
 - [Implementation backlog](docs/tasks.md)
 - [Durable workflow architecture](docs/durable-workflows.md)
 - [MCP and dynamic tools architecture](docs/mcp-and-dynamic-tools.md)
