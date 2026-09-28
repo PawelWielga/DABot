@@ -50,7 +50,7 @@ public sealed class ScenarioVariableInterpolatorTests
     {
         var variables = new ScenarioVariableBag();
 
-        var action = () =>
+        Action action = () =>
             ScenarioVariableInterpolator.ResolveText(
                 "https://{{missing}}",
                 variables);
