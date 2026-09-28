@@ -29,6 +29,32 @@ public sealed class DurableRetrySchedulerTests
     }
 
     [Fact]
+    public async Task RunDueRetriesAsync_WhenShutdownIsRequestedDuringResume_CompletesCurrentRunAndStopsBeforeNext()
+    {
+        var now = DateTimeOffset.Parse("2026-09-28T11:50:00+02:00");
+        var firstRunId = Guid.NewGuid();
+        var secondRunId = Guid.NewGuid();
+        using var cancellation = new CancellationTokenSource();
+        var resumeService = new CancellingResumeService(
+            now,
+            cancellation);
+        var scheduler = new DurableRetryScheduler(
+            new FakeRetryRunStore(firstRunId, secondRunId),
+            resumeService,
+            new FixedTimeProvider(now));
+
+        var results = await scheduler.RunDueRetriesAsync(
+            maxRuns: 25,
+            cancellation.Token);
+
+        resumeService.ResumedRunIds.Should().Equal(firstRunId);
+        resumeService.ReceivedCancellationTokens
+            .Should().OnlyContain(token => !token.CanBeCanceled);
+        results.Select(result => result.Run.RunId)
+            .Should().Equal(firstRunId);
+    }
+
+    [Fact]
     public async Task RunDueRetriesAsync_WhenMaxRunsIsNotPositive_ThrowsBeforeQueryingStore()
     {
         var store = new FakeRetryRunStore(Guid.NewGuid());
@@ -116,6 +142,60 @@ public sealed class DurableRetrySchedulerTests
                 {
                     Run = run,
                     Outcome = DurableExecutionOutcome.Suspended,
+                });
+        }
+    }
+
+    private sealed class CancellingResumeService : IDurableRunResumeService
+    {
+        private readonly DateTimeOffset _now;
+        private readonly CancellationTokenSource _cancellation;
+
+        public CancellingResumeService(
+            DateTimeOffset now,
+            CancellationTokenSource cancellation)
+        {
+            _now = now;
+            _cancellation = cancellation;
+        }
+
+        public List<Guid> ResumedRunIds { get; } = [];
+
+        public List<CancellationToken> ReceivedCancellationTokens { get; } = [];
+
+        public Task<DurableScenarioExecutionResult> ResumeAsync(
+            Guid runId,
+            CancellationToken cancellationToken = default)
+        {
+            ResumedRunIds.Add(runId);
+            ReceivedCancellationTokens.Add(cancellationToken);
+            _cancellation.Cancel();
+
+            var version = ScenarioVersion.Capture(
+                Guid.NewGuid(),
+                1,
+                new ScenarioDefinition
+                {
+                    Name = "Graceful shutdown test",
+                    Steps =
+                    [
+                        new ScenarioStep
+                        {
+                            Id = "capture",
+                            Type = StepType.Screenshot,
+                        },
+                    ],
+                },
+                _now);
+
+            return Task.FromResult(
+                new DurableScenarioExecutionResult
+                {
+                    Run = AutomationRun.Create(
+                        version,
+                        _now,
+                        runId),
+                    Outcome = DurableExecutionOutcome.Completed,
                 });
         }
     }
