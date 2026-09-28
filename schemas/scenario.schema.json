@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/PawelWielga/DABot/main/schemas/scenario.schema.json",
   "title": "DABot scenario",
-  "description": "Machine-readable contract for DABot JSON scenario files. Step types may exist in the domain model before they have an executable handler; see each type description and README project status.",
+  "description": "Machine-readable contract for DABot JSON scenario files. Step types may exist in the domain model before they have an executable handler; see each type description and README project status. String-valued step fields support {{variableName}} interpolation at execution time.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -87,21 +87,21 @@
         "selector": {
           "type": "string",
           "minLength": 1,
-          "description": "Playwright selector used by element-oriented steps."
+          "description": "Playwright selector used by element-oriented steps. Supports {{variableName}} interpolation."
         },
         "url": {
           "type": "string",
           "minLength": 1,
-          "description": "URL used by OpenUrl, or optionally by WaitFor URL mode."
+          "description": "URL used by OpenUrl, or optionally by WaitFor URL mode. Supports {{variableName}} interpolation."
         },
         "value": {
           "type": "string",
-          "description": "Text/value consumed by a step. Delay also accepts a non-negative integer number of milliseconds encoded as text."
+          "description": "Text/value consumed by a step. Supports {{variableName}} interpolation; Delay accepts a non-negative integer number of milliseconds or a variable reference resolving to one."
         },
         "output": {
           "type": "string",
           "minLength": 1,
-          "description": "Output variable name used by ReadText."
+          "description": "Output variable name used by ReadText. Outputs can be referenced by later steps as {{name}}."
         },
         "timeoutMs": {
           "type": "integer",
@@ -113,17 +113,25 @@
         },
         "parameters": {
           "type": "object",
-          "description": "Generic step parameters. WaitFor currently recognizes parameter 'mode'.",
+          "description": "Generic step parameters. String-valued parameters support {{variableName}} interpolation. WaitFor currently recognizes parameter 'mode'.",
           "properties": {
             "mode": {
-              "type": "string",
-              "enum": [
-                "selector",
-                "url",
-                "loadstate",
-                "text"
+              "oneOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "selector",
+                    "url",
+                    "loadstate",
+                    "text"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "pattern": "^\\{\\{\\s*[A-Za-z0-9_.-]+\\s*\\}\\}$"
+                }
               ],
-              "description": "WaitFor mode recognized by the current handler."
+              "description": "WaitFor mode or a variable reference resolving to one of the supported modes."
             }
           },
           "additionalProperties": true
@@ -263,7 +271,7 @@
                 ],
                 "properties": {
                   "value": {
-                    "pattern": "^[0-9]+$"
+                    "pattern": "^(?:[0-9]+|\\{\\{\\s*[A-Za-z0-9_.-]+\\s*\\}\\})$"
                   }
                 }
               }
