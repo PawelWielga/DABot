@@ -13,12 +13,9 @@ public sealed class ScenarioExecutorInterpolationTests : IDisposable
             Guid.NewGuid().ToString("N"));
 
     [Fact]
-    public async Task ExecuteAsync_UsesPriorOutputsAndBuiltInRunIdInLaterSteps()
+    public async Task ExecuteAsync_UsesStepOutputsAndBuiltInRunIdInLaterSteps()
     {
-        var browser = new RecordingBrowserAutomation
-        {
-            ReadTextValue = "example.com",
-        };
+        var browser = new RecordingBrowserAutomation();
         var executor = new ScenarioExecutor(
             new BotOptions
             {
@@ -31,7 +28,7 @@ public sealed class ScenarioExecutorInterpolationTests : IDisposable
             },
             new ScenarioValidationService(),
             [
-                new ReadTextStepHandler(),
+                new OutputStepHandler("example.com"),
                 new OpenUrlStepHandler(),
             ],
             browser);
@@ -68,6 +65,33 @@ public sealed class ScenarioExecutorInterpolationTests : IDisposable
         {
             Directory.Delete(_tempDirectory, recursive: true);
         }
+    }
+
+    private sealed class OutputStepHandler : IStepHandler
+    {
+        private readonly string _value;
+
+        public OutputStepHandler(string value)
+        {
+            _value = value;
+        }
+
+        public StepType StepType => StepType.ReadText;
+
+        public Task<StepExecutionResult> ExecuteAsync(
+            ScenarioStep step,
+            ScenarioExecutionContext context,
+            int index,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(
+                new StepExecutionResult
+                {
+                    Index = index,
+                    Type = step.Type,
+                    Success = true,
+                    OutputName = step.Output,
+                    OutputValue = _value,
+                });
     }
 
     private sealed class RecordingBrowserAutomation : IBrowserAutomation
