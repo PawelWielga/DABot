@@ -264,6 +264,38 @@ Wait reason semantics:
 The future executor outcome `Suspended` is not a persisted run status. It describes the fact that active execution stopped cleanly after the run was durably moved to `Waiting`. This avoids having both `Suspended` and `Waiting` represent the same persisted condition.
 
 
+
+## Retry budget and failure handling
+
+`ScenarioStep.RetryCount` is now an enforced durable execution contract.
+
+Its meaning is:
+
+```text
+maximum attempts = 1 + retryCount
+```
+
+Therefore:
+
+- omitted `retryCount` or `retryCount: 0` allows only the initial attempt,
+- `retryCount: 1` allows attempts `1` and `2`,
+- `retryCount: 2` allows attempts `1`, `2`, and `3`.
+
+Negative values are invalid. The retry budget is evaluated from persisted `StepAttempt` history, so restarting the process never resets it.
+
+When a durable handler fails:
+
+- exhausted budget -> the run becomes `Failed`,
+- remaining budget + `SafeToRetry` / `Idempotent` -> `Waiting / Retry`,
+- remaining budget + `NeedsVerification` -> `Waiting / Human`,
+- remaining budget + `NeverRetryAutomatically` -> `Waiting / Human`.
+
+A retryable failure returns the executor outcome `Suspended`; another process or future scheduler can later invoke the durable resume use case.
+
+Crash recovery applies the same budget. An `Unknown` safe/idempotent attempt is eligible for `Waiting / Retry` only when another attempt remains. A failed attempt persisted before the run snapshot is reconciled with the same rule.
+
+The retry budget deliberately does **not** implement backoff yet. A durable backoff requires a persisted due timestamp (for example `RetryNotBefore`) so process restarts cannot accidentally shorten or reset the delay. That persistence change is a separate step before unattended retry scheduling is enabled.
+
 ## Crash recovery reconciliation
 
 `DurableRunRecoveryService` reconciles a persisted run after a worker/process disappears. Recovery is explicit and operates on one stable `RunId`.
