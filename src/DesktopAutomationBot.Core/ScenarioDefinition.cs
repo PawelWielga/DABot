@@ -83,7 +83,13 @@ public sealed record ScenarioExecutionResult
 
     public bool Success { get; set; }
 
+    public string? RunId { get; set; }
+
     public string? ErrorMessage { get; set; }
+
+    public string? FailureScreenshotPath { get; set; }
+
+    public string? ReportPath { get; set; }
 
     public List<StepExecutionResult> Steps { get; init; } = [];
 }
