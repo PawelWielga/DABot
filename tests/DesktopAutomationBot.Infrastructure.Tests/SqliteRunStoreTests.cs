@@ -444,12 +444,96 @@ public sealed class SqliteRunStoreTests : IDisposable
         Convert.ToInt32(rawVersion).Should().Be(3);
     }
 
+    [Fact]
+    public async Task LoadDueRetryRunIdsAsync_ReturnsOnlyDueRetryWaitsInDueOrderAndHonorsLimit()
+    {
+        var databasePath = Path.Combine(_tempDirectory, "due-retries.db");
+        var store = new SqliteRunStore(CreateOptions(databasePath));
+        var version = CreateScenarioVersion();
+        var now = DateTimeOffset.Parse("2026-09-28T12:00:00+02:00");
+        var createdAt = now.AddHours(-1);
+
+        var oldestDue = CreateRun(
+            version,
+            RunState.Restore(RunStatus.Waiting, RunWaitReason.Retry),
+            createdAt,
+            now.AddMinutes(-10),
+            now.AddMinutes(-5));
+
+        var newestDue = CreateRun(
+            version,
+            RunState.Restore(RunStatus.Waiting, RunWaitReason.Retry),
+            createdAt.AddMinutes(1),
+            now.AddMinutes(-4),
+            now.AddMinutes(-1));
+
+        var futureRetry = CreateRun(
+            version,
+            RunState.Restore(RunStatus.Waiting, RunWaitReason.Retry),
+            createdAt.AddMinutes(2),
+            now.AddMinutes(-3),
+            now.AddMinutes(5));
+
+        var humanWait = CreateRun(
+            version,
+            RunState.Restore(RunStatus.Waiting, RunWaitReason.Human),
+            createdAt.AddMinutes(3),
+            now.AddMinutes(-2));
+
+        var running = CreateRun(
+            version,
+            RunState.Restore(RunStatus.Running),
+            createdAt.AddMinutes(4),
+            now.AddMinutes(-1));
+
+        foreach (var run in new[]
+                 {
+                     newestDue,
+                     futureRetry,
+                     humanWait,
+                     running,
+                     oldestDue,
+                 })
+        {
+            await store.SaveAsync(run, version);
+        }
+
+        var allDue = await store.LoadDueRetryRunIdsAsync(now, limit: 10);
+        var firstDue = await store.LoadDueRetryRunIdsAsync(now, limit: 1);
+
+        allDue.Should().Equal(oldestDue.RunId, newestDue.RunId);
+        firstDue.Should().Equal(oldestDue.RunId);
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_tempDirectory))
         {
             Directory.Delete(_tempDirectory, recursive: true);
         }
+    }
+
+    private static AutomationRun CreateRun(
+        ScenarioVersion version,
+        RunState state,
+        DateTimeOffset createdAt,
+        DateTimeOffset updatedAt,
+        DateTimeOffset? retryNotBefore = null)
+    {
+        var queued = AutomationRun.Create(
+            version,
+            createdAt,
+            Guid.NewGuid());
+
+        return AutomationRun.Restore(
+            queued.RunId,
+            version,
+            state,
+            queued.Cursor,
+            queued.Variables,
+            createdAt,
+            updatedAt,
+            retryNotBefore);
     }
 
     private static BotOptions CreateOptions(string databasePath) =>
