@@ -24,6 +24,7 @@ DABot can currently:
 - pause execution for a fixed delay,
 - capture screenshots,
 - execute scenarios through the .NET runner,
+- cancel an active one-shot run with Ctrl+C,
 - validate scenario definitions before execution.
 
 The roadmap intentionally goes further, but planned features are marked separately below so they are not mistaken for released functionality.
@@ -259,8 +260,9 @@ The runner returns stable process exit codes so shell scripts, CI jobs, and serv
 | `2` | Invalid CLI usage or unsupported command |
 | `3` | Invalid or missing configuration/scenario input |
 | `4` | Scenario execution completed with a failure |
+| `130` | One-shot scenario execution was cancelled, for example with Ctrl+C |
 
-Treat non-zero codes as failures. Code `3` is intended for problems that can be corrected before execution, while code `4` means the scenario started but did not complete successfully.
+Treat non-zero codes as failures. Code `3` is intended for problems that can be corrected before execution, while code `4` means the scenario started but did not complete successfully. Ctrl+C cancels an active one-shot run cooperatively and returns code `130`; the retry worker keeps its existing graceful-stop behavior and exits with `0`.
 
 ## Documentation
 

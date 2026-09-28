@@ -40,10 +40,12 @@ public sealed class ScenarioExecutor : IScenarioExecutor
 
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
             await _browserAutomation.OpenAsync(cancellationToken);
 
             for (var index = 0; index < scenario.Steps.Count; index++)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var step = scenario.Steps[index];
                 if (!_handlers.TryGetValue(step.Type, out var handler))
                 {
@@ -64,6 +66,11 @@ public sealed class ScenarioExecutor : IScenarioExecutor
 
             result.Success = true;
             return result;
+        }
+        catch (OperationCanceledException)
+            when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception exception)
         {

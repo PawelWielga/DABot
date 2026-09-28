@@ -75,7 +75,7 @@ Status legend:
 - [~] Implement step retry. Durable failure/recovery now persists retry timing and can suspend to `Waiting / Retry`; automatic scheduling and legacy synchronous retry remain.
 - [~] Use `RetryCount` from the scenario model. Durable execution and recovery enforce it as the number of additional attempts; legacy synchronous execution remains.
 - [x] Validate that every declared step type has a registered handler.
-- [ ] Add cancellation support through the full execution stack.
+- [x] Add cancellation support through the full execution stack. Cancellation propagates through runner, scenario executors, step handlers, and Playwright operations; one-shot Ctrl+C exits with code 130.
 - [ ] Add scenario-level timeout where appropriate.
 
 ### Runtime
