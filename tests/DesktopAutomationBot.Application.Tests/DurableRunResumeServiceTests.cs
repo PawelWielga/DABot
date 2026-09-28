@@ -134,13 +134,15 @@ public sealed class DurableRunResumeServiceTests : IDisposable
             });
         var running = CreateRunningRun(version);
         var waitingAt = running.UpdatedAt.AddSeconds(1);
+        var retryNotBefore =
+            DateTimeOffset.Parse("2026-09-28T09:31:00+02:00");
         var waiting = Restore(
             running,
             version,
             running.State.Wait(RunWaitReason.Retry),
             running.Cursor,
             waitingAt,
-            waitingAt.AddMinutes(1));
+            retryNotBefore);
         var firstAttempt = StepAttempt.Start(
                 waiting.RunId,
                 version.MaterializeDefinition().Steps[0],
@@ -160,7 +162,7 @@ public sealed class DurableRunResumeServiceTests : IDisposable
         result.Outcome.Should().Be(DurableExecutionOutcome.Suspended);
         result.Run.State.Status.Should().Be(RunStatus.Waiting);
         result.Run.State.WaitReason.Should().Be(RunWaitReason.Retry);
-        result.Run.RetryNotBefore.Should().Be(waitingAt.AddMinutes(1));
+        result.Run.RetryNotBefore.Should().Be(retryNotBefore);
         handler.ExecutionCount.Should().Be(0);
         browser.OpenCount.Should().Be(0);
     }
