@@ -304,6 +304,7 @@ public sealed class DurableScenarioExecutor :
                         exception.Message);
                 }
 
+                context.CaptureOutput(stepResult);
                 CaptureOutputVariable(
                     variables,
                     stepResult);
