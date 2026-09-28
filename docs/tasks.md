@@ -81,7 +81,7 @@ Status legend:
 ### Runtime
 
 - [~] Add proper CLI arguments instead of relying only on config. The runner now has explicit `run` and `retry-worker` modes; richer command options remain.
-- [ ] Return documented exit codes.
+- [x] Return documented exit codes.
 - [ ] Add Linux publish/smoke-test instructions.
 - [x] Add browser installation instructions.
 - [x] Add at least one Playwright integration/smoke test.
