@@ -119,6 +119,12 @@ The shorter `-s` alias is also supported.
 
 More examples are available in [examples](examples/README.md).
 
+### Navigation synchronization
+
+`OpenUrl` waits for the browser's normal `load` event. It does not use Playwright `NetworkIdle` as a universal navigation condition because modern pages may keep background requests open indefinitely.
+
+When a workflow needs a stronger readiness condition, express it explicitly with a following `WaitFor` step, for example a selector, text, URL, or load-state wait. This keeps synchronization tied to what the scenario actually needs instead of assuming that network silence means the page is ready.
+
 ### Scenario variables
 
 String step inputs such as `url`, `selector`, `value`, and string-valued `parameters` can reference variables with `{{variableName}}`.

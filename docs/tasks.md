@@ -134,8 +134,8 @@ Goal: define deterministic execution and recovery semantics before durable persi
 
 - [x] Document that durable resume/recovery restores workflow state, not a live DOM/page.
 - [~] Define how a resumed run rebuilds required browser state. Recovery now leaves work resumable without assuming the previous live DOM survives; browser-session reconstruction remains.
-- [ ] Avoid `NetworkIdle` as the universal default navigation contract.
-- [ ] Keep explicit scenario waits for stronger synchronization.
+- [x] Avoid `NetworkIdle` as the universal default navigation contract. `OpenUrl` now waits for the normal `load` event.
+- [x] Keep explicit scenario waits for stronger synchronization. `WaitFor` remains the explicit selector/text/URL/load-state synchronization mechanism.
 
 ### Events and durable work
 

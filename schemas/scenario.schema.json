@@ -40,7 +40,7 @@
           "oneOf": [
             {
               "const": "OpenUrl",
-              "description": "Available: navigate to a URL."
+              "description": "Available: navigate to a URL and wait for the normal page load event. Use an explicit WaitFor step for stronger synchronization such as selector/text/URL/load-state conditions."
             },
             {
               "const": "Click",
@@ -92,7 +92,7 @@
         "url": {
           "type": "string",
           "minLength": 1,
-          "description": "URL used by OpenUrl, or optionally by WaitFor URL mode. Supports {{variableName}} interpolation."
+          "description": "URL used by OpenUrl, or optionally by WaitFor URL mode. OpenUrl waits for the normal page load event by default; stronger synchronization should be expressed with a following WaitFor step. Supports {{variableName}} interpolation."
         },
         "value": {
           "type": "string",
