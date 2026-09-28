@@ -116,6 +116,7 @@ DABot keeps machine- and agent-readable project context in the repository:
 - [.github/copilot-instructions.md](.github/copilot-instructions.md) - concise repository-wide GitHub Copilot instructions,
 - [.github/instructions](.github/instructions) - path-specific instructions for .NET and scenario files,
 - [Scenario JSON Schema](schemas/scenario.schema.json) - machine-readable scenario contract,
+- [Configuration JSON Schema](schemas/config.schema.json) - machine-readable `config.json` contract,
 - [Documentation index](docs/README.md) - map of current-status, architecture, and roadmap documents,
 - [CONTRIBUTING.md](CONTRIBUTING.md) - development setup and definition of done.
 
@@ -204,6 +205,7 @@ All clients are intended to converge on the same Application use cases rather th
 - [Documentation index](docs/README.md)
 - [Contributing guide](CONTRIBUTING.md)
 - [Scenario JSON Schema](schemas/scenario.schema.json)
+- [Configuration JSON Schema](schemas/config.schema.json)
 - [Product requirements](docs/prd.md)
 - [Implementation backlog](docs/tasks.md)
 - [Durable workflow architecture](docs/durable-workflows.md)
