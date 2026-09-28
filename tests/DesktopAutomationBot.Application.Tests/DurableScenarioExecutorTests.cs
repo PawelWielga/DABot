@@ -303,6 +303,39 @@ public sealed class DurableScenarioExecutorTests : IDisposable
             .ContainInOrder("open", "capture");
     }
 
+    [Fact]
+    public async Task ExecuteAsync_WhenHandlerIsMissing_RejectsBeforePersistingOrOpeningBrowser()
+    {
+        var events = new List<string>();
+        var runStore = new RecordingRunStore(events);
+        var attemptStore = new RecordingStepAttemptStore(events);
+        var browser = new RecordingBrowserAutomation(events);
+
+        var executor = CreateExecutor(
+            [],
+            browser,
+            runStore,
+            attemptStore);
+
+        Func<Task> action = async () =>
+        {
+            await executor.ExecuteAsync(
+                new ScenarioRunRequest
+                {
+                    ScenarioVersion = CreateVersion(),
+                });
+        };
+
+        var exception = await action.Should()
+            .ThrowAsync<ScenarioValidationException>();
+
+        exception.Which.Errors.Should().Contain(
+            "scenario.steps[0].type 'OpenUrl' has no registered handler.");
+        runStore.Runs.Should().BeEmpty();
+        attemptStore.Attempts.Should().BeEmpty();
+        events.Should().NotContain("browser:open");
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_tempDirectory))
