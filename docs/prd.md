@@ -18,6 +18,8 @@ DABot nie moze byc projektowany pod jedna strone, jednego dostawce ani jeden kon
 6. **Linux-first** - glownym runtime pozostaje Linux; Windows jest wspieranym srodowiskiem developerskim i testowym.
 7. **Brak zaleznosci od jednego transportu** - GitHub, HTTP, kolejka czy lokalny event sa adapterami infrastrukturalnymi.
 8. **Brak sekretow w repozytorium i logach**.
+9. **Jedna warstwa wykonawcza** - CLI, HTTP, panel webowy, MCP i agenci korzystaja z tych samych use case'ow; MCP nie tworzy osobnego silnika wykonawczego.
+10. **AI sklada bezpieczne prymitywy** - dynamiczne narzedzia sa deklaratywnymi workflow z dozwolonych Actions, a nie nieograniczonym kodem wykonywanym automatycznie.
 
 ## 3. Problem do rozwiazania
 
@@ -220,6 +222,28 @@ Dla kazdego runu system powinien umiec zapisac:
 
 Artefakty powinny byc grupowane per `RunId`.
 
+### 4.10 Actions, Tools i MCP
+
+DABot rozroznia dwa poziomy rozszerzalnosci:
+
+- **Action** - niski poziom, implementowany i testowany w kodzie, np. otwarcie URL, klikniecie, HTTP request, odczyt/zapis pliku, warunek, opoznienie.
+- **Tool/Workflow** - deklaratywna, wersjonowana kompozycja Actions z nazwanymi inputami i outputami.
+
+Tool moze zostac utworzony recznie, przez panel lub przez agenta AI. Utworzenie przez AI nie daje prawa do wykonywania dowolnego C#/JavaScript/shell. Definicja przechodzi walidacje, kontrole uprawnien i test przed aktywacja zgodnie z polityka srodowiska.
+
+DABot docelowo wspiera MCP w obu kierunkach:
+
+- jako **MCP Server** wystawia scenariusze i aktywne Tools z rejestru jako narzedzia dla zewnetrznych agentow,
+- jako **MCP Client** moze konsumowac narzedzia udostepnione przez zewnetrzne serwery MCP.
+
+Minimalny lifecycle dynamicznego narzedzia:
+
+    Draft -> Validate -> Test -> Enable -> Version/Disable
+
+Zmiana aktywnej listy narzedzi powinna byc propagowana do klientow MCP zgodnie z mozliwosciami protokolu.
+
+Szczegoly: [MCP and dynamic tools architecture](mcp-and-dynamic-tools.md).
+
 ## 5. Panel webowy
 
 DABot posiada opcjonalny panel webowy do konfiguracji i monitorowania.
@@ -317,7 +341,9 @@ DABot powinien wspierac niezaleznie:
 - CLI,
 - worker,
 - HTTP API,
-- panel webowy.
+- panel webowy,
+- MCP server,
+- MCP client.
 
 CLI pozostaje pelnoprawnym sposobem uruchamiania scenariuszy.
 
@@ -379,6 +405,9 @@ Potencjalne implementacje infrastrukturalne:
 - HTTP/webhook
 - GitHub events
 - system kolejkowy
+- zewnetrzne serwery MCP
+
+MCP jest adapterem integracyjnym. Narzedzia wystawione przez MCP musza delegowac do warstwy Application zamiast omijac walidacje, uprawnienia, run tracking i audit.
 
 ## 9. Architektura techniczna
 
@@ -423,6 +452,12 @@ Web
   configuration
   scenario editor
   run monitoring
+
+Mcp
+  MCP server
+  MCP client
+  tool registry adapter
+  protocol mapping
 ```
 
 ## 10. Wymagania niefunkcjonalne
@@ -559,6 +594,19 @@ Przyklad trwalego scenariusza:
 - audit log
 - advanced retry/recovery
 
+### Etap 8 - MCP i dynamiczne narzedzia
+
+- neutralny Action registry
+- wersjonowany Tool/Workflow registry
+- walidacja input/output schema
+- polityki uprawnien i approval
+- testowanie przed aktywacja
+- MCP Server nad Application
+- MCP Client dla zewnetrznych serwerow
+- dynamiczne odswiezanie listy narzedzi
+- panel do listowania, edycji, testowania, wlaczania i wylaczania Tools
+- audit trail dla narzedzi utworzonych lub zmienionych przez agentow
+
 ## 14. Definicja sukcesu
 
 DABot spelnia docelowa wizje, gdy:
@@ -570,4 +618,6 @@ DABot spelnia docelowa wizje, gdy:
 - obserwator strony moze wykryc zmiane i opublikowac zdarzenie,
 - panel webowy moze konfigurowac scenariusze i pokazywac przebieg bez bycia wymaganym runtime,
 - przegladarka moze korzystac z sesji efemerycznych i trwalych,
-- transport zdarzen i storage mozna wymienic bez przebudowy Core.
+- transport zdarzen i storage mozna wymienic bez przebudowy Core,
+- DABot moze wystawiac swoje mozliwosci przez MCP bez duplikowania silnika wykonawczego,
+- agent moze utworzyc deklaratywne narzedzie z dozwolonych Actions, przetestowac je i aktywowac zgodnie z polityka uprawnien.

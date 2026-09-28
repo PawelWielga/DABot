@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/PawelWielga/DABot/main/schemas/config.schema.json",
+  "title": "DABot configuration",
+  "description": "Machine-readable contract for the repository-root DABot config.json file.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["bot"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional editor/tooling reference to this schema."
+    },
+    "bot": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "scenarioPath": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Scenario file to load. Relative paths are resolved by the runner/loader."
+        },
+        "browser": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "headless": {
+              "type": "boolean",
+              "default": true
+            },
+            "slowMoMs": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            },
+            "timeoutMs": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 30000
+            },
+            "viewportWidth": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1280
+            },
+            "viewportHeight": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 720
+            }
+          }
+        },
+        "storage": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "scenariosDirectory": {
+              "type": "string",
+              "minLength": 1,
+              "default": "scenarios"
+            },
+            "screenshotsDirectory": {
+              "type": "string",
+              "minLength": 1,
+              "default": "screenshots"
+            },
+            "artifactsDirectory": {
+              "type": "string",
+              "minLength": 1,
+              "default": "artifacts"
+            }
+          }
+        }
+      }
+    }
+  }
+}

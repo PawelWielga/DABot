@@ -1,0 +1,50 @@
+name: Bug report
+description: Report reproducible incorrect behavior in DABot
+title: "[Bug] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please describe behavior that exists in the current implementation. Check README and docs/tasks.md first so planned functionality is not reported as a bug.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What is wrong?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Include the smallest scenario/configuration that reproduces the problem. Remove secrets.
+      placeholder: |
+        1. Configure ...
+        2. Run ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, .NET SDK/runtime, DABot commit/tag, and browser details when relevant.
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: Logs, stack traces, or artifact paths. Do not include secrets or credentials.

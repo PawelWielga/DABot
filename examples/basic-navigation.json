@@ -1,26 +1,21 @@
 {
   "$schema": "../schemas/scenario.schema.json",
-  "schemaVersion": 1,
-  "name": "Sample open url",
+  "name": "Basic navigation",
   "steps": [
     {
-      "id": "open-example",
       "type": "OpenUrl",
       "url": "https://example.com"
     },
     {
-      "id": "wait-for-heading",
       "type": "WaitFor",
       "selector": "h1"
     },
     {
-      "id": "read-heading",
       "type": "ReadText",
       "selector": "h1",
-      "output": "pageTitle"
+      "output": "heading"
     },
     {
-      "id": "capture-page",
       "type": "Screenshot"
     }
   ]

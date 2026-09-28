@@ -1,0 +1,28 @@
+{
+  "$schema": "../schemas/scenario.schema.json",
+  "name": "Self-contained form interaction",
+  "steps": [
+    {
+      "type": "OpenUrl",
+      "url": "data:text/html,%3Chtml%3E%3Cbody%3E%3Clabel%3EName%20%3Cinput%20id%3D%22name%22%3E%3C%2Flabel%3E%3Cbutton%20id%3D%22submit%22%20onclick%3D%22document.getElementById('result').textContent%3Ddocument.getElementById('name').value%22%3ESubmit%3C%2Fbutton%3E%3Cp%20id%3D%22result%22%3E%3C%2Fp%3E%3C%2Fbody%3E%3C%2Fhtml%3E"
+    },
+    {
+      "type": "FillText",
+      "selector": "#name",
+      "value": "DABot"
+    },
+    {
+      "type": "Click",
+      "selector": "#submit"
+    },
+    {
+      "type": "WaitFor",
+      "value": "DABot"
+    },
+    {
+      "type": "ReadText",
+      "selector": "#result",
+      "output": "submittedName"
+    }
+  ]
+}
