@@ -12,6 +12,7 @@ This directory contains design and implementation documentation. Use this page a
 | Generate or validate scenario JSON | [Scenario JSON Schema](../schemas/scenario.schema.json) |
 | Generate or validate runtime configuration | [Configuration JSON Schema](../schemas/config.schema.json) |
 | Understand product requirements | [Product requirements](prd.md) |
+| Understand product positioning and differentiation | [Product positioning](product-positioning.md) |
 | See implementation status and order | [Implementation backlog](tasks.md) |
 | Understand durable execution design | [Durable workflows](durable-workflows.md) |
 | Understand MCP and dynamic tools direction | [MCP and dynamic tools](mcp-and-dynamic-tools.md) |

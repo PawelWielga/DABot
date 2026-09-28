@@ -75,6 +75,8 @@ dotnet run --project src/DesktopAutomationBot.Runner
 
 The runner reads `config.json`, which points to `scenarios/sample-open-url.json` by default.
 
+CI performs the same restore/build/browser-install flow on Ubuntu and then runs a self-contained browser scenario, so the documented setup path is continuously smoke-tested.
+
 ## Minimal scenario
 
 A DABot scenario is a JSON document containing an ordered list of steps. The machine-readable contract is [schemas/scenario.schema.json](schemas/scenario.schema.json).
@@ -200,6 +202,25 @@ All clients are intended to converge on the same Application use cases rather th
 - **Controlled extensibility** - future agent-authored tools compose approved actions rather than execute unrestricted generated code.
 - **No secrets in repository files or logs**.
 
+## Runner modes
+
+The runner keeps the existing one-shot scenario execution as the default:
+
+```bash
+dotnet run --project src/DesktopAutomationBot.Runner
+dotnet run --project src/DesktopAutomationBot.Runner -- run
+```
+
+Durable retries can be processed continuously with:
+
+```bash
+dotnet run --project src/DesktopAutomationBot.Runner -- retry-worker
+```
+
+The retry worker polls SQLite using `bot.retryWorker.pollIntervalMs` and processes at most `bot.retryWorker.batchSize` due runs per sweep. Ctrl+C requests a graceful stop: an active durable retry is allowed to finish, then the worker stops before starting the next run.
+
+The current retry worker is intentionally single-worker. Do not run multiple retry workers against the same durable store until run leases / compare-and-swap claiming are implemented.
+
 ## Documentation
 
 - [Documentation index](docs/README.md)
@@ -207,9 +228,12 @@ All clients are intended to converge on the same Application use cases rather th
 - [Scenario JSON Schema](schemas/scenario.schema.json)
 - [Configuration JSON Schema](schemas/config.schema.json)
 - [Product requirements](docs/prd.md)
+- [Product positioning and differentiation](docs/product-positioning.md)
 - [Implementation backlog](docs/tasks.md)
 - [Durable workflow architecture](docs/durable-workflows.md)
 - [MCP and dynamic tools architecture](docs/mcp-and-dynamic-tools.md)
+- [Scenario schema and migration policy](docs/scenario-schema.md)
+- [Architecture review and improvement plan](docs/architecture-review-2026-09-27.md)
 - [DABot compared with raw Playwright](docs/comparison.md)
 - [Agent guidelines](AGENTS.md)
 - [Runnable examples](examples/README.md)

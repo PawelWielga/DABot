@@ -14,7 +14,8 @@ DABot is a general-purpose .NET browser automation engine built around declarati
 - External transports and persistence mechanisms are infrastructure adapters.
 - MCP is an integration boundary, not a separate execution engine. MCP tools must delegate to the same Application/Core capabilities used by CLI, workers, HTTP, and the web panel.
 - Agents may author declarative reusable tools/workflows, but must not gain an unrestricted code-evaluation path as part of that feature.
-- Read `docs/prd.md`, `docs/tasks.md`, `docs/durable-workflows.md`, and `docs/mcp-and-dynamic-tools.md` before changes that affect architecture or scope.
+- Read `docs/prd.md`, `docs/product-positioning.md`, `docs/tasks.md`, `docs/durable-workflows.md`, and `docs/mcp-and-dynamic-tools.md` before changes that affect architecture or scope.
+- Preserve DABot's differentiation around deterministic reusable browser Tools, durable browser workflows, controlled AI-authored Tools, and one shared execution layer. Prefer adapters over rebuilding generic browser-cloud, stealth/proxy, autonomous-agent, or broad SaaS-integration platforms.
 
 ## Repository shape
 
@@ -170,6 +171,7 @@ Treat the public repository presentation as part of the product, not as a one-ti
 - Keep `docs/comparison.md` accurate when DABot's capabilities or boundaries relative to raw Playwright change. Do not use misleading marketing claims.
 - Keep architecture, PRD, backlog, and feature-status documentation synchronized with implementation changes. Do not leave completed work marked as planned or planned work presented as released.
 - Keep CI configuration and README badges accurate when build, test, target framework, or workflow names change.
+- Keep the CI browser smoke test aligned with the documented Quick Start and at least one self-contained executable scenario.
 - Keep the MIT license file present unless the project owner explicitly decides to change licensing.
 - Keep release-readiness tracking current. When work satisfies or invalidates criteria for the next release, update the relevant release issue/checklist in the same work session.
 - Review GitHub repository description and topics when the product scope, primary technology, or discoverability keywords materially change. Update them when access allows; otherwise record the required metadata change explicitly.
