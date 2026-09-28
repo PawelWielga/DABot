@@ -27,6 +27,23 @@ public static class StepRetryPolicy
         return retryCount + 1;
     }
 
+    public static TimeSpan GetRetryDelay(ScenarioStep step)
+    {
+        ArgumentNullException.ThrowIfNull(step);
+
+        var retryDelayMs = step.RetryDelayMs ?? 0;
+
+        if (retryDelayMs < 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(step),
+                retryDelayMs,
+                "Retry delay must not be negative.");
+        }
+
+        return TimeSpan.FromMilliseconds(retryDelayMs);
+    }
+
     public static bool HasRemainingAttempt(
         ScenarioStep step,
         int highestAttemptNumber)

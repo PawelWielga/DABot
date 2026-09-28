@@ -64,7 +64,7 @@ Status legend:
 - [ ] Implement `Delay`.
 - [ ] Implement `If`.
 - [ ] Implement `Loop`.
-- [~] Implement step retry. Durable failure/recovery can now suspend to `Waiting / Retry`; scheduling/backoff and legacy synchronous retry remain.
+- [~] Implement step retry. Durable failure/recovery now persists retry timing and can suspend to `Waiting / Retry`; automatic scheduling and legacy synchronous retry remain.
 - [~] Use `RetryCount` from the scenario model. Durable execution and recovery enforce it as the number of additional attempts; legacy synchronous execution remains.
 - [ ] Validate that every declared step type has a registered handler.
 - [ ] Add cancellation support through the full execution stack.
@@ -72,7 +72,7 @@ Status legend:
 
 ### Runtime
 
-- [ ] Add proper CLI arguments instead of relying only on config.
+- [~] Add proper CLI arguments instead of relying only on config. The runner now has explicit `run` and `retry-worker` modes; richer command options remain.
 - [ ] Return documented exit codes.
 - [ ] Add Linux publish/smoke-test instructions.
 - [ ] Add browser installation instructions.
@@ -216,7 +216,8 @@ Goal: allow a workflow to stop without blocking a process and continue later.
 - [ ] Add CLI `cancel` command.
 - [x] Add `Waiting` / `Human` transition for unsafe automatic recovery.
 - [x] Add max-attempt guardrails from `RetryCount` before unattended retry scheduling.
-- [ ] Persist retry due time/backoff before enabling unattended retry scheduling.
+- [x] Persist retry due time with per-step `retryDelayMs` / run `RetryNotBefore`.
+- [~] Add unattended retry scheduler and optional exponential backoff strategy. Due-run discovery, bounded sweeps, and continuous single-worker polling are implemented; lease/CAS multi-worker safety and exponential backoff remain.
 
 Acceptance criteria:
 

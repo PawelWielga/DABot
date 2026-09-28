@@ -121,6 +121,53 @@ public sealed class DurableRunResumeServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ResumeAsync_BeforeRetryNotBefore_RemainsSuspendedWithoutOpeningBrowser()
+    {
+        var version = CreateVersion(
+            new ScenarioStep
+            {
+                Id = "open",
+                Type = StepType.OpenUrl,
+                Url = "https://example.com",
+                RetryCount = 1,
+                RetryDelayMs = 60000,
+            });
+        var running = CreateRunningRun(version);
+        var waitingAt = running.UpdatedAt.AddSeconds(1);
+        var retryNotBefore =
+            DateTimeOffset.Parse("2026-09-28T09:31:00+02:00");
+        var waiting = Restore(
+            running,
+            version,
+            running.State.Wait(RunWaitReason.Retry),
+            running.Cursor,
+            waitingAt,
+            retryNotBefore);
+        var firstAttempt = StepAttempt.Start(
+                waiting.RunId,
+                version.MaterializeDefinition().Steps[0],
+                1,
+                waiting.CreatedAt.AddSeconds(2))
+            .MarkUnknown(waiting.CreatedAt.AddSeconds(3));
+        var browser = new FakeBrowserAutomation();
+        var handler = new FakeStepHandler(StepType.OpenUrl);
+        var executor = CreateExecutor(
+            [handler],
+            browser,
+            new InMemoryRunStore(waiting, version),
+            new InMemoryStepAttemptStore(firstAttempt));
+
+        var result = await executor.ResumeAsync(waiting.RunId);
+
+        result.Outcome.Should().Be(DurableExecutionOutcome.Suspended);
+        result.Run.State.Status.Should().Be(RunStatus.Waiting);
+        result.Run.State.WaitReason.Should().Be(RunWaitReason.Retry);
+        result.Run.RetryNotBefore.Should().Be(retryNotBefore);
+        handler.ExecutionCount.Should().Be(0);
+        browser.OpenCount.Should().Be(0);
+    }
+
+    [Fact]
     public async Task ResumeAsync_WhenRetryBudgetIsExhausted_FailsWithoutOpeningBrowser()
     {
         var version = CreateVersion(
@@ -293,7 +340,8 @@ public sealed class DurableRunResumeServiceTests : IDisposable
         ScenarioVersion version,
         RunState state,
         ExecutionCursor cursor,
-        DateTimeOffset updatedAt) =>
+        DateTimeOffset updatedAt,
+        DateTimeOffset? retryNotBefore = null) =>
         AutomationRun.Restore(
             run.RunId,
             version,
@@ -301,7 +349,8 @@ public sealed class DurableRunResumeServiceTests : IDisposable
             cursor,
             run.Variables,
             run.CreatedAt,
-            updatedAt);
+            updatedAt,
+            retryNotBefore);
 
     private static ScenarioVersion CreateVersion(
         ScenarioStep? step = null) =>
