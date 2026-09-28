@@ -92,9 +92,10 @@ public sealed class DurableScenarioExecutor : IDurableScenarioExecutor
                         stepResults);
                 }
 
-                var (step, index) = ResolveTopLevelStep(
-                    scenario,
-                    run.Cursor);
+                var (step, index) =
+                    DurableExecutionCursorNavigator.ResolveTopLevelStep(
+                        scenario,
+                        run.Cursor);
 
                 if (!_handlers.TryGetValue(step.Type, out var handler))
                 {
@@ -177,9 +178,10 @@ public sealed class DurableScenarioExecutor : IDurableScenarioExecutor
 
                 stepResults.Add(stepResult);
 
-                var nextCursor = AdvanceTopLevelCursor(
-                    scenario,
-                    index);
+                var nextCursor =
+                    DurableExecutionCursorNavigator.AdvanceTopLevelCursor(
+                        scenario,
+                        index);
 
                 var nextState = nextCursor.IsCompleted
                     ? run.State.Complete()
@@ -301,56 +303,6 @@ public sealed class DurableScenarioExecutor : IDurableScenarioExecutor
             variables,
             run.CreatedAt,
             updatedAt);
-
-    private static (ScenarioStep Step, int Index) ResolveTopLevelStep(
-        ScenarioDefinition scenario,
-        ExecutionCursor cursor)
-    {
-        if (cursor.IsCompleted)
-        {
-            throw new InvalidOperationException(
-                "Completed execution cursor does not identify a next step.");
-        }
-
-        if (cursor.Frames.Count > 0)
-        {
-            throw new NotSupportedException(
-                "Durable nested If/Loop execution is not implemented yet.");
-        }
-
-        for (var index = 0; index < scenario.Steps.Count; index++)
-        {
-            var step = scenario.Steps[index];
-
-            if (string.Equals(
-                    step.Id,
-                    cursor.NextStepId,
-                    StringComparison.OrdinalIgnoreCase))
-            {
-                return (step, index);
-            }
-        }
-
-        throw new InvalidOperationException(
-            $"Execution cursor step '{cursor.NextStepId}' is not a top-level scenario step.");
-    }
-
-    private static ExecutionCursor AdvanceTopLevelCursor(
-        ScenarioDefinition scenario,
-        int completedStepIndex)
-    {
-        var nextIndex = completedStepIndex + 1;
-
-        if (nextIndex >= scenario.Steps.Count)
-        {
-            return ExecutionCursor.Completed();
-        }
-
-        return new ExecutionCursor
-        {
-            NextStepId = scenario.Steps[nextIndex].Id,
-        };
-    }
 
     private static void CaptureOutputVariable(
         IDictionary<string, string> variables,
