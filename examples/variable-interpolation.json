@@ -1,6 +1,6 @@
 {
   "$schema": "../schemas/scenario.schema.json",
-  "name": "Variable interpolation",
+  "name": "variable-interpolation",
   "steps": [
     {
       "type": "OpenUrl",
