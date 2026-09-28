@@ -64,15 +64,15 @@ Status legend:
 - [ ] Implement `Delay`.
 - [ ] Implement `If`.
 - [ ] Implement `Loop`.
-- [ ] Implement step retry.
-- [ ] Use `RetryCount` from the scenario model.
+- [~] Implement step retry. Durable failure/recovery now persists retry timing and can suspend to `Waiting / Retry`; automatic scheduling and legacy synchronous retry remain.
+- [~] Use `RetryCount` from the scenario model. Durable execution and recovery enforce it as the number of additional attempts; legacy synchronous execution remains.
 - [ ] Validate that every declared step type has a registered handler.
 - [ ] Add cancellation support through the full execution stack.
 - [ ] Add scenario-level timeout where appropriate.
 
 ### Runtime
 
-- [ ] Add proper CLI arguments instead of relying only on config.
+- [~] Add proper CLI arguments instead of relying only on config. The runner now has explicit `run` and `retry-worker` modes; richer command options remain.
 - [ ] Return documented exit codes.
 - [ ] Add Linux publish/smoke-test instructions.
 - [ ] Add browser installation instructions.
@@ -102,16 +102,16 @@ Goal: define deterministic execution and recovery semantics before durable persi
 - [x] Define serialization of the execution cursor.
 - [x] Define formal run state transitions.
 - [x] Define wait reason semantics for event/human/retry/schedule waits.
-- [~] Make run execution always reference one immutable scenario version.
+- [~] Make run execution always reference one immutable scenario version. Durable execution is version-bound; the legacy synchronous executor remains for backward compatibility.
 
 ### Step attempts and recovery
 
 - [x] Add the `StepAttempt` concept.
-- [ ] Persist attempt start before executing potentially side-effecting work.
-- [ ] Persist attempt completion/failure.
+- [x] Persist attempt start before executing potentially side-effecting work.
+- [x] Persist attempt completion/failure.
 - [x] Define recovery for attempts left in an unknown state after process failure.
 - [x] Classify step retry behavior: safe/idempotent/verification-required/manual.
-- [~] Route unsafe automatic recovery to `Waiting` with reason `Human`.
+- [x] Route unsafe automatic recovery to `Waiting` with reason `Human`.
 - [x] Document crash behavior for browser actions and API actions.
 
 ### Variables and secrets
@@ -124,8 +124,8 @@ Goal: define deterministic execution and recovery semantics before durable persi
 
 ### Browser semantics
 
-- [ ] Document that durable resume restores workflow state, not a live DOM/page.
-- [ ] Define how a resumed run rebuilds required browser state.
+- [x] Document that durable resume/recovery restores workflow state, not a live DOM/page.
+- [~] Define how a resumed run rebuilds required browser state. Recovery now leaves work resumable without assuming the previous live DOM survives; browser-session reconstruction remains.
 - [ ] Avoid `NetworkIdle` as the universal default navigation contract.
 - [ ] Keep explicit scenario waits for stronger synchronization.
 
@@ -143,7 +143,7 @@ Goal: define deterministic execution and recovery semantics before durable persi
 - [ ] Update the project runtime target as a dedicated compatibility change.
 - [ ] Update Playwright before adding browser-session features.
 - [x] Remove unused template files.
-- [ ] Add executor tests using fake browser/session implementations.
+- [x] Add executor tests using fake browser/session implementations.
 - [x] Add tests for nested execution cursor behavior and crash recovery semantics.
 
 Acceptance criteria:
@@ -190,9 +190,11 @@ Goal: separate reusable scenario definitions from persisted execution state.
 - [x] Track creation and update timestamps.
 - [x] Introduce `IRunStore`.
 - [x] Add an initial SQLite run store.
-- [ ] Group all runtime artifacts by stable `RunId`.
-- [ ] Define execution outcomes: Completed/Suspended/Failed/Cancelled.
+- [x] Add SQLite `StepAttempt` persistence with v1 -> v2 schema migration and restart recovery.
+- [~] Group all runtime artifacts by stable `RunId`. Durable execution uses the stable run ID for its artifact directory; the legacy synchronous path still uses timestamp-based IDs.
+- [x] Define execution outcomes: Completed/Suspended/Failed/Cancelled.
 - [x] Ensure a process restart does not invalidate a persisted run.
+- [x] Add application-level crash recovery that reconciles run cursor and persisted step attempts.
 
 Acceptance criteria:
 
@@ -209,11 +211,13 @@ Goal: allow a workflow to stop without blocking a process and continue later.
 - [ ] Persist expected event/correlation data.
 - [ ] Save deterministic resume position.
 - [ ] Return `Suspended` instead of treating suspension as failure.
-- [ ] Add application-level `ResumeRun` use case.
+- [x] Add application-level `ResumeRun` use case for `Waiting / Retry` runs.
 - [ ] Add CLI `resume` command.
 - [ ] Add CLI `cancel` command.
-- [~] Add `Waiting` / `Human` transition for unsafe automatic recovery.
-- [ ] Add max attempt / max error guardrails.
+- [x] Add `Waiting` / `Human` transition for unsafe automatic recovery.
+- [x] Add max-attempt guardrails from `RetryCount` before unattended retry scheduling.
+- [x] Persist retry due time with per-step `retryDelayMs` / run `RetryNotBefore`.
+- [~] Add unattended retry scheduler and optional exponential backoff strategy. Due-run discovery, bounded sweeps, and continuous single-worker polling are implemented; lease/CAS multi-worker safety and exponential backoff remain.
 
 Acceptance criteria:
 

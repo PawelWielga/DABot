@@ -113,3 +113,38 @@ Its current responsibilities are:
 - assign deterministic IDs to legacy steps that do not have one.
 
 Normalization is intentionally separate from browser execution so future compilation steps can add execution metadata without coupling the scenario format to Playwright.
+
+
+## Retry semantics
+
+`retryCount` is optional and must be zero or greater.
+
+It means the number of **additional** attempts after the initial execution:
+
+| retryCount | Maximum attempts |
+| ---: | ---: |
+| omitted / 0 | 1 |
+| 1 | 2 |
+| 2 | 3 |
+
+Durable execution persists each attempt number. Retry budgets therefore survive process restarts and cannot be reset by restarting DABot.
+
+Retry safety is evaluated separately from the numeric budget. Having retry budget available does not make an unsafe operation automatically retryable.
+
+### Retry delay
+
+`retryDelayMs` is optional and must be zero or greater. It defines a fixed delay before the next durable automatic retry becomes eligible:
+
+```json
+{
+  "id": "open-dashboard",
+  "type": "OpenUrl",
+  "url": "https://example.com",
+  "retryCount": 2,
+  "retryDelayMs": 5000
+}
+```
+
+Omitted or `0` means no delay. DABot persists the resulting absolute due time on the run as `RetryNotBefore`, so restarting the process does not reset the delay.
+
+Because `retryDelayMs` is optional and omitted from canonical scenario JSON when it is null, scenario-version snapshots created before this field existed remain canonical and valid within schema version 1.
