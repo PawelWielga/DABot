@@ -55,6 +55,7 @@ public sealed class ScenarioExecutor : IScenarioExecutor
                     context,
                     index,
                     cancellationToken);
+                context.CaptureOutput(stepResult);
                 result.Steps.Add(stepResult);
             }
 
