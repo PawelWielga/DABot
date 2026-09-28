@@ -1,9 +1,17 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace DesktopAutomationBot.Core;
 
+public static class ScenarioSchema
+{
+    public const int CurrentVersion = 1;
+}
+
 public sealed record ScenarioDefinition
 {
+    public int SchemaVersion { get; init; } = ScenarioSchema.CurrentVersion;
+
     public string Name { get; init; } = string.Empty;
 
     public List<ScenarioStep> Steps { get; init; } = [];
@@ -11,6 +19,8 @@ public sealed record ScenarioDefinition
 
 public sealed record ScenarioStep
 {
+    public string? Id { get; init; }
+
     public StepType Type { get; init; }
 
     public string? Selector { get; init; }
@@ -24,6 +34,11 @@ public sealed record ScenarioStep
     public int? TimeoutMs { get; init; }
 
     public int? RetryCount { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? RetryDelayMs { get; init; }
+
+    public StepRetrySafety? RetrySafety { get; init; }
 
     public Dictionary<string, JsonElement>? Parameters { get; init; }
 

@@ -5,12 +5,25 @@ namespace DesktopAutomationBot.Application;
 
 public sealed class ScenarioExecutionContext
 {
-    public ScenarioExecutionContext(ScenarioDefinition scenario, IBrowserAutomation browserAutomation, BotOptions options)
+    public ScenarioExecutionContext(
+        ScenarioDefinition scenario,
+        IBrowserAutomation browserAutomation,
+        BotOptions options,
+        Guid? durableRunId = null,
+        IReadOnlyDictionary<string, string>? initialVariables = null)
     {
         Scenario = scenario;
         BrowserAutomation = browserAutomation;
         Options = options;
-        RunId = CreateRunId(scenario.Name);
+        RunId = durableRunId?.ToString("D") ?? CreateRunId(scenario.Name);
+
+        if (initialVariables is not null)
+        {
+            foreach (var (name, value) in initialVariables)
+            {
+                Variables.Set(name, value);
+            }
+        }
     }
 
     public ScenarioDefinition Scenario { get; }

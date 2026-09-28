@@ -7,6 +7,15 @@ public sealed class BotOptions
     public BrowserOptions Browser { get; init; } = new();
 
     public StorageOptions Storage { get; init; } = new();
+
+    public RetryWorkerOptions RetryWorker { get; init; } = new();
+}
+
+public sealed class RetryWorkerOptions
+{
+    public int PollIntervalMs { get; init; } = 1000;
+
+    public int BatchSize { get; init; } = 100;
 }
 
 public sealed class BrowserOptions
@@ -29,4 +38,6 @@ public sealed class StorageOptions
     public string ScreenshotsDirectory { get; init; } = Path.Combine("screenshots");
 
     public string ArtifactsDirectory { get; init; } = Path.Combine("artifacts");
+
+    public string DatabasePath { get; init; } = Path.Combine("data", "dabot.db");
 }

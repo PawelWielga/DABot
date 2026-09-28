@@ -1,0 +1,591 @@
+using DesktopAutomationBot.Core;
+
+namespace DesktopAutomationBot.Application;
+
+public sealed class DurableScenarioExecutor :
+    IDurableScenarioExecutor,
+    IDurableRunResumeService
+{
+    private readonly BotOptions _options;
+    private readonly IScenarioValidationService _validationService;
+    private readonly IReadOnlyDictionary<StepType, IStepHandler> _handlers;
+    private readonly IBrowserAutomation _browserAutomation;
+    private readonly IRunStore _runStore;
+    private readonly IStepAttemptStore _stepAttemptStore;
+    private readonly TimeProvider _timeProvider;
+
+    public DurableScenarioExecutor(
+        BotOptions options,
+        IScenarioValidationService validationService,
+        IEnumerable<IStepHandler> handlers,
+        IBrowserAutomation browserAutomation,
+        IRunStore runStore,
+        IStepAttemptStore stepAttemptStore,
+        TimeProvider timeProvider)
+    {
+        _options = options;
+        _validationService = validationService;
+        _browserAutomation = browserAutomation;
+        _runStore = runStore;
+        _stepAttemptStore = stepAttemptStore;
+        _timeProvider = timeProvider;
+        _handlers = handlers.ToDictionary(handler => handler.StepType);
+    }
+
+    public async Task<DurableScenarioExecutionResult> ExecuteAsync(
+        ScenarioRunRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(request.ScenarioVersion);
+
+        var scenarioVersion = request.ScenarioVersion;
+        var scenario = scenarioVersion.MaterializeDefinition();
+        _validationService.ValidateOrThrow(scenario);
+
+        var run = request.CreateRun(_timeProvider.GetUtcNow());
+
+        await _runStore.SaveAsync(
+            run,
+            scenarioVersion,
+            cancellationToken);
+
+        run = RestoreSnapshot(
+            run,
+            scenarioVersion,
+            run.State.Start(),
+            run.Cursor,
+            run.Variables,
+            NextTimestamp(run.UpdatedAt));
+
+        await _runStore.SaveAsync(
+            run,
+            scenarioVersion,
+            cancellationToken);
+
+        return await ExecuteRunningRunAsync(
+            run,
+            scenarioVersion,
+            cancellationToken);
+    }
+
+    public async Task<DurableScenarioExecutionResult> ResumeAsync(
+        Guid runId,
+        CancellationToken cancellationToken = default)
+    {
+        if (runId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Run ID must not be empty.",
+                nameof(runId));
+        }
+
+        var stored = await _runStore.LoadAsync(
+            runId,
+            cancellationToken);
+
+        if (stored is null)
+        {
+            throw new KeyNotFoundException(
+                $"Durable run '{runId}' does not exist.");
+        }
+
+        var run = stored.Run;
+        var scenarioVersion = stored.ScenarioVersion;
+
+        if (run.State.Status != RunStatus.Waiting ||
+            run.State.WaitReason != RunWaitReason.Retry)
+        {
+            throw new InvalidOperationException(
+                $"Run '{runId}' can be resumed automatically only from 'Waiting / Retry'. " +
+                $"Current state is '{run.State.Status}'" +
+                (run.State.WaitReason is null
+                    ? "."
+                    : $" with reason '{run.State.WaitReason}'."));
+        }
+
+        if (run.Cursor.IsCompleted)
+        {
+            throw new InvalidOperationException(
+                $"Run '{runId}' cannot resume because its execution cursor is already completed.");
+        }
+
+        var attempts = await _stepAttemptStore.LoadStepAttemptsAsync(
+            run.RunId,
+            cancellationToken);
+
+        if (attempts.Any(attempt => attempt.Status == StepAttemptStatus.Started))
+        {
+            throw new InvalidOperationException(
+                $"Run '{runId}' still contains a started step attempt. " +
+                "Crash recovery must reconcile started attempts before resume.");
+        }
+
+        var scenario = scenarioVersion.MaterializeDefinition();
+        _validationService.ValidateOrThrow(scenario);
+
+        var (step, _) =
+            DurableExecutionCursorNavigator.ResolveTopLevelStep(
+                scenario,
+                run.Cursor);
+
+        if (!DurableRetryPolicy.HasRemainingAttempt(
+                step,
+                attempts))
+        {
+            var errorMessage =
+                $"Retry limit exhausted for step '{step.Id}'. " +
+                $"Configured retryCount is {step.RetryCount ?? 0}.";
+
+            run = await FailAsync(
+                run,
+                scenarioVersion,
+                run.Variables);
+
+            return CreateResult(
+                run,
+                DurableExecutionOutcome.Failed,
+                [],
+                errorMessage);
+        }
+
+        if (run.RetryNotBefore is { } retryNotBefore &&
+            _timeProvider.GetUtcNow() < retryNotBefore)
+        {
+            return CreateResult(
+                run,
+                DurableExecutionOutcome.Suspended,
+                []);
+        }
+
+        run = RestoreSnapshot(
+            run,
+            scenarioVersion,
+            run.State.Resume(),
+            run.Cursor,
+            run.Variables,
+            NextTimestamp(run.UpdatedAt));
+
+        await _runStore.SaveAsync(
+            run,
+            scenarioVersion,
+            cancellationToken);
+
+        return await ExecuteRunningRunAsync(
+            run,
+            scenarioVersion,
+            cancellationToken);
+    }
+
+    private async Task<DurableScenarioExecutionResult> ExecuteRunningRunAsync(
+        AutomationRun run,
+        ScenarioVersion scenarioVersion,
+        CancellationToken cancellationToken)
+    {
+        if (run.State.Status != RunStatus.Running)
+        {
+            throw new InvalidOperationException(
+                $"Durable execution requires a running run. Current state is '{run.State.Status}'.");
+        }
+
+        var scenario = scenarioVersion.MaterializeDefinition();
+        var variables = new Dictionary<string, string>(
+            run.Variables,
+            StringComparer.OrdinalIgnoreCase);
+        var stepResults = new List<StepExecutionResult>();
+        var context = new ScenarioExecutionContext(
+            scenario,
+            _browserAutomation,
+            _options,
+            run.RunId,
+            variables);
+
+        Directory.CreateDirectory(context.ScreenshotDirectory);
+
+        try
+        {
+            await _browserAutomation.OpenAsync(cancellationToken);
+
+            while (!run.Cursor.IsCompleted)
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    run = await CancelAsync(
+                        run,
+                        scenarioVersion,
+                        variables);
+
+                    return CreateResult(
+                        run,
+                        DurableExecutionOutcome.Cancelled,
+                        stepResults);
+                }
+
+                var (step, index) =
+                    DurableExecutionCursorNavigator.ResolveTopLevelStep(
+                        scenario,
+                        run.Cursor);
+
+                if (!_handlers.TryGetValue(step.Type, out var handler))
+                {
+                    throw new NotSupportedException(
+                        $"Step type '{step.Type}' is not supported yet.");
+                }
+
+                var attempts =
+                    await _stepAttemptStore.LoadStepAttemptsAsync(
+                        run.RunId,
+                        cancellationToken);
+
+                var attemptNumber =
+                    DurableRetryPolicy.GetNextAttemptNumber(
+                        step,
+                        attempts);
+
+                var startedAttempt = StepAttempt.Start(
+                    run.RunId,
+                    step,
+                    attemptNumber,
+                    NextTimestamp(run.UpdatedAt));
+
+                await _stepAttemptStore.SaveStepAttemptAsync(
+                    startedAttempt,
+                    CancellationToken.None);
+
+                StepExecutionResult stepResult;
+
+                try
+                {
+                    stepResult = await handler.ExecuteAsync(
+                        step,
+                        context,
+                        index,
+                        cancellationToken);
+                }
+                catch (OperationCanceledException)
+                    when (cancellationToken.IsCancellationRequested)
+                {
+                    var unknownAttempt = startedAttempt.MarkUnknown(
+                        NextTimestamp(startedAttempt.UpdatedAt));
+
+                    await _stepAttemptStore.SaveStepAttemptAsync(
+                        unknownAttempt,
+                        CancellationToken.None);
+
+                    run = await CancelAsync(
+                        run,
+                        scenarioVersion,
+                        variables);
+
+                    return CreateResult(
+                        run,
+                        DurableExecutionOutcome.Cancelled,
+                        stepResults);
+                }
+                catch (Exception exception)
+                {
+                    var failedAttempt = startedAttempt.MarkFailed(
+                        exception.Message,
+                        NextTimestamp(startedAttempt.UpdatedAt));
+
+                    await _stepAttemptStore.SaveStepAttemptAsync(
+                        failedAttempt,
+                        CancellationToken.None);
+
+                    return await HandleFailedAttemptAsync(
+                        run,
+                        scenarioVersion,
+                        step,
+                        variables,
+                        stepResults,
+                        exception.Message);
+                }
+
+                CaptureOutputVariable(
+                    variables,
+                    stepResult);
+
+                var completedAttempt = startedAttempt.MarkCompleted(
+                    NextTimestamp(startedAttempt.UpdatedAt));
+
+                await _stepAttemptStore.SaveStepAttemptAsync(
+                    completedAttempt,
+                    CancellationToken.None);
+
+                stepResults.Add(stepResult);
+
+                var nextCursor =
+                    DurableExecutionCursorNavigator.AdvanceTopLevelCursor(
+                        scenario,
+                        index);
+
+                var nextState = nextCursor.IsCompleted
+                    ? run.State.Complete()
+                    : run.State;
+
+                run = RestoreSnapshot(
+                    run,
+                    scenarioVersion,
+                    nextState,
+                    nextCursor,
+                    variables,
+                    NextTimestamp(run.UpdatedAt));
+
+                await _runStore.SaveAsync(
+                    run,
+                    scenarioVersion,
+                    CancellationToken.None);
+            }
+
+            return CreateResult(
+                run,
+                DurableExecutionOutcome.Completed,
+                stepResults);
+        }
+        catch (OperationCanceledException)
+            when (cancellationToken.IsCancellationRequested)
+        {
+            run = await CancelAsync(
+                run,
+                scenarioVersion,
+                variables);
+
+            return CreateResult(
+                run,
+                DurableExecutionOutcome.Cancelled,
+                stepResults);
+        }
+        catch (Exception exception)
+        {
+            if (!run.State.IsTerminal)
+            {
+                run = await FailAsync(
+                    run,
+                    scenarioVersion,
+                    variables);
+            }
+
+            return CreateResult(
+                run,
+                DurableExecutionOutcome.Failed,
+                stepResults,
+                exception.Message);
+        }
+        finally
+        {
+            await _browserAutomation.DisposeAsync();
+        }
+    }
+
+    private async Task<DurableScenarioExecutionResult> HandleFailedAttemptAsync(
+        AutomationRun run,
+        ScenarioVersion scenarioVersion,
+        ScenarioStep step,
+        IReadOnlyDictionary<string, string> variables,
+        IReadOnlyList<StepExecutionResult> stepResults,
+        string errorMessage)
+    {
+        var attempts = await _stepAttemptStore.LoadStepAttemptsAsync(
+            run.RunId,
+            CancellationToken.None);
+
+        if (!DurableRetryPolicy.HasRemainingAttempt(
+                step,
+                attempts))
+        {
+            var failed = await FailAsync(
+                run,
+                scenarioVersion,
+                variables);
+
+            return CreateResult(
+                failed,
+                DurableExecutionOutcome.Failed,
+                stepResults,
+                errorMessage);
+        }
+
+        var action = DurableRetryPolicy.GetRecoveryAction(step);
+
+        switch (action)
+        {
+            case StepRecoveryAction.RetryAutomatically:
+            {
+                var waiting = await WaitAsync(
+                    run,
+                    scenarioVersion,
+                    variables,
+                    RunWaitReason.Retry,
+                    step);
+
+                return CreateResult(
+                    waiting,
+                    DurableExecutionOutcome.Suspended,
+                    stepResults,
+                    errorMessage);
+            }
+
+            case StepRecoveryAction.VerifyBeforeRetry:
+            case StepRecoveryAction.WaitingForHuman:
+            {
+                var waiting = await WaitAsync(
+                    run,
+                    scenarioVersion,
+                    variables,
+                    RunWaitReason.Human);
+
+                return CreateResult(
+                    waiting,
+                    DurableExecutionOutcome.Suspended,
+                    stepResults,
+                    errorMessage);
+            }
+
+            case StepRecoveryAction.None:
+            default:
+            {
+                var failed = await FailAsync(
+                    run,
+                    scenarioVersion,
+                    variables);
+
+                return CreateResult(
+                    failed,
+                    DurableExecutionOutcome.Failed,
+                    stepResults,
+                    errorMessage);
+            }
+        }
+    }
+
+    private async Task<AutomationRun> WaitAsync(
+        AutomationRun run,
+        ScenarioVersion scenarioVersion,
+        IReadOnlyDictionary<string, string> variables,
+        RunWaitReason reason,
+        ScenarioStep? retryStep = null)
+    {
+        var updatedAt = NextTimestamp(run.UpdatedAt);
+        DateTimeOffset? retryNotBefore = reason == RunWaitReason.Retry
+            ? DurableRetryPolicy.GetRetryNotBefore(
+                retryStep ?? throw new ArgumentNullException(nameof(retryStep)),
+                updatedAt)
+            : null;
+
+        var waiting = RestoreSnapshot(
+            run,
+            scenarioVersion,
+            run.State.Wait(reason),
+            run.Cursor,
+            variables,
+            updatedAt,
+            retryNotBefore);
+
+        await _runStore.SaveAsync(
+            waiting,
+            scenarioVersion,
+            CancellationToken.None);
+
+        return waiting;
+    }
+
+    private async Task<AutomationRun> FailAsync(
+        AutomationRun run,
+        ScenarioVersion scenarioVersion,
+        IReadOnlyDictionary<string, string> variables)
+    {
+        var failed = RestoreSnapshot(
+            run,
+            scenarioVersion,
+            run.State.Fail(),
+            run.Cursor,
+            variables,
+            NextTimestamp(run.UpdatedAt));
+
+        await _runStore.SaveAsync(
+            failed,
+            scenarioVersion,
+            CancellationToken.None);
+
+        return failed;
+    }
+
+    private async Task<AutomationRun> CancelAsync(
+        AutomationRun run,
+        ScenarioVersion scenarioVersion,
+        IReadOnlyDictionary<string, string> variables)
+    {
+        if (run.State.IsTerminal)
+        {
+            return run;
+        }
+
+        var cancelled = RestoreSnapshot(
+            run,
+            scenarioVersion,
+            run.State.Cancel(),
+            run.Cursor,
+            variables,
+            NextTimestamp(run.UpdatedAt));
+
+        await _runStore.SaveAsync(
+            cancelled,
+            scenarioVersion,
+            CancellationToken.None);
+
+        return cancelled;
+    }
+
+    private DateTimeOffset NextTimestamp(
+        DateTimeOffset minimum)
+    {
+        var now = _timeProvider.GetUtcNow();
+        return now < minimum
+            ? minimum
+            : now;
+    }
+
+    private static AutomationRun RestoreSnapshot(
+        AutomationRun run,
+        ScenarioVersion scenarioVersion,
+        RunState state,
+        ExecutionCursor cursor,
+        IReadOnlyDictionary<string, string> variables,
+        DateTimeOffset updatedAt,
+        DateTimeOffset? retryNotBefore = null) =>
+        AutomationRun.Restore(
+            run.RunId,
+            scenarioVersion,
+            state,
+            cursor,
+            variables,
+            run.CreatedAt,
+            updatedAt,
+            retryNotBefore);
+
+    private static void CaptureOutputVariable(
+        IDictionary<string, string> variables,
+        StepExecutionResult result)
+    {
+        if (string.IsNullOrWhiteSpace(result.OutputName) ||
+            result.OutputValue is null)
+        {
+            return;
+        }
+
+        variables[result.OutputName] = result.OutputValue;
+    }
+
+    private static DurableScenarioExecutionResult CreateResult(
+        AutomationRun run,
+        DurableExecutionOutcome outcome,
+        IEnumerable<StepExecutionResult> stepResults,
+        string? errorMessage = null) =>
+        new()
+        {
+            Run = run,
+            Outcome = outcome,
+            Steps = [.. stepResults],
+            ErrorMessage = errorMessage,
+        };
+}
