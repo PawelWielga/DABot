@@ -89,6 +89,38 @@ public sealed class ScenarioVersionTests
     }
 
     [Fact]
+    public void Capture_WhenRetryDelayIsOmitted_DoesNotChangeLegacyCanonicalShape()
+    {
+        var version = ScenarioVersion.Capture(
+            Guid.NewGuid(),
+            1,
+            CreateScenario(),
+            DateTimeOffset.UtcNow);
+
+        version.DefinitionJson.Should().NotContain("retryDelayMs");
+    }
+
+    [Fact]
+    public void Capture_WhenRetryDelayIsConfigured_PersistsItInCanonicalDefinition()
+    {
+        var scenario = CreateScenario();
+        scenario.Steps[0] = scenario.Steps[0] with
+        {
+            RetryDelayMs = 1500,
+        };
+
+        var version = ScenarioVersion.Capture(
+            Guid.NewGuid(),
+            1,
+            scenario,
+            DateTimeOffset.UtcNow);
+
+        version.DefinitionJson.Should().Contain("\"retryDelayMs\":1500");
+        version.MaterializeDefinition().Steps[0].RetryDelayMs
+            .Should().Be(1500);
+    }
+
+    [Fact]
     public void Capture_WhenDefinitionChanges_ProducesDifferentHash()
     {
         var first = CreateScenario();
