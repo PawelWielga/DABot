@@ -42,7 +42,7 @@ public sealed class DelayStepHandler : IStepHandler
 
         if (int.TryParse(
                 step.Value,
-                NumberStyles.Integer,
+                NumberStyles.None,
                 CultureInfo.InvariantCulture,
                 out var valueMs) &&
             valueMs >= 0)
