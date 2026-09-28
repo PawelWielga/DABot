@@ -21,6 +21,47 @@ await using var provider = services.BuildServiceProvider();
 
 try
 {
+    var command = args.Length == 0
+        ? "run"
+        : args[0].Trim().ToLowerInvariant();
+
+    if (args.Length > 1 ||
+        command is not ("run" or "retry-worker"))
+    {
+        Console.Error.WriteLine(
+            "Usage: DesktopAutomationBot.Runner [run|retry-worker]");
+        return 2;
+    }
+
+    if (command == "retry-worker")
+    {
+        var worker = provider.GetRequiredService<IDurableRetryWorker>();
+        var options = provider.GetRequiredService<BotOptions>();
+
+        using var cancellation = new CancellationTokenSource();
+        ConsoleCancelEventHandler cancelHandler = (_, eventArgs) =>
+        {
+            eventArgs.Cancel = true;
+            cancellation.Cancel();
+        };
+
+        Console.CancelKeyPress += cancelHandler;
+
+        try
+        {
+            Console.WriteLine(
+                $"Retry worker started. Poll interval: {options.RetryWorker.PollIntervalMs} ms; " +
+                $"batch size: {options.RetryWorker.BatchSize}. Press Ctrl+C to stop.");
+
+            await worker.RunAsync(cancellation.Token);
+            return 0;
+        }
+        finally
+        {
+            Console.CancelKeyPress -= cancelHandler;
+        }
+    }
+
     var options = provider.GetRequiredService<BotOptions>();
     var loader = provider.GetRequiredService<IScenarioLoader>();
     var executor = provider.GetRequiredService<IScenarioExecutor>();
