@@ -183,4 +183,60 @@ public sealed class ScenarioDefinitionValidatorTests
         normalized.Steps[0].Id.Should().Be("step-001-2");
         normalized.Steps[1].Id.Should().Be("step-001");
     }
+    [Fact]
+    public void Validate_WhenRetryCountIsNegative_ReturnsValidationError()
+    {
+        var validator = new ScenarioDefinitionValidator();
+
+        var result = validator.Validate(new ScenarioDefinition
+        {
+            Name = "Invalid retry count",
+            Steps =
+            [
+                new ScenarioStep
+                {
+                    Type = StepType.OpenUrl,
+                    Url = "https://example.com",
+                    RetryCount = -1,
+                },
+            ],
+        });
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(
+            "scenario.steps[0].retryCount must be zero or greater.");
+    }
+
+    [Theory]
+    [InlineData(null, 1)]
+    [InlineData(0, 1)]
+    [InlineData(1, 2)]
+    [InlineData(2, 3)]
+    public void StepRetryPolicy_MaximumAttempts_IsInitialAttemptPlusRetries(
+        int? retryCount,
+        int expectedMaximumAttempts)
+    {
+        var step = new ScenarioStep
+        {
+            Type = StepType.Screenshot,
+            RetryCount = retryCount,
+        };
+
+        StepRetryPolicy.GetMaximumAttempts(step)
+            .Should()
+            .Be(expectedMaximumAttempts);
+    }
+
+    [Fact]
+    public void StepRetryPolicy_HasRemainingAttempt_UsesHighestPersistedAttemptNumber()
+    {
+        var step = new ScenarioStep
+        {
+            Type = StepType.Screenshot,
+            RetryCount = 2,
+        };
+
+        StepRetryPolicy.HasRemainingAttempt(step, 2).Should().BeTrue();
+        StepRetryPolicy.HasRemainingAttempt(step, 3).Should().BeFalse();
+    }
 }
