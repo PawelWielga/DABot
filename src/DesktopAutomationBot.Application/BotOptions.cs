@@ -7,6 +7,15 @@ public sealed class BotOptions
     public BrowserOptions Browser { get; init; } = new();
 
     public StorageOptions Storage { get; init; } = new();
+
+    public RetryWorkerOptions RetryWorker { get; init; } = new();
+}
+
+public sealed class RetryWorkerOptions
+{
+    public int PollIntervalMs { get; init; } = 1000;
+
+    public int BatchSize { get; init; } = 100;
 }
 
 public sealed class BrowserOptions
