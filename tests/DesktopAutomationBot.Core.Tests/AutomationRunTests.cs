@@ -215,6 +215,68 @@ public sealed class AutomationRunTests
         run.Cursor.IsCompleted.Should().BeTrue();
     }
 
+    [Fact]
+    public void Restore_RetryWait_PreservesRetryNotBefore()
+    {
+        var version = CreateVersion();
+        var createdAt = DateTimeOffset.Parse("2026-09-28T10:00:00+02:00");
+        var updatedAt = createdAt.AddMinutes(1);
+        var retryNotBefore = updatedAt.AddSeconds(30);
+
+        var run = AutomationRun.Restore(
+            Guid.NewGuid(),
+            version,
+            RunState.Restore(RunStatus.Waiting, RunWaitReason.Retry),
+            ExecutionCursor.Start(version.MaterializeDefinition()),
+            variables: null,
+            createdAt,
+            updatedAt,
+            retryNotBefore);
+
+        run.RetryNotBefore.Should().Be(retryNotBefore);
+    }
+
+    [Fact]
+    public void Restore_WhenRetryNotBeforeIsSetOutsideRetryWait_Throws()
+    {
+        var version = CreateVersion();
+        var timestamp = DateTimeOffset.Parse("2026-09-28T10:00:00+02:00");
+
+        var act = () => AutomationRun.Restore(
+            Guid.NewGuid(),
+            version,
+            RunState.Restore(RunStatus.Running),
+            ExecutionCursor.Start(version.MaterializeDefinition()),
+            variables: null,
+            timestamp,
+            timestamp,
+            timestamp.AddSeconds(1));
+
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("*RetryNotBefore*only be set*Retry*");
+    }
+
+    [Fact]
+    public void Restore_WhenRetryNotBeforePredatesUpdatedAt_Throws()
+    {
+        var version = CreateVersion();
+        var createdAt = DateTimeOffset.Parse("2026-09-28T10:00:00+02:00");
+        var updatedAt = createdAt.AddMinutes(1);
+
+        var act = () => AutomationRun.Restore(
+            Guid.NewGuid(),
+            version,
+            RunState.Restore(RunStatus.Waiting, RunWaitReason.Retry),
+            ExecutionCursor.Start(version.MaterializeDefinition()),
+            variables: null,
+            createdAt,
+            updatedAt,
+            updatedAt.AddMilliseconds(-1));
+
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("*RetryNotBefore*earlier*updated timestamp*");
+    }
+
     private static ScenarioVersion CreateVersion() =>
         ScenarioVersion.Capture(
             Guid.NewGuid(),
