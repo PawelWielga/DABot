@@ -64,8 +64,8 @@ Status legend:
 - [ ] Implement `Delay`.
 - [ ] Implement `If`.
 - [ ] Implement `Loop`.
-- [ ] Implement step retry.
-- [ ] Use `RetryCount` from the scenario model.
+- [~] Implement step retry. Durable failure/recovery can now suspend to `Waiting / Retry`; scheduling/backoff and legacy synchronous retry remain.
+- [~] Use `RetryCount` from the scenario model. Durable execution and recovery enforce it as the number of additional attempts; legacy synchronous execution remains.
 - [ ] Validate that every declared step type has a registered handler.
 - [ ] Add cancellation support through the full execution stack.
 - [ ] Add scenario-level timeout where appropriate.
@@ -215,7 +215,8 @@ Goal: allow a workflow to stop without blocking a process and continue later.
 - [ ] Add CLI `resume` command.
 - [ ] Add CLI `cancel` command.
 - [x] Add `Waiting` / `Human` transition for unsafe automatic recovery.
-- [ ] Add max attempt / max error guardrails before enabling unattended retry scheduling.
+- [x] Add max-attempt guardrails from `RetryCount` before unattended retry scheduling.
+- [ ] Persist retry due time/backoff before enabling unattended retry scheduling.
 
 Acceptance criteria:
 
