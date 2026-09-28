@@ -466,7 +466,7 @@ public sealed class DurableScenarioExecutor :
         ScenarioStep? retryStep = null)
     {
         var updatedAt = NextTimestamp(run.UpdatedAt);
-        var retryNotBefore = reason == RunWaitReason.Retry
+        DateTimeOffset? retryNotBefore = reason == RunWaitReason.Retry
             ? DurableRetryPolicy.GetRetryNotBefore(
                 retryStep ?? throw new ArgumentNullException(nameof(retryStep)),
                 updatedAt)
