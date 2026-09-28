@@ -19,6 +19,7 @@ DABot can currently:
 - click elements,
 - fill and paste text,
 - read text into scenario outputs,
+- interpolate `{{variableName}}` references in string step inputs, including built-in `runId`,
 - wait for selectors, text, URLs, and page load states,
 - pause execution for a fixed delay,
 - capture screenshots,
@@ -111,6 +112,19 @@ To run a different scenario with the current runner, change `bot.scenarioPath` i
 
 More examples are available in [examples](examples/README.md).
 
+### Scenario variables
+
+String step inputs such as `url`, `selector`, `value`, and string-valued `parameters` can reference variables with `{{variableName}}`.
+
+Variables currently come from:
+
+- outputs produced by earlier steps such as `ReadText`,
+- initial variables supplied to a durable `ScenarioRunRequest`,
+- the built-in `runId` variable for the current execution.
+
+An undefined variable fails the step instead of silently leaving the placeholder in place. The one-shot CLI does not yet expose separate `--var` arguments, so ordinary runner scenarios primarily use outputs from earlier steps and `runId`.
+
+
 ## For agents and tooling
 
 DABot keeps machine- and agent-readable project context in the repository:
@@ -138,7 +152,9 @@ Agents should use the README and implementation backlog to distinguish current f
 | CLI-style .NET runner | Available |
 | Structured logging and failure artifacts | Planned |
 | HTTP/API scenario steps | Planned |
-| Conditions, loops, retries, and variable interpolation | Planned |
+| Variable interpolation | Available |
+| Durable retry recovery/scheduling | Partial |
+| Conditions and loops | Planned |
 | Persistent named browser profiles | Planned |
 | Durable run persistence | Planned |
 | Suspend and resume | Planned |
