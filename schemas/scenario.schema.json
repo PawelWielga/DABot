@@ -36,7 +36,7 @@
       ],
       "properties": {
         "type": {
-          "description": "Scenario step type. OpenUrl, Click, FillText, PasteText, ReadText, WaitFor and Screenshot are currently executable. Other listed values are reserved by the domain model and roadmap.",
+          "description": "Scenario step type. OpenUrl, Click, FillText, PasteText, ReadText, WaitFor, Delay and Screenshot are currently executable. Other listed values are reserved by the domain model and roadmap.",
           "oneOf": [
             {
               "const": "OpenUrl",
@@ -72,7 +72,7 @@
             },
             {
               "const": "Delay",
-              "description": "Planned: domain value exists, executable handler is not implemented yet."
+              "description": "Available: pause execution for a fixed number of milliseconds."
             },
             {
               "const": "If",
@@ -96,7 +96,7 @@
         },
         "value": {
           "type": "string",
-          "description": "Text/value consumed by a step."
+          "description": "Text/value consumed by a step. Delay also accepts a non-negative integer number of milliseconds encoded as text."
         },
         "output": {
           "type": "string",
@@ -105,7 +105,7 @@
         },
         "timeoutMs": {
           "type": "integer",
-          "description": "Optional step-specific timeout in milliseconds."
+          "description": "Optional step-specific timeout in milliseconds. For Delay this is the delay duration."
         },
         "retryCount": {
           "type": "integer",
@@ -245,12 +245,22 @@
               {
                 "required": [
                   "timeoutMs"
-                ]
+                ],
+                "properties": {
+                  "timeoutMs": {
+                    "minimum": 0
+                  }
+                }
               },
               {
                 "required": [
                   "value"
-                ]
+                ],
+                "properties": {
+                  "value": {
+                    "pattern": "^[0-9]+$"
+                  }
+                }
               }
             ]
           }
