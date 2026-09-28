@@ -324,17 +324,30 @@ Example:
 
 ## Resume
 
-Resume must:
+The first application-level resume path is implemented through `IDurableRunResumeService`. It intentionally handles only runs in `Waiting / Retry`.
 
-1. load the run,
-2. verify that it is resumable,
-3. verify event idempotency,
-4. acquire a lease/lock,
-5. merge allowed event data into the execution context,
-6. continue from the saved position,
-7. release or renew the lease as appropriate.
+Retry resume:
 
-Calling resume twice with the same event must not execute the next step twice.
+1. loads the existing run and its immutable scenario version,
+2. requires the persisted state to be exactly `Waiting / Retry`,
+3. rejects a run that still contains a `Started` attempt and requires crash recovery first,
+4. transitions the same run to `Running`,
+5. keeps the stable `RunId`, scenario version, cursor, variables, and artifact directory,
+6. continues execution from the persisted cursor,
+7. derives the next attempt number from persisted attempt history.
+
+Attempt numbers are scoped by run and stable step ID. A first execution uses attempt `1`; a recovered retry after an `Unknown` or replayable completed attempt uses `2`, then `3`, and so on. The executor never resets the attempt number when the process restarts.
+
+`Waiting / Human`, `Waiting / Event`, and `Waiting / Schedule` are not accepted by automatic retry resume. They require their dedicated decision/event/scheduler flows.
+
+The broader durable resume model still needs:
+
+1. event idempotency,
+2. a worker/run lease or compare-and-swap claim before concurrent workers are enabled,
+3. merging allowed event data into the execution context,
+4. lease release/renewal semantics.
+
+Calling event-driven resume twice with the same event must not execute the next step twice. Until run leasing is added, automatic retry resume remains designed for the current single-worker model.
 
 ## WaitFor versus Suspend
 
