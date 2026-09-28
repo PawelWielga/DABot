@@ -74,6 +74,71 @@ public sealed class ScenarioVersion
             createdAt);
     }
 
+    public static ScenarioVersion Restore(
+        Guid scenarioId,
+        Guid versionId,
+        int versionNumber,
+        int schemaVersion,
+        string definitionHash,
+        string definitionJson,
+        DateTimeOffset createdAt)
+    {
+        if (scenarioId == Guid.Empty)
+        {
+            throw new ArgumentException("Scenario ID must not be empty.", nameof(scenarioId));
+        }
+
+        if (versionId == Guid.Empty)
+        {
+            throw new ArgumentException("Scenario version ID must not be empty.", nameof(versionId));
+        }
+
+        if (versionNumber < 1)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(versionNumber),
+                versionNumber,
+                "Scenario version number must be at least 1.");
+        }
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(definitionHash);
+        ArgumentException.ThrowIfNullOrWhiteSpace(definitionJson);
+
+        var definition = ScenarioDefinitionCanonicalJson.Deserialize(definitionJson);
+        if (definition.SchemaVersion != schemaVersion)
+        {
+            throw new ArgumentException(
+                $"Stored scenario schema version '{schemaVersion}' does not match definition schema version '{definition.SchemaVersion}'.",
+                nameof(schemaVersion));
+        }
+
+        var normalizedDefinition = ScenarioDefinitionNormalizer.Normalize(definition);
+        var canonicalJson = ScenarioDefinitionCanonicalJson.Serialize(normalizedDefinition);
+        if (!string.Equals(canonicalJson, definitionJson, StringComparison.Ordinal))
+        {
+            throw new ArgumentException(
+                "Stored scenario definition JSON is not the canonical normalized representation.",
+                nameof(definitionJson));
+        }
+
+        var computedHash = ScenarioDefinitionCanonicalJson.ComputeSha256(definitionJson);
+        if (!string.Equals(computedHash, definitionHash, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException(
+                "Stored scenario definition hash does not match the definition JSON.",
+                nameof(definitionHash));
+        }
+
+        return new ScenarioVersion(
+            scenarioId,
+            versionId,
+            versionNumber,
+            schemaVersion,
+            computedHash,
+            definitionJson,
+            createdAt);
+    }
+
     public ScenarioDefinition MaterializeDefinition() =>
         ScenarioDefinitionCanonicalJson.Deserialize(DefinitionJson);
 }
