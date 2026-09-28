@@ -14,7 +14,8 @@ DABot is a general-purpose .NET browser automation engine built around declarati
 - External transports and persistence mechanisms are infrastructure adapters.
 - MCP is an integration boundary, not a separate execution engine. MCP tools must delegate to the same Application/Core capabilities used by CLI, workers, HTTP, and the web panel.
 - Agents may author declarative reusable tools/workflows, but must not gain an unrestricted code-evaluation path as part of that feature.
-- Read `docs/prd.md`, `docs/tasks.md`, `docs/durable-workflows.md`, and `docs/mcp-and-dynamic-tools.md` before changes that affect architecture or scope.
+- Read `docs/prd.md`, `docs/product-positioning.md`, `docs/tasks.md`, `docs/durable-workflows.md`, and `docs/mcp-and-dynamic-tools.md` before changes that affect architecture or scope.
+- Preserve DABot's differentiation around deterministic reusable browser Tools, durable browser workflows, controlled AI-authored Tools, and one shared execution layer. Prefer adapters over rebuilding generic browser-cloud, stealth/proxy, autonomous-agent, or broad SaaS-integration platforms.
 
 ## Repository shape
 
