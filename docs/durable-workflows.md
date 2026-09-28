@@ -299,7 +299,7 @@ Crash recovery applies the same budget. An `Unknown` safe/idempotent attempt is 
 
 Recovery reconstructs a missing retry schedule from the persisted attempt timestamp where possible. For example, if a `Failed` attempt was stored but the process died before the run snapshot was updated, the retry due time is calculated from the original failure time rather than from restart time. An already-overdue `RetryNotBefore` remains valid and can resume immediately.
 
-This implements durable fixed retry delay, not unattended scheduling or exponential backoff. A scheduler that discovers due `Waiting / Retry` runs remains a separate step.
+This implements durable fixed retry delay. DABot now also has a storage-backed retry scheduler primitive for the current single-worker model: `IRetryRunStore` discovers due `Waiting / Retry` runs by their persisted `RetryNotBefore`, and `IDurableRetryScheduler` resumes a bounded batch sequentially. This is intentionally a one-shot scheduler sweep rather than a continuously hosted worker. Continuous polling/worker hosting, lease/CAS claiming for multiple workers, and exponential backoff remain separate steps.
 
 ## Crash recovery reconciliation
 
