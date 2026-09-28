@@ -80,7 +80,7 @@ Status legend:
 
 ### Runtime
 
-- [~] Add proper CLI arguments instead of relying only on config. The runner now has explicit `run` and `retry-worker` modes; richer command options remain.
+- [x] Add proper CLI arguments instead of relying only on config. The runner supports `run --scenario <path>`, help, and `retry-worker` while preserving config defaults.
 - [x] Return documented exit codes.
 - [x] Add Linux publish/smoke-test instructions.
 - [x] Add browser installation instructions.
