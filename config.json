@@ -1,4 +1,5 @@
 {
+  "$schema": "./schemas/config.schema.json",
   "bot": {
     "scenarioPath": "scenarios/sample-open-url.json",
     "browser": {
