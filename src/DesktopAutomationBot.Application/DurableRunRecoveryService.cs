@@ -272,13 +272,7 @@ public sealed class DurableRunRecoveryService : IDurableRunRecoveryService
     {
         if (!string.IsNullOrWhiteSpace(currentStep.Output))
         {
-            var action = StepAttemptRecoveryPolicy.Decide(
-                attempt with
-                {
-                    Status = StepAttemptStatus.Unknown,
-                    FinishedAt = null,
-                    ErrorMessage = null,
-                });
+            var action = DecideRetrySafety(attempt.RetrySafety);
 
             if (action == StepRecoveryAction.RetryAutomatically)
             {
@@ -403,6 +397,17 @@ public sealed class DurableRunRecoveryService : IDurableRunRecoveryService
             run.Variables,
             run.CreatedAt,
             updatedAt);
+
+    private static StepRecoveryAction DecideRetrySafety(
+        StepRetrySafety retrySafety) =>
+        retrySafety switch
+        {
+            StepRetrySafety.SafeToRetry => StepRecoveryAction.RetryAutomatically,
+            StepRetrySafety.Idempotent => StepRecoveryAction.RetryAutomatically,
+            StepRetrySafety.NeedsVerification => StepRecoveryAction.VerifyBeforeRetry,
+            StepRetrySafety.NeverRetryAutomatically => StepRecoveryAction.WaitingForHuman,
+            _ => StepRecoveryAction.WaitingForHuman,
+        };
 
     private static DurableStepRecoveryDecision CreateDecision(
         StepAttempt attempt) =>
