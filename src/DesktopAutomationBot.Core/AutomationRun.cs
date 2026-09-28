@@ -104,7 +104,7 @@ public sealed class AutomationRun
                 nameof(updatedAt));
         }
 
-        ValidateRetrySchedule(state, updatedAt, retryNotBefore);
+        ValidateRetrySchedule(state, retryNotBefore);
 
         var definition = scenarioVersion.MaterializeDefinition();
         ValidateCursor(definition, cursor);
@@ -140,7 +140,6 @@ public sealed class AutomationRun
 
     private static void ValidateRetrySchedule(
         RunState state,
-        DateTimeOffset updatedAt,
         DateTimeOffset? retryNotBefore)
     {
         var isRetryWait =
@@ -151,14 +150,6 @@ public sealed class AutomationRun
         {
             throw new ArgumentException(
                 "RetryNotBefore can only be set for a run waiting with reason Retry.",
-                nameof(retryNotBefore));
-        }
-
-        if (retryNotBefore is { } dueAt &&
-            dueAt < updatedAt)
-        {
-            throw new ArgumentException(
-                "RetryNotBefore must not be earlier than the run updated timestamp.",
                 nameof(retryNotBefore));
         }
     }
