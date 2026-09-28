@@ -253,6 +253,11 @@
                 }
               },
               {
+                "not": {
+                  "required": [
+                    "timeoutMs"
+                  ]
+                },
                 "required": [
                   "value"
                 ],
