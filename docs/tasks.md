@@ -211,11 +211,11 @@ Goal: allow a workflow to stop without blocking a process and continue later.
 - [ ] Persist expected event/correlation data.
 - [ ] Save deterministic resume position.
 - [ ] Return `Suspended` instead of treating suspension as failure.
-- [ ] Add application-level `ResumeRun` use case.
+- [x] Add application-level `ResumeRun` use case for `Waiting / Retry` runs.
 - [ ] Add CLI `resume` command.
 - [ ] Add CLI `cancel` command.
 - [x] Add `Waiting` / `Human` transition for unsafe automatic recovery.
-- [ ] Add max attempt / max error guardrails.
+- [ ] Add max attempt / max error guardrails before enabling unattended retry scheduling.
 
 Acceptance criteria:
 
