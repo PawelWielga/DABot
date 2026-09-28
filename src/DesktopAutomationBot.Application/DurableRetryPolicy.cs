@@ -59,6 +59,11 @@ internal static class DurableRetryPolicy
                 step.Id));
     }
 
+    public static DateTimeOffset GetRetryNotBefore(
+        ScenarioStep step,
+        DateTimeOffset anchor) =>
+        anchor + StepRetryPolicy.GetRetryDelay(step);
+
     public static StepRecoveryAction GetRecoveryAction(
         ScenarioStep step)
     {
