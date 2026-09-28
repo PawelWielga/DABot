@@ -13,6 +13,8 @@ public static class ServiceCollectionExtensions
             static provider => provider.GetRequiredService<SqliteRunStore>());
         services.AddSingleton<IStepAttemptStore>(
             static provider => provider.GetRequiredService<SqliteRunStore>());
+        services.AddSingleton<IRetryRunStore>(
+            static provider => provider.GetRequiredService<SqliteRunStore>());
         services.AddSingleton<IBrowserAutomation, PlaywrightBrowserAutomation>();
         return services;
     }
