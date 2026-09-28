@@ -134,7 +134,7 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore
         var cursor = ExecutionCursorJson.Deserialize(reader.GetString(3));
         var variables = DeserializeVariables(reader.GetString(4));
 
-        var retryNotBefore = reader.IsDBNull(7)
+        DateTimeOffset? retryNotBefore = reader.IsDBNull(7)
             ? null
             : ParseTimestamp(
                 reader.GetString(7),
