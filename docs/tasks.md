@@ -111,7 +111,7 @@ Goal: define deterministic execution and recovery semantics before durable persi
 - [x] Persist attempt completion/failure.
 - [x] Define recovery for attempts left in an unknown state after process failure.
 - [x] Classify step retry behavior: safe/idempotent/verification-required/manual.
-- [~] Route unsafe automatic recovery to `Waiting` with reason `Human`.
+- [x] Route unsafe automatic recovery to `Waiting` with reason `Human`.
 - [x] Document crash behavior for browser actions and API actions.
 
 ### Variables and secrets
@@ -124,8 +124,8 @@ Goal: define deterministic execution and recovery semantics before durable persi
 
 ### Browser semantics
 
-- [ ] Document that durable resume restores workflow state, not a live DOM/page.
-- [ ] Define how a resumed run rebuilds required browser state.
+- [x] Document that durable resume/recovery restores workflow state, not a live DOM/page.
+- [~] Define how a resumed run rebuilds required browser state. Recovery now leaves work resumable without assuming the previous live DOM survives; browser-session reconstruction remains.
 - [ ] Avoid `NetworkIdle` as the universal default navigation contract.
 - [ ] Keep explicit scenario waits for stronger synchronization.
 
@@ -194,6 +194,7 @@ Goal: separate reusable scenario definitions from persisted execution state.
 - [~] Group all runtime artifacts by stable `RunId`. Durable execution uses the stable run ID for its artifact directory; the legacy synchronous path still uses timestamp-based IDs.
 - [x] Define execution outcomes: Completed/Suspended/Failed/Cancelled.
 - [x] Ensure a process restart does not invalidate a persisted run.
+- [x] Add application-level crash recovery that reconciles run cursor and persisted step attempts.
 
 Acceptance criteria:
 
@@ -213,7 +214,7 @@ Goal: allow a workflow to stop without blocking a process and continue later.
 - [ ] Add application-level `ResumeRun` use case.
 - [ ] Add CLI `resume` command.
 - [ ] Add CLI `cancel` command.
-- [~] Add `Waiting` / `Human` transition for unsafe automatic recovery.
+- [x] Add `Waiting` / `Human` transition for unsafe automatic recovery.
 - [ ] Add max attempt / max error guardrails.
 
 Acceptance criteria:
