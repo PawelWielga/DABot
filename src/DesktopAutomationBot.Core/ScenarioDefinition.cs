@@ -34,6 +34,8 @@ public sealed record ScenarioStep
 
     public int? RetryCount { get; init; }
 
+    public int? RetryDelayMs { get; init; }
+
     public StepRetrySafety? RetrySafety { get; init; }
 
     public Dictionary<string, JsonElement>? Parameters { get; init; }
