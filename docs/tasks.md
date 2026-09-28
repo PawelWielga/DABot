@@ -74,7 +74,7 @@ Status legend:
 - [ ] Implement `Loop`.
 - [~] Implement step retry. Durable failure/recovery now persists retry timing and can suspend to `Waiting / Retry`; automatic scheduling and legacy synchronous retry remain.
 - [~] Use `RetryCount` from the scenario model. Durable execution and recovery enforce it as the number of additional attempts; legacy synchronous execution remains.
-- [ ] Validate that every declared step type has a registered handler.
+- [x] Validate that every declared step type has a registered handler.
 - [ ] Add cancellation support through the full execution stack.
 - [ ] Add scenario-level timeout where appropriate.
 

@@ -42,6 +42,9 @@ public sealed class DurableScenarioExecutor :
         var scenarioVersion = request.ScenarioVersion;
         var scenario = scenarioVersion.MaterializeDefinition();
         _validationService.ValidateOrThrow(scenario);
+        ScenarioHandlerValidator.ValidateOrThrow(
+            scenario,
+            _handlers.Keys);
 
         var run = request.CreateRun(_timeProvider.GetUtcNow());
 
@@ -123,6 +126,9 @@ public sealed class DurableScenarioExecutor :
 
         var scenario = scenarioVersion.MaterializeDefinition();
         _validationService.ValidateOrThrow(scenario);
+        ScenarioHandlerValidator.ValidateOrThrow(
+            scenario,
+            _handlers.Keys);
 
         var (step, _) =
             DurableExecutionCursorNavigator.ResolveTopLevelStep(
