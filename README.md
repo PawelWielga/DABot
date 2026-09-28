@@ -77,10 +77,11 @@ The runner reads `config.json`, which points to `scenarios/sample-open-url.json`
 
 ## Minimal scenario
 
-A DABot scenario is a JSON document containing an ordered list of steps:
+A DABot scenario is a JSON document containing an ordered list of steps. The machine-readable contract is [schemas/scenario.schema.json](schemas/scenario.schema.json).
 
 ```json
 {
+  "$schema": "./schemas/scenario.schema.json",
   "name": "Read example heading",
   "steps": [
     {
@@ -106,6 +107,20 @@ A DABot scenario is a JSON document containing an ordered list of steps:
 To run a different scenario with the current runner, change `bot.scenarioPath` in `config.json`.
 
 More examples are available in [examples](examples/README.md).
+
+## For agents and tooling
+
+DABot keeps machine- and agent-readable project context in the repository:
+
+- [AGENTS.md](AGENTS.md) - authoritative engineering and architecture instructions for coding agents,
+- [.github/copilot-instructions.md](.github/copilot-instructions.md) - concise repository-wide GitHub Copilot instructions,
+- [.github/instructions](.github/instructions) - path-specific instructions for .NET and scenario files,
+- [Scenario JSON Schema](schemas/scenario.schema.json) - machine-readable scenario contract,
+- [Configuration JSON Schema](schemas/config.schema.json) - machine-readable `config.json` contract,
+- [Documentation index](docs/README.md) - map of current-status, architecture, and roadmap documents,
+- [CONTRIBUTING.md](CONTRIBUTING.md) - development setup and definition of done.
+
+Agents should use the README and implementation backlog to distinguish current functionality from roadmap design before generating code, scenarios, or recommendations.
 
 ## Project status
 
@@ -187,6 +202,10 @@ All clients are intended to converge on the same Application use cases rather th
 
 ## Documentation
 
+- [Documentation index](docs/README.md)
+- [Contributing guide](CONTRIBUTING.md)
+- [Scenario JSON Schema](schemas/scenario.schema.json)
+- [Configuration JSON Schema](schemas/config.schema.json)
 - [Product requirements](docs/prd.md)
 - [Implementation backlog](docs/tasks.md)
 - [Durable workflow architecture](docs/durable-workflows.md)

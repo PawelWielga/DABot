@@ -1,4 +1,5 @@
 {
+  "$schema": "../schemas/scenario.schema.json",
   "name": "Sample open url",
   "steps": [
     {
