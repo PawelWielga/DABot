@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace DesktopAutomationBot.Core;
 
 public sealed record ScenarioValidationResult(IReadOnlyList<string> Errors)
@@ -109,9 +111,28 @@ public sealed class ScenarioDefinitionValidator
             errors.Add($"{path}.output is required for ReadText.");
         }
 
-        if (step.Type == StepType.Delay && !step.TimeoutMs.HasValue && string.IsNullOrWhiteSpace(step.Value))
+        if (step.Type == StepType.Delay)
         {
-            errors.Add($"{path}.timeoutMs or value is required for Delay.");
+            if (!step.TimeoutMs.HasValue && string.IsNullOrWhiteSpace(step.Value))
+            {
+                errors.Add($"{path}.timeoutMs or value is required for Delay.");
+            }
+            else if (step.TimeoutMs is < 0)
+            {
+                errors.Add($"{path}.timeoutMs must be zero or greater for Delay.");
+            }
+            else if (!step.TimeoutMs.HasValue &&
+                     !string.IsNullOrWhiteSpace(step.Value) &&
+                     (!int.TryParse(
+                          step.Value,
+                          NumberStyles.None,
+                          CultureInfo.InvariantCulture,
+                          out var delayMs) ||
+                      delayMs < 0))
+            {
+                errors.Add(
+                    $"{path}.value must be a non-negative integer number of milliseconds for Delay.");
+            }
         }
 
         if (step.Type == StepType.WaitFor &&

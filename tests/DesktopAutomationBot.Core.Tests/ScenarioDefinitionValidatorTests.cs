@@ -281,4 +281,51 @@ public sealed class ScenarioDefinitionValidatorTests
             .Should()
             .Be(TimeSpan.FromMilliseconds(expectedMilliseconds));
     }
+
+    [Fact]
+    public void Validate_WhenDelayTimeoutIsNegative_ReturnsValidationError()
+    {
+        var validator = new ScenarioDefinitionValidator();
+
+        var result = validator.Validate(new ScenarioDefinition
+        {
+            Name = "Invalid delay",
+            Steps =
+            [
+                new ScenarioStep
+                {
+                    Type = StepType.Delay,
+                    TimeoutMs = -1,
+                },
+            ],
+        });
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(
+            "scenario.steps[0].timeoutMs must be zero or greater for Delay.");
+    }
+
+    [Fact]
+    public void Validate_WhenDelayValueIsNotMilliseconds_ReturnsValidationError()
+    {
+        var validator = new ScenarioDefinitionValidator();
+
+        var result = validator.Validate(new ScenarioDefinition
+        {
+            Name = "Invalid delay value",
+            Steps =
+            [
+                new ScenarioStep
+                {
+                    Type = StepType.Delay,
+                    Value = "soon",
+                },
+            ],
+        });
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(
+            "scenario.steps[0].value must be a non-negative integer number of milliseconds for Delay.");
+    }
+
 }

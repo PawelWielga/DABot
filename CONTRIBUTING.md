@@ -68,6 +68,7 @@ Current executable step handlers are:
 - `PasteText`
 - `ReadText`
 - `WaitFor`
+- `Delay`
 - `Screenshot`
 
 Other values may exist in the domain model before their executable handlers are implemented. Do not treat that as released support.

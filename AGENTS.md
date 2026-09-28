@@ -117,10 +117,11 @@ Currently registered executable step handlers:
 - `FillText`
 - `PasteText`
 - `WaitFor`
+- `Delay`
 - `ReadText`
 - `Screenshot`
 
-The current domain enum also reserves `CallApi`, `Delay`, `If`, and `Loop`, but they are not executable until handlers are implemented and registered. `Suspend` is planned and is not yet part of the current enum.
+The current domain enum also reserves `CallApi`, `If`, and `Loop`, but they are not executable until handlers are implemented and registered. `Suspend` is planned and is not yet part of the current enum.
 
 Use `schemas/scenario.schema.json` as the machine-readable scenario contract and `schemas/config.schema.json` as the configuration contract. When scenario/configuration models or handler availability change, update the relevant schemas, examples, tests, README status, and AI instruction files in the same change.
 

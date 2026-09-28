@@ -20,6 +20,7 @@ DABot can currently:
 - fill and paste text,
 - read text into scenario outputs,
 - wait for selectors, text, URLs, and page load states,
+- pause execution for a fixed delay,
 - capture screenshots,
 - execute scenarios through the .NET runner,
 - validate scenario definitions before execution.
@@ -132,6 +133,7 @@ Agents should use the README and implementation backlog to distinguish current f
 | Playwright browser control | Available |
 | Open URL / click / fill / paste / read | Available |
 | Wait for selector / text / URL / load state | Available |
+| Fixed delays | Available |
 | Screenshots and step results | Available |
 | CLI-style .NET runner | Available |
 | Structured logging and failure artifacts | Planned |

@@ -13,6 +13,7 @@ Examples:
 - `basic-navigation.json` opens a public page, waits for content, reads text, and captures a screenshot.
 - `form-interaction.json` uses a self-contained `data:` page to demonstrate filling a field, clicking a button, waiting for text, and reading the result.
 - `paste-text.json` uses a self-contained `data:` page to demonstrate paste-style input, reading text, and a screenshot.
+- `delay.json` uses a self-contained `data:` page to demonstrate a fixed millisecond delay between browser steps.
 
 The self-contained examples avoid depending on a third-party test website.
 

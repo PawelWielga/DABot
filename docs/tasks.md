@@ -69,7 +69,7 @@ Status legend:
 ### Scenario engine
 
 - [ ] Implement variable interpolation.
-- [ ] Implement `Delay`.
+- [x] Implement `Delay`.
 - [ ] Implement `If`.
 - [ ] Implement `Loop`.
 - [~] Implement step retry. Durable failure/recovery now persists retry timing and can suspend to `Waiting / Retry`; automatic scheduling and legacy synchronous retry remain.
