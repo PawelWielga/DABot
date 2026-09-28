@@ -139,6 +139,8 @@ public sealed class DurableRunRecoveryService : IDurableRunRecoveryService
                 return await RecoverUnknownAttemptAsync(
                     run,
                     scenarioVersion,
+                    currentStep,
+                    attempts,
                     latestCurrentAttempt,
                     decisions,
                     detectedAt,
@@ -151,30 +153,22 @@ public sealed class DurableRunRecoveryService : IDurableRunRecoveryService
                     scenario,
                     currentStep,
                     currentStepIndex,
+                    attempts,
                     latestCurrentAttempt,
                     decisions,
                     detectedAt,
                     cancellationToken);
 
             case StepAttemptStatus.Failed:
-            {
-                var failed = RestoreRun(
+                return await RecoverFailedAttemptAsync(
                     run,
                     scenarioVersion,
-                    run.State.Fail(),
-                    run.Cursor,
-                    detectedAt);
-
-                await _runStore.SaveAsync(
-                    failed,
-                    scenarioVersion,
+                    currentStep,
+                    attempts,
+                    latestCurrentAttempt,
+                    decisions,
+                    detectedAt,
                     cancellationToken);
-
-                return CreateResult(
-                    failed,
-                    DurableRunRecoveryOutcome.Failed,
-                    decisions);
-            }
 
             case StepAttemptStatus.Started:
             default:
@@ -197,6 +191,8 @@ public sealed class DurableRunRecoveryService : IDurableRunRecoveryService
     private async Task<DurableRunRecoveryResult> RecoverUnknownAttemptAsync(
         AutomationRun run,
         ScenarioVersion scenarioVersion,
+        ScenarioStep currentStep,
+        IReadOnlyList<StepAttempt> attempts,
         StepAttempt attempt,
         IReadOnlyList<DurableStepRecoveryDecision> existingDecisions,
         DateTimeOffset detectedAt,
@@ -212,6 +208,22 @@ public sealed class DurableRunRecoveryService : IDurableRunRecoveryService
         {
             case StepRecoveryAction.RetryAutomatically:
             {
+                if (!DurableRetryPolicy.HasRemainingAttempt(
+                        currentStep,
+                        attempts))
+                {
+                    var failed = await FailAsync(
+                        run,
+                        scenarioVersion,
+                        detectedAt,
+                        cancellationToken);
+
+                    return CreateResult(
+                        failed,
+                        DurableRunRecoveryOutcome.Failed,
+                        decisions);
+                }
+
                 var waitingForRetry = await MoveToWaitingAsync(
                     run,
                     scenarioVersion,
@@ -259,12 +271,76 @@ public sealed class DurableRunRecoveryService : IDurableRunRecoveryService
         }
     }
 
+    private async Task<DurableRunRecoveryResult> RecoverFailedAttemptAsync(
+        AutomationRun run,
+        ScenarioVersion scenarioVersion,
+        ScenarioStep currentStep,
+        IReadOnlyList<StepAttempt> attempts,
+        StepAttempt attempt,
+        IReadOnlyList<DurableStepRecoveryDecision> existingDecisions,
+        DateTimeOffset detectedAt,
+        CancellationToken cancellationToken)
+    {
+        if (!DurableRetryPolicy.HasRemainingAttempt(
+                currentStep,
+                attempts))
+        {
+            var failed = await FailAsync(
+                run,
+                scenarioVersion,
+                detectedAt,
+                cancellationToken);
+
+            return CreateResult(
+                failed,
+                DurableRunRecoveryOutcome.Failed,
+                existingDecisions);
+        }
+
+        var action = DurableRetryPolicy.GetRecoveryAction(
+            currentStep);
+        var decisions = EnsureDecision(
+            existingDecisions,
+            attempt,
+            action);
+
+        if (action == StepRecoveryAction.RetryAutomatically)
+        {
+            var waitingForRetry = await MoveToWaitingAsync(
+                run,
+                scenarioVersion,
+                RunWaitReason.Retry,
+                detectedAt,
+                cancellationToken);
+
+            return CreateResult(
+                waitingForRetry,
+                DurableRunRecoveryOutcome.AutomaticResume,
+                decisions);
+        }
+
+        var waitingForHuman = await MoveToWaitingAsync(
+            run,
+            scenarioVersion,
+            RunWaitReason.Human,
+            detectedAt,
+            cancellationToken);
+
+        return CreateResult(
+            waitingForHuman,
+            action == StepRecoveryAction.VerifyBeforeRetry
+                ? DurableRunRecoveryOutcome.VerificationRequired
+                : DurableRunRecoveryOutcome.HumanDecisionRequired,
+            decisions);
+    }
+
     private async Task<DurableRunRecoveryResult> RecoverCompletedAttemptAsync(
         AutomationRun run,
         ScenarioVersion scenarioVersion,
         ScenarioDefinition scenario,
         ScenarioStep currentStep,
         int currentStepIndex,
+        IReadOnlyList<StepAttempt> attempts,
         StepAttempt attempt,
         IReadOnlyList<DurableStepRecoveryDecision> decisions,
         DateTimeOffset detectedAt,
@@ -272,9 +348,17 @@ public sealed class DurableRunRecoveryService : IDurableRunRecoveryService
     {
         if (!string.IsNullOrWhiteSpace(currentStep.Output))
         {
-            var action = DecideRetrySafety(attempt.RetrySafety);
+            var action = DurableRetryPolicy.GetRecoveryAction(
+                currentStep);
+            var resolvedDecisions = EnsureDecision(
+                decisions,
+                attempt,
+                action);
 
-            if (action == StepRecoveryAction.RetryAutomatically)
+            if (action == StepRecoveryAction.RetryAutomatically &&
+                DurableRetryPolicy.HasRemainingAttempt(
+                    currentStep,
+                    attempts))
             {
                 var waitingForRetry = await MoveToWaitingAsync(
                     run,
@@ -286,10 +370,7 @@ public sealed class DurableRunRecoveryService : IDurableRunRecoveryService
                 return CreateResult(
                     waitingForRetry,
                     DurableRunRecoveryOutcome.AutomaticResume,
-                    EnsureDecision(
-                        decisions,
-                        attempt,
-                        action));
+                    resolvedDecisions);
             }
 
             var waitingForHuman = await MoveToWaitingAsync(
@@ -304,10 +385,7 @@ public sealed class DurableRunRecoveryService : IDurableRunRecoveryService
                 action == StepRecoveryAction.VerifyBeforeRetry
                     ? DurableRunRecoveryOutcome.VerificationRequired
                     : DurableRunRecoveryOutcome.HumanDecisionRequired,
-                EnsureDecision(
-                    decisions,
-                    attempt,
-                    action));
+                resolvedDecisions);
         }
 
         var nextCursor =
@@ -375,6 +453,27 @@ public sealed class DurableRunRecoveryService : IDurableRunRecoveryService
         return waiting;
     }
 
+    private async Task<AutomationRun> FailAsync(
+        AutomationRun run,
+        ScenarioVersion scenarioVersion,
+        DateTimeOffset updatedAt,
+        CancellationToken cancellationToken)
+    {
+        var failed = RestoreRun(
+            run,
+            scenarioVersion,
+            run.State.Fail(),
+            run.Cursor,
+            updatedAt);
+
+        await _runStore.SaveAsync(
+            failed,
+            scenarioVersion,
+            cancellationToken);
+
+        return failed;
+    }
+
     private DateTimeOffset GetRecoveryTimestamp(AutomationRun run)
     {
         var now = _timeProvider.GetUtcNow();
@@ -397,17 +496,6 @@ public sealed class DurableRunRecoveryService : IDurableRunRecoveryService
             run.Variables,
             run.CreatedAt,
             updatedAt);
-
-    private static StepRecoveryAction DecideRetrySafety(
-        StepRetrySafety retrySafety) =>
-        retrySafety switch
-        {
-            StepRetrySafety.SafeToRetry => StepRecoveryAction.RetryAutomatically,
-            StepRetrySafety.Idempotent => StepRecoveryAction.RetryAutomatically,
-            StepRetrySafety.NeedsVerification => StepRecoveryAction.VerifyBeforeRetry,
-            StepRetrySafety.NeverRetryAutomatically => StepRecoveryAction.WaitingForHuman,
-            _ => StepRecoveryAction.WaitingForHuman,
-        };
 
     private static DurableStepRecoveryDecision CreateDecision(
         StepAttempt attempt) =>
