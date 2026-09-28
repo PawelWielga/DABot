@@ -104,7 +104,10 @@ public sealed class DurableRunResumeServiceTests : IDisposable
         var runStore = new InMemoryRunStore(waiting, version);
         var attemptStore = new InMemoryStepAttemptStore(firstCompleted);
         var executor = CreateExecutor(
-            [new FakeStepHandler(StepType.Screenshot)],
+            [
+                new FakeStepHandler(StepType.OpenUrl),
+                new FakeStepHandler(StepType.Screenshot),
+            ],
             new FakeBrowserAutomation(),
             runStore,
             attemptStore);
