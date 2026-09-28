@@ -11,6 +11,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IScenarioValidationService, ScenarioValidationService>();
         services.AddSingleton<IScenarioExecutor, ScenarioExecutor>();
         services.AddSingleton<IDurableScenarioExecutor, DurableScenarioExecutor>();
+        services.AddSingleton<IDurableRunRecoveryService, DurableRunRecoveryService>();
         services.AddSingleton<IStepHandler, OpenUrlStepHandler>();
         services.AddSingleton<IStepHandler, ClickStepHandler>();
         services.AddSingleton<IStepHandler, FillTextStepHandler>();
