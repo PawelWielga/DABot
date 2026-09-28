@@ -17,6 +17,7 @@ public static class ServiceCollectionExtensions
             static provider => provider.GetRequiredService<DurableScenarioExecutor>());
         services.AddSingleton<IDurableRunRecoveryService, DurableRunRecoveryService>();
         services.AddSingleton<IDurableRetryScheduler, DurableRetryScheduler>();
+        services.AddSingleton<IDurableRetryWorker, DurableRetryWorker>();
         services.AddSingleton<IStepHandler, OpenUrlStepHandler>();
         services.AddSingleton<IStepHandler, ClickStepHandler>();
         services.AddSingleton<IStepHandler, FillTextStepHandler>();
