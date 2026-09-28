@@ -296,7 +296,6 @@ public sealed class DurableScenarioExecutor :
                         run,
                         scenarioVersion,
                         step,
-                        failedAttempt,
                         variables,
                         stepResults,
                         exception.Message);
@@ -382,7 +381,6 @@ public sealed class DurableScenarioExecutor :
         AutomationRun run,
         ScenarioVersion scenarioVersion,
         ScenarioStep step,
-        StepAttempt failedAttempt,
         IReadOnlyDictionary<string, string> variables,
         IReadOnlyList<StepExecutionResult> stepResults,
         string errorMessage)
