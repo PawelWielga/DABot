@@ -125,7 +125,7 @@ public sealed class ScenarioDefinitionValidator
                      !string.IsNullOrWhiteSpace(step.Value) &&
                      (!int.TryParse(
                           step.Value,
-                          NumberStyles.Integer,
+                          NumberStyles.None,
                           CultureInfo.InvariantCulture,
                           out var delayMs) ||
                       delayMs < 0))
