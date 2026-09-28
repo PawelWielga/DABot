@@ -16,6 +16,7 @@ public sealed class DurableRunRecoveryServiceTests
                 Type = StepType.OpenUrl,
                 Url = "https://example.com",
                 RetryCount = 1,
+                RetryDelayMs = 30000,
             });
         var run = CreateRunningRun(version);
         var step = version.MaterializeDefinition().Steps[0];
@@ -36,6 +37,8 @@ public sealed class DurableRunRecoveryServiceTests
         result.Outcome.Should().Be(DurableRunRecoveryOutcome.AutomaticResume);
         result.Run.State.Status.Should().Be(RunStatus.Waiting);
         result.Run.State.WaitReason.Should().Be(RunWaitReason.Retry);
+        result.Run.RetryNotBefore.Should().Be(
+            result.Run.UpdatedAt.AddSeconds(30));
         result.Run.Cursor.NextStepId.Should().Be("open");
 
         attemptStore.Attempts.Should().ContainSingle();
