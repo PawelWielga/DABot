@@ -8,7 +8,7 @@ namespace DesktopAutomationBot.Infrastructure;
 
 public sealed class SqliteRunStore : IRunStore, IStepAttemptStore
 {
-    private const int StoreSchemaVersion = 2;
+    private const int StoreSchemaVersion = 3;
 
     private readonly string _connectionString;
     private readonly SemaphoreSlim _initializationLock = new(1, 1);
@@ -95,6 +95,7 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore
                 r.VariablesJson,
                 r.CreatedAt,
                 r.UpdatedAt,
+                r.RetryNotBefore,
                 sv.ScenarioId,
                 sv.VersionId,
                 sv.VersionNumber,
@@ -116,13 +117,13 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore
         }
 
         var scenarioVersion = ScenarioVersion.Restore(
-            ParseGuid(reader.GetString(7), "ScenarioId"),
-            ParseGuid(reader.GetString(8), "VersionId"),
-            reader.GetInt32(9),
+            ParseGuid(reader.GetString(8), "ScenarioId"),
+            ParseGuid(reader.GetString(9), "VersionId"),
             reader.GetInt32(10),
-            reader.GetString(11),
+            reader.GetInt32(11),
             reader.GetString(12),
-            ParseTimestamp(reader.GetString(13), "ScenarioVersion.CreatedAt"));
+            reader.GetString(13),
+            ParseTimestamp(reader.GetString(14), "ScenarioVersion.CreatedAt"));
 
         var status = ParseEnum<RunStatus>(reader.GetString(1), "RunStatus");
         RunWaitReason? waitReason = reader.IsDBNull(2)
@@ -133,6 +134,12 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore
         var cursor = ExecutionCursorJson.Deserialize(reader.GetString(3));
         var variables = DeserializeVariables(reader.GetString(4));
 
+        var retryNotBefore = reader.IsDBNull(7)
+            ? null
+            : ParseTimestamp(
+                reader.GetString(7),
+                "AutomationRun.RetryNotBefore");
+
         var run = AutomationRun.Restore(
             ParseGuid(reader.GetString(0), "RunId"),
             scenarioVersion,
@@ -140,7 +147,8 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore
             cursor,
             variables,
             ParseTimestamp(reader.GetString(5), "AutomationRun.CreatedAt"),
-            ParseTimestamp(reader.GetString(6), "AutomationRun.UpdatedAt"));
+            ParseTimestamp(reader.GetString(6), "AutomationRun.UpdatedAt"),
+            retryNotBefore);
 
         return new StoredAutomationRun(run, scenarioVersion);
     }
@@ -454,6 +462,7 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore
                 ScenarioVersionId TEXT NOT NULL,
                 Status TEXT NOT NULL,
                 WaitReason TEXT NULL,
+                RetryNotBefore TEXT NULL,
                 CursorJson TEXT NOT NULL,
                 VariablesJson TEXT NOT NULL,
                 CreatedAt TEXT NOT NULL,
@@ -490,7 +499,7 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore
             CREATE INDEX IX_StepAttempts_RunId_Status
                 ON StepAttempts(RunId, Status);
 
-            PRAGMA user_version = 2;
+            PRAGMA user_version = 3;
             """;
 
         await command.ExecuteNonQueryAsync(cancellationToken);
@@ -511,6 +520,11 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore
                 case 1:
                     await MigrateV1ToV2Async(connection, cancellationToken);
                     version = 2;
+                    break;
+
+                case 2:
+                    await MigrateV2ToV3Async(connection, cancellationToken);
+                    version = 3;
                     break;
 
                 default:
@@ -554,6 +568,33 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore
                 ON StepAttempts(RunId, Status);
 
             PRAGMA user_version = 2;
+            """;
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    private static async Task MigrateV2ToV3Async(
+        SqliteConnection connection,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction =
+            (SqliteTransaction)await connection.BeginTransactionAsync(
+                cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText =
+            """
+            ALTER TABLE Runs
+                ADD COLUMN RetryNotBefore TEXT NULL;
+
+            UPDATE Runs
+            SET RetryNotBefore = UpdatedAt
+            WHERE Status = 'Waiting'
+              AND WaitReason = 'Retry'
+              AND RetryNotBefore IS NULL;
+
+            PRAGMA user_version = 3;
             """;
 
         await command.ExecuteNonQueryAsync(cancellationToken);
@@ -678,6 +719,7 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore
                 ScenarioVersionId,
                 Status,
                 WaitReason,
+                RetryNotBefore,
                 CursorJson,
                 VariablesJson,
                 CreatedAt,
@@ -688,6 +730,7 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore
                 $scenarioVersionId,
                 $status,
                 $waitReason,
+                $retryNotBefore,
                 $cursorJson,
                 $variablesJson,
                 $createdAt,
@@ -695,6 +738,7 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore
             ON CONFLICT(RunId) DO UPDATE SET
                 Status = excluded.Status,
                 WaitReason = excluded.WaitReason,
+                RetryNotBefore = excluded.RetryNotBefore,
                 CursorJson = excluded.CursorJson,
                 VariablesJson = excluded.VariablesJson,
                 UpdatedAt = excluded.UpdatedAt;
@@ -708,6 +752,11 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore
             "$waitReason",
             run.State.WaitReason?.ToString() is { } reason
                 ? reason
+                : DBNull.Value);
+        upsert.Parameters.AddWithValue(
+            "$retryNotBefore",
+            run.RetryNotBefore is { } retryNotBefore
+                ? FormatTimestamp(retryNotBefore)
                 : DBNull.Value);
         upsert.Parameters.AddWithValue("$cursorJson", ExecutionCursorJson.Serialize(run.Cursor));
         upsert.Parameters.AddWithValue("$variablesJson", SerializeVariables(run.Variables));
