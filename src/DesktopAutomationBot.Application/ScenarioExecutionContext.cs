@@ -40,6 +40,19 @@ public sealed class ScenarioExecutionContext
 
     public string ScreenshotDirectory => Path.Combine(Options.Storage.ScreenshotsDirectory, RunId);
 
+    public void CaptureOutput(StepExecutionResult result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+
+        if (string.IsNullOrWhiteSpace(result.OutputName) ||
+            result.OutputValue is null)
+        {
+            return;
+        }
+
+        Variables.Set(result.OutputName, result.OutputValue);
+    }
+
     private static string CreateRunId(string scenarioName)
     {
         var stamp = DateTimeOffset.UtcNow.ToString("yyyyMMddHHmmssfff", CultureInfo.InvariantCulture);
