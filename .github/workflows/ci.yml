@@ -36,6 +36,38 @@ jobs:
       - name: Test
         run: dotnet test DesktopAutomationBot.sln --configuration Release --no-build --verbosity normal
 
+      - name: Verify runner exit codes
+        shell: bash
+        run: |
+          set +e
+          dotnet run --project src/DesktopAutomationBot.Runner --configuration Release --no-build -- invalid-command
+          usage_exit=$?
+          set -e
+
+          if [ "$usage_exit" -ne 2 ]; then
+            echo "Expected invalid command to exit with 2, got $usage_exit."
+            exit 1
+          fi
+
+          cat > config.local.json <<'JSON'
+          {
+            "bot": {
+              "scenarioPath": "scenarios/does-not-exist.json"
+            }
+          }
+          JSON
+
+          set +e
+          dotnet run --project src/DesktopAutomationBot.Runner --configuration Release --no-build -- run
+          input_exit=$?
+          set -e
+          rm -f config.local.json
+
+          if [ "$input_exit" -ne 3 ]; then
+            echo "Expected missing scenario to exit with 3, got $input_exit."
+            exit 1
+          fi
+
       - name: Install Playwright Chromium
         run: pwsh src/DesktopAutomationBot.Infrastructure/bin/Release/net8.0/playwright.ps1 install --with-deps chromium
 
