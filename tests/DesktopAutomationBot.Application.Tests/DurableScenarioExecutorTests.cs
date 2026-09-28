@@ -139,6 +139,7 @@ public sealed class DurableScenarioExecutorTests : IDisposable
                         Type = StepType.OpenUrl,
                         Url = "https://example.com",
                         RetryCount = 1,
+                        RetryDelayMs = 5000,
                     }),
             });
 
@@ -146,6 +147,8 @@ public sealed class DurableScenarioExecutorTests : IDisposable
         result.Run.State.Status.Should().Be(RunStatus.Waiting);
         result.Run.State.WaitReason.Should().Be(RunWaitReason.Retry);
         result.Run.Cursor.NextStepId.Should().Be("open");
+        result.Run.RetryNotBefore.Should().Be(
+            result.Run.UpdatedAt.AddSeconds(5));
         result.ErrorMessage.Should().Be("temporary");
 
         events.Should().ContainInOrder(
@@ -190,6 +193,7 @@ public sealed class DurableScenarioExecutorTests : IDisposable
         result.Outcome.Should().Be(DurableExecutionOutcome.Suspended);
         result.Run.State.Status.Should().Be(RunStatus.Waiting);
         result.Run.State.WaitReason.Should().Be(RunWaitReason.Human);
+        result.Run.RetryNotBefore.Should().BeNull();
         result.Run.Cursor.NextStepId.Should().Be("submit");
         result.ErrorMessage.Should().Be("uncertain click");
     }
