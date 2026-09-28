@@ -18,12 +18,15 @@ public sealed class PlaywrightBrowserAutomation : IBrowserAutomation
 
     public async Task OpenAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (_page is not null)
         {
             return;
         }
 
-        _playwright = await Playwright.CreateAsync();
+        _playwright = await Playwright.CreateAsync()
+            .WaitAsync(cancellationToken);
 
         var launchOptions = new BrowserTypeLaunchOptions
         {
@@ -35,7 +38,8 @@ public sealed class PlaywrightBrowserAutomation : IBrowserAutomation
             launchOptions.SlowMo = _options.Browser.SlowMoMs;
         }
 
-        _browser = await _playwright.Chromium.LaunchAsync(launchOptions);
+        _browser = await _playwright.Chromium.LaunchAsync(launchOptions)
+            .WaitAsync(cancellationToken);
         _context = await _browser.NewContextAsync(new BrowserNewContextOptions
         {
             ViewportSize = new ViewportSize
@@ -43,108 +47,111 @@ public sealed class PlaywrightBrowserAutomation : IBrowserAutomation
                 Width = _options.Browser.ViewportWidth,
                 Height = _options.Browser.ViewportHeight,
             },
-        });
+        }).WaitAsync(cancellationToken);
 
-        _page = await _context.NewPageAsync();
+        _page = await _context.NewPageAsync()
+            .WaitAsync(cancellationToken);
         ApplyTimeouts(_page);
     }
 
     public async Task NavigateAsync(string url, int? timeoutMs = null, CancellationToken cancellationToken = default)
     {
-        var page = await GetPageAsync();
+        var page = await GetPageAsync(cancellationToken);
         await page.GotoAsync(url, new PageGotoOptions
         {
             WaitUntil = WaitUntilState.NetworkIdle,
             Timeout = GetTimeout(timeoutMs),
-        });
+        }).WaitAsync(cancellationToken);
     }
 
     public async Task ClickAsync(string selector, int? timeoutMs = null, CancellationToken cancellationToken = default)
     {
-        var page = await GetPageAsync();
+        var page = await GetPageAsync(cancellationToken);
         await page.Locator(selector).ClickAsync(new LocatorClickOptions
         {
             Timeout = GetTimeout(timeoutMs),
-        });
+        }).WaitAsync(cancellationToken);
     }
 
     public async Task FillTextAsync(string selector, string value, int? timeoutMs = null, CancellationToken cancellationToken = default)
     {
-        var page = await GetPageAsync();
+        var page = await GetPageAsync(cancellationToken);
         await page.Locator(selector).FillAsync(value, new LocatorFillOptions
         {
             Timeout = GetTimeout(timeoutMs),
-        });
+        }).WaitAsync(cancellationToken);
     }
 
     public async Task PasteTextAsync(string selector, string value, int? timeoutMs = null, CancellationToken cancellationToken = default)
     {
-        var page = await GetPageAsync();
+        var page = await GetPageAsync(cancellationToken);
         var locator = page.Locator(selector);
         await locator.ClickAsync(new LocatorClickOptions
         {
             Timeout = GetTimeout(timeoutMs),
-        });
-        await locator.PressAsync("Control+A");
-        await page.Keyboard.InsertTextAsync(value);
+        }).WaitAsync(cancellationToken);
+        await locator.PressAsync("Control+A")
+            .WaitAsync(cancellationToken);
+        await page.Keyboard.InsertTextAsync(value)
+            .WaitAsync(cancellationToken);
     }
 
     public async Task<string> ReadTextAsync(string selector, int? timeoutMs = null, CancellationToken cancellationToken = default)
     {
-        var page = await GetPageAsync();
+        var page = await GetPageAsync(cancellationToken);
         return await page.Locator(selector).InnerTextAsync(new LocatorInnerTextOptions
         {
             Timeout = GetTimeout(timeoutMs),
-        });
+        }).WaitAsync(cancellationToken);
     }
 
     public async Task WaitForSelectorAsync(string selector, int? timeoutMs = null, CancellationToken cancellationToken = default)
     {
-        var page = await GetPageAsync();
+        var page = await GetPageAsync(cancellationToken);
         await page.Locator(selector).WaitForAsync(new LocatorWaitForOptions
         {
             State = WaitForSelectorState.Visible,
             Timeout = GetTimeout(timeoutMs),
-        });
+        }).WaitAsync(cancellationToken);
     }
 
     public async Task WaitForTextAsync(string text, int? timeoutMs = null, CancellationToken cancellationToken = default)
     {
-        var page = await GetPageAsync();
+        var page = await GetPageAsync(cancellationToken);
         await page.GetByText(text).WaitForAsync(new LocatorWaitForOptions
         {
             State = WaitForSelectorState.Visible,
             Timeout = GetTimeout(timeoutMs),
-        });
+        }).WaitAsync(cancellationToken);
     }
 
     public async Task WaitForUrlAsync(string url, int? timeoutMs = null, CancellationToken cancellationToken = default)
     {
-        var page = await GetPageAsync();
+        var page = await GetPageAsync(cancellationToken);
         await page.WaitForURLAsync(url, new PageWaitForURLOptions
         {
             Timeout = GetTimeout(timeoutMs),
-        });
+        }).WaitAsync(cancellationToken);
     }
 
     public async Task WaitForLoadStateAsync(string loadState, int? timeoutMs = null, CancellationToken cancellationToken = default)
     {
-        var page = await GetPageAsync();
+        var page = await GetPageAsync(cancellationToken);
         await page.WaitForLoadStateAsync(ParseLoadState(loadState), new PageWaitForLoadStateOptions
         {
             Timeout = GetTimeout(timeoutMs),
-        });
+        }).WaitAsync(cancellationToken);
     }
 
     public async Task<string> TakeScreenshotAsync(string filePath, CancellationToken cancellationToken = default)
     {
-        var page = await GetPageAsync();
+        var page = await GetPageAsync(cancellationToken);
         Directory.CreateDirectory(Path.GetDirectoryName(filePath) ?? ".");
         await page.ScreenshotAsync(new PageScreenshotOptions
         {
             FullPage = true,
             Path = filePath,
-        });
+        }).WaitAsync(cancellationToken);
         return filePath;
     }
 
@@ -172,11 +179,14 @@ public sealed class PlaywrightBrowserAutomation : IBrowserAutomation
         _playwright = null;
     }
 
-    private async Task<IPage> GetPageAsync()
+    private async Task<IPage> GetPageAsync(
+        CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (_page is null)
         {
-            await OpenAsync();
+            await OpenAsync(cancellationToken);
         }
 
         return _page!;
