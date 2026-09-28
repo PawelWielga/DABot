@@ -24,6 +24,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IStepHandler, PasteTextStepHandler>();
         services.AddSingleton<IStepHandler, ReadTextStepHandler>();
         services.AddSingleton<IStepHandler, WaitForStepHandler>();
+        services.AddSingleton<IStepHandler, DelayStepHandler>();
         services.AddSingleton<IStepHandler, ScreenshotStepHandler>();
         return services;
     }
