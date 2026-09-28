@@ -77,23 +77,23 @@ try
         options.ScenarioPath ??
         Path.Combine(options.Storage.ScenariosDirectory, "sample-open-url.json");
 
-    using var cancellation = new CancellationTokenSource();
-    ConsoleCancelEventHandler cancelHandler = (_, eventArgs) =>
+    using var runCancellation = new CancellationTokenSource();
+    ConsoleCancelEventHandler runCancelHandler = (_, eventArgs) =>
     {
         eventArgs.Cancel = true;
-        cancellation.Cancel();
+        runCancellation.Cancel();
     };
 
-    Console.CancelKeyPress += cancelHandler;
+    Console.CancelKeyPress += runCancelHandler;
 
     try
     {
         var scenario = await loader.LoadAsync(
             scenarioPath,
-            cancellation.Token);
+            runCancellation.Token);
         var result = await executor.ExecuteAsync(
             scenario,
-            cancellation.Token);
+            runCancellation.Token);
 
         Console.WriteLine($"Scenario: {result.ScenarioName}");
         Console.WriteLine($"Success: {result.Success}");
@@ -128,7 +128,7 @@ try
     }
     finally
     {
-        Console.CancelKeyPress -= cancelHandler;
+        Console.CancelKeyPress -= runCancelHandler;
     }
 }
 catch (OperationCanceledException)
