@@ -28,6 +28,13 @@ public sealed class ScenarioDefinitionValidator
             return new ScenarioValidationResult(errors);
         }
 
+        if (scenario.SchemaVersion != ScenarioSchema.CurrentVersion)
+        {
+            errors.Add(
+                $"scenario.schemaVersion '{scenario.SchemaVersion}' is not supported. " +
+                $"Supported version is {ScenarioSchema.CurrentVersion}.");
+        }
+
         if (string.IsNullOrWhiteSpace(scenario.Name))
         {
             errors.Add("scenario.name is required.");
@@ -39,7 +46,8 @@ public sealed class ScenarioDefinitionValidator
         }
         else
         {
-            ValidateSteps(scenario.Steps, "scenario.steps", errors);
+            var stepIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            ValidateSteps(scenario.Steps, "scenario.steps", errors, stepIds);
         }
 
         return new ScenarioValidationResult(errors);
@@ -54,16 +62,37 @@ public sealed class ScenarioDefinitionValidator
         }
     }
 
-    private static void ValidateSteps(IReadOnlyList<ScenarioStep> steps, string path, ICollection<string> errors)
+    private static void ValidateSteps(
+        IReadOnlyList<ScenarioStep> steps,
+        string path,
+        ICollection<string> errors,
+        IDictionary<string, string> stepIds)
     {
         for (var index = 0; index < steps.Count; index++)
         {
-            ValidateStep(steps[index], $"{path}[{index}]", errors);
+            ValidateStep(steps[index], $"{path}[{index}]", errors, stepIds);
         }
     }
 
-    private static void ValidateStep(ScenarioStep step, string path, ICollection<string> errors)
+    private static void ValidateStep(
+        ScenarioStep step,
+        string path,
+        ICollection<string> errors,
+        IDictionary<string, string> stepIds)
     {
+        if (!string.IsNullOrWhiteSpace(step.Id))
+        {
+            var normalizedId = step.Id.Trim();
+            if (stepIds.TryGetValue(normalizedId, out var existingPath))
+            {
+                errors.Add($"{path}.id '{normalizedId}' duplicates {existingPath}.id.");
+            }
+            else
+            {
+                stepIds.Add(normalizedId, path);
+            }
+        }
+
         if (string.IsNullOrWhiteSpace(step.Selector) &&
             step.Type is StepType.Click or StepType.FillText or StepType.PasteText or StepType.ReadText)
         {
@@ -98,9 +127,23 @@ public sealed class ScenarioDefinitionValidator
             errors.Add($"{path}.children must contain at least one step for {step.Type}.");
         }
 
+        if (step.RetryCount is < 0)
+        {
+            errors.Add($"{path}.retryCount must be zero or greater.");
+        }
+        else if (step.RetryCount == int.MaxValue)
+        {
+            errors.Add($"{path}.retryCount must be at most {int.MaxValue - 1}.");
+        }
+
+        if (step.RetryDelayMs is < 0)
+        {
+            errors.Add($"{path}.retryDelayMs must be zero or greater.");
+        }
+
         if (step.Children.Count > 0)
         {
-            ValidateSteps(step.Children, $"{path}.children", errors);
+            ValidateSteps(step.Children, $"{path}.children", errors, stepIds);
         }
     }
 }
