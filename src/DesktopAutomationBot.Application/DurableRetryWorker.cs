@@ -22,9 +22,17 @@ public sealed class DurableRetryWorker : IDurableRetryWorker
 
         while (!cancellationToken.IsCancellationRequested)
         {
-            await _scheduler.RunDueRetriesAsync(
-                _options.BatchSize,
-                cancellationToken);
+            try
+            {
+                await _scheduler.RunDueRetriesAsync(
+                    _options.BatchSize,
+                    cancellationToken);
+            }
+            catch (OperationCanceledException)
+                when (cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
 
             if (cancellationToken.IsCancellationRequested)
             {
