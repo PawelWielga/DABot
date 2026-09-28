@@ -1,61 +1,189 @@
 # DABot
 
-DABot (Desktop Automation Bot) is a .NET-based browser automation engine built around declarative scenarios, Playwright, durable runs, and external events.
+[![CI](https://github.com/PawelWielga/DABot/actions/workflows/ci.yml/badge.svg)](https://github.com/PawelWielga/DABot/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4.svg)](https://dotnet.microsoft.com/)
 
-The project is designed to stay useful as a general automation tool rather than being tied to one website or one business process.
+**DABot (Desktop Automation Bot)** is a self-hosted .NET browser automation engine powered by Microsoft Playwright.
 
-## Main capabilities
+It adds a declarative JSON scenario layer and a reusable execution engine on top of Playwright. The project is being developed toward durable, event-driven workflows that can be invoked from multiple clients without coupling the automation logic to one website, vendor, or AI provider.
 
-- JSON-defined browser scenarios
-- Playwright-based browser automation
-- synchronous and durable execution
-- suspend and resume of long-running workflows
-- persistent browser profiles
-- external events and correlation
-- page observation without blocking the main workflow
-- REST/API integration
-- MCP server/client integration and a dynamic tool registry
-- declarative reusable tools/workflows that can be authored by humans or agents
-- screenshots, HTML snapshots, logs, and diagnostics
-- CLI/worker operation on Linux
-- optional web panel for configuration and monitoring
+> DABot is not a replacement for Playwright. Playwright provides the browser automation primitives; DABot provides the scenario and workflow layer around them.
 
-## Architecture
+## What works today
 
-The main layers are:
+DABot can currently:
 
-- `DesktopAutomationBot.Core` - domain models and validation
-- `DesktopAutomationBot.Application` - use cases and orchestration
-- `DesktopAutomationBot.Infrastructure` - Playwright, persistence, integrations, event transport
-- `DesktopAutomationBot.Runner` - CLI/worker composition root
-- `DesktopAutomationBot.Web` - planned web management panel
-- `DesktopAutomationBot.Mcp` - planned MCP server/client adapter and tool registry integration
+- load browser scenarios from JSON,
+- open URLs,
+- click elements,
+- fill and paste text,
+- read text into scenario outputs,
+- wait for selectors, text, URLs, and page load states,
+- capture screenshots,
+- execute scenarios through the .NET runner,
+- validate scenario definitions before execution.
 
-The web panel is a client of the same application layer as the CLI. It must not become a requirement for running scenarios.
+The roadmap intentionally goes further, but planned features are marked separately below so they are not mistaken for released functionality.
+
+## When DABot is a good fit
+
+DABot is aimed at automation where:
+
+- a website has no suitable API,
+- browser interaction should be described as reusable data rather than duplicated application code,
+- the automation should stay self-hosted,
+- several applications or clients should eventually use the same execution layer,
+- authenticated browser sessions, durable state, external events, or long-running workflows will matter,
+- automation capabilities may later be exposed to applications or agents through controlled interfaces.
+
+For a small code-only browser script, raw Playwright will often be the simpler choice. See [DABot compared with raw Playwright](docs/comparison.md).
+
+## Quick start
+
+### Prerequisites
+
+- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+- PowerShell 7 (`pwsh`) for the Playwright browser-install script
+
+Clone and build the repository:
+
+```bash
+git clone https://github.com/PawelWielga/DABot.git
+cd DABot
+dotnet restore
+dotnet build
+```
+
+Install Chromium for Playwright:
+
+```bash
+pwsh src/DesktopAutomationBot.Infrastructure/bin/Debug/net8.0/playwright.ps1 install chromium
+```
+
+On a Linux machine that also needs browser system dependencies, Playwright can install them together with Chromium:
+
+```bash
+pwsh src/DesktopAutomationBot.Infrastructure/bin/Debug/net8.0/playwright.ps1 install --with-deps chromium
+```
+
+Run the default sample from the repository root:
+
+```bash
+dotnet run --project src/DesktopAutomationBot.Runner
+```
+
+The runner reads `config.json`, which points to `scenarios/sample-open-url.json` by default.
+
+## Minimal scenario
+
+A DABot scenario is a JSON document containing an ordered list of steps:
+
+```json
+{
+  "name": "Read example heading",
+  "steps": [
+    {
+      "type": "OpenUrl",
+      "url": "https://example.com"
+    },
+    {
+      "type": "WaitFor",
+      "selector": "h1"
+    },
+    {
+      "type": "ReadText",
+      "selector": "h1",
+      "output": "heading"
+    },
+    {
+      "type": "Screenshot"
+    }
+  ]
+}
+```
+
+To run a different scenario with the current runner, change `bot.scenarioPath` in `config.json`.
+
+More examples are available in [examples](examples/README.md).
+
+## Project status
+
+| Capability | Status |
+| --- | --- |
+| JSON scenario loading and validation | Available |
+| Playwright browser control | Available |
+| Open URL / click / fill / paste / read | Available |
+| Wait for selector / text / URL / load state | Available |
+| Screenshots and step results | Available |
+| CLI-style .NET runner | Available |
+| Structured logging and failure artifacts | Planned |
+| HTTP/API scenario steps | Planned |
+| Conditions, loops, retries, and variable interpolation | Planned |
+| Persistent named browser profiles | Planned |
+| Durable run persistence | Planned |
+| Suspend and resume | Planned |
+| External event model | Planned |
+| Generic page observers | Planned |
+| Web management panel | Planned |
+| MCP server/client integration | Planned |
+| Dynamic reusable tool registry | Planned |
+
+The detailed implementation state is tracked in [docs/tasks.md](docs/tasks.md).
 
 ## Execution model
 
-A scenario can finish in one process:
+The current engine executes a scenario synchronously:
 
 ```text
-Start -> steps -> Completed
+Start -> Step -> Step -> Step -> Completed
 ```
 
-or suspend while waiting for an external condition:
+The planned durable execution model extends the same engine so a run can persist its state, stop the process, and resume later:
 
 ```text
-Start -> steps -> Suspend
+Start -> Step -> Suspend
                     |
-                 process exits
+              state persisted
                     |
-              external event
+               process exits
+                    |
+             external event
                     |
                   Resume
                     |
-               next steps
+                 Step...
 ```
 
-Short browser waits such as waiting for a selector remain normal blocking steps. Long waits are represented as durable suspension and later resume.
+Short browser waits remain active Playwright waits. Long waits are planned as durable suspension rather than keeping a process blocked.
+
+See [durable workflow architecture](docs/durable-workflows.md).
+
+## Architecture
+
+The current solution is split into:
+
+- `DesktopAutomationBot.Core` - scenario/domain models and validation,
+- `DesktopAutomationBot.Application` - execution orchestration and step handlers,
+- `DesktopAutomationBot.Infrastructure` - Playwright and infrastructure adapters,
+- `DesktopAutomationBot.Runner` - executable composition root.
+
+Planned clients and adapters include:
+
+- `DesktopAutomationBot.Web` - optional web management panel,
+- `DesktopAutomationBot.Mcp` - MCP server/client adapter and dynamic tool registry integration.
+
+All clients are intended to converge on the same Application use cases rather than create separate execution engines.
+
+## Design principles
+
+- **General-purpose automation** - Core must not depend on one website or business process.
+- **Declarative scenarios** - reusable automation is expressed as data where practical.
+- **One execution layer** - CLI, HTTP, web UI, workers, MCP, and agents should share the same use cases.
+- **Self-hosted and Linux-first** - Linux is the primary runtime target; Windows remains supported for development and testing.
+- **Durability by design** - long-running workflows should eventually survive process or machine restarts.
+- **Controlled extensibility** - future agent-authored tools compose approved actions rather than execute unrestricted generated code.
+- **No secrets in repository files or logs**.
 
 ## Documentation
 
@@ -63,4 +191,16 @@ Short browser waits such as waiting for a selector remain normal blocking steps.
 - [Implementation backlog](docs/tasks.md)
 - [Durable workflow architecture](docs/durable-workflows.md)
 - [MCP and dynamic tools architecture](docs/mcp-and-dynamic-tools.md)
+- [DABot compared with raw Playwright](docs/comparison.md)
 - [Agent guidelines](AGENTS.md)
+- [Runnable examples](examples/README.md)
+
+## Roadmap
+
+The roadmap is maintained as an implementation backlog rather than a marketing feature list. Planned work includes complete runner diagnostics, API steps, persistent browser sessions, durable runs, suspend/resume, external events, observers, a web panel, and MCP/tool-registry integration.
+
+See [docs/tasks.md](docs/tasks.md) for acceptance criteria and implementation order.
+
+## License
+
+DABot is available under the [MIT License](LICENSE).
