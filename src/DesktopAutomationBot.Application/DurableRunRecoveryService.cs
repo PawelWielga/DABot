@@ -230,7 +230,9 @@ public sealed class DurableRunRecoveryService : IDurableRunRecoveryService
                     scenarioVersion,
                     RunWaitReason.Retry,
                     detectedAt,
-                    cancellationToken);
+                    cancellationToken,
+                    currentStep,
+                    attempt.UpdatedAt);
 
                 return CreateResult(
                     waitingForRetry,
@@ -313,7 +315,8 @@ public sealed class DurableRunRecoveryService : IDurableRunRecoveryService
                 RunWaitReason.Retry,
                 detectedAt,
                 cancellationToken,
-                currentStep);
+                currentStep,
+                attempt.UpdatedAt);
 
             return CreateResult(
                 waitingForRetry,
@@ -367,7 +370,9 @@ public sealed class DurableRunRecoveryService : IDurableRunRecoveryService
                     scenarioVersion,
                     RunWaitReason.Retry,
                     detectedAt,
-                    cancellationToken);
+                    cancellationToken,
+                    currentStep,
+                    attempt.UpdatedAt);
 
                 return CreateResult(
                     waitingForRetry,
@@ -440,12 +445,13 @@ public sealed class DurableRunRecoveryService : IDurableRunRecoveryService
         RunWaitReason reason,
         DateTimeOffset updatedAt,
         CancellationToken cancellationToken,
-        ScenarioStep? retryStep = null)
+        ScenarioStep? retryStep = null,
+        DateTimeOffset? retryAnchor = null)
     {
         var retryNotBefore = reason == RunWaitReason.Retry
             ? DurableRetryPolicy.GetRetryNotBefore(
                 retryStep ?? throw new ArgumentNullException(nameof(retryStep)),
-                updatedAt)
+                retryAnchor ?? updatedAt)
             : null;
 
         var waiting = RestoreRun(
