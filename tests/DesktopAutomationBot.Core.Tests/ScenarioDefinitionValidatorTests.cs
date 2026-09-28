@@ -239,4 +239,46 @@ public sealed class ScenarioDefinitionValidatorTests
         StepRetryPolicy.HasRemainingAttempt(step, 2).Should().BeTrue();
         StepRetryPolicy.HasRemainingAttempt(step, 3).Should().BeFalse();
     }
+    [Fact]
+    public void Validate_WhenRetryDelayIsNegative_ReturnsValidationError()
+    {
+        var validator = new ScenarioDefinitionValidator();
+
+        var result = validator.Validate(new ScenarioDefinition
+        {
+            Name = "Invalid retry delay",
+            Steps =
+            [
+                new ScenarioStep
+                {
+                    Type = StepType.OpenUrl,
+                    Url = "https://example.com",
+                    RetryDelayMs = -1,
+                },
+            ],
+        });
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(
+            "scenario.steps[0].retryDelayMs must be zero or greater.");
+    }
+
+    [Theory]
+    [InlineData(null, 0)]
+    [InlineData(0, 0)]
+    [InlineData(1500, 1500)]
+    public void StepRetryPolicy_GetRetryDelay_UsesConfiguredMilliseconds(
+        int? retryDelayMs,
+        int expectedMilliseconds)
+    {
+        var step = new ScenarioStep
+        {
+            Type = StepType.Screenshot,
+            RetryDelayMs = retryDelayMs,
+        };
+
+        StepRetryPolicy.GetRetryDelay(step)
+            .Should()
+            .Be(TimeSpan.FromMilliseconds(expectedMilliseconds));
+    }
 }
