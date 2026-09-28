@@ -173,11 +173,7 @@ A future variable model may distinguish a `SecretReference` from normal data.
 
 ## Priority 5: formalize run state transitions
 
-The current status list includes `Suspended`, `WaitingForEvent`, and `WaitingForHuman`, but the relationship between them is not fully specified.
-
-Define a formal transition table before persistence is implemented.
-
-One possible model is:
+Decision adopted: persisted run state uses the compact status set below:
 
 ```text
 Queued
@@ -188,16 +184,18 @@ Failed
 Cancelled
 ```
 
-with a separate wait reason:
+`Waiting` has a separate reason:
 
 ```text
 Event
 Human
-Schedule
 Retry
+Schedule
 ```
 
-Keeping the current status names is also acceptable, but all legal transitions should be documented and tested.
+Core now defines and tests the legal transition graph. Terminal states cannot transition further, `Waiting` always requires a reason, and non-waiting states cannot carry one. A direct change from one wait reason to another is intentionally rejected; the run must resume to `Running` before entering another wait.
+
+A future executor result may still report `Suspended` as an execution outcome, but the durable persisted state is `Waiting` with the appropriate reason.
 
 ## Priority 6: define browser state semantics across Suspend
 

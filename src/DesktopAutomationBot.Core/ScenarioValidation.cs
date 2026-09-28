@@ -127,6 +127,20 @@ public sealed class ScenarioDefinitionValidator
             errors.Add($"{path}.children must contain at least one step for {step.Type}.");
         }
 
+        if (step.RetryCount is < 0)
+        {
+            errors.Add($"{path}.retryCount must be zero or greater.");
+        }
+        else if (step.RetryCount == int.MaxValue)
+        {
+            errors.Add($"{path}.retryCount must be at most {int.MaxValue - 1}.");
+        }
+
+        if (step.RetryDelayMs is < 0)
+        {
+            errors.Add($"{path}.retryDelayMs must be zero or greater.");
+        }
+
         if (step.Children.Count > 0)
         {
             ValidateSteps(step.Children, $"{path}.children", errors, stepIds);
