@@ -5,7 +5,10 @@
   "description": "Machine-readable contract for DABot JSON scenario files. Step types may exist in the domain model before they have an executable handler; see each type description and README project status.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["name", "steps"],
+  "required": [
+    "name",
+    "steps"
+  ],
   "properties": {
     "$schema": {
       "type": "string",
@@ -28,22 +31,57 @@
     "step": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type"],
+      "required": [
+        "type"
+      ],
       "properties": {
         "type": {
           "description": "Scenario step type. OpenUrl, Click, FillText, PasteText, ReadText, WaitFor and Screenshot are currently executable. Other listed values are reserved by the domain model and roadmap.",
           "oneOf": [
-            { "const": "OpenUrl", "description": "Available: navigate to a URL." },
-            { "const": "Click", "description": "Available: click an element selected by selector." },
-            { "const": "FillText", "description": "Available: fill an element with text." },
-            { "const": "PasteText", "description": "Available: focus an element and insert text through the keyboard path." },
-            { "const": "ReadText", "description": "Available: read element text into a named output." },
-            { "const": "WaitFor", "description": "Available: wait for selector, text, URL or load state." },
-            { "const": "Screenshot", "description": "Available: capture a full-page screenshot artifact." },
-            { "const": "CallApi", "description": "Planned: domain value exists, executable handler is not implemented yet." },
-            { "const": "Delay", "description": "Planned: domain value exists, executable handler is not implemented yet." },
-            { "const": "If", "description": "Planned: domain value exists, executable handler is not implemented yet." },
-            { "const": "Loop", "description": "Planned: domain value exists, executable handler is not implemented yet." }
+            {
+              "const": "OpenUrl",
+              "description": "Available: navigate to a URL."
+            },
+            {
+              "const": "Click",
+              "description": "Available: click an element selected by selector."
+            },
+            {
+              "const": "FillText",
+              "description": "Available: fill an element with text."
+            },
+            {
+              "const": "PasteText",
+              "description": "Available: focus an element and insert text through the keyboard path."
+            },
+            {
+              "const": "ReadText",
+              "description": "Available: read element text into a named output."
+            },
+            {
+              "const": "WaitFor",
+              "description": "Available: wait for selector, text, URL or load state."
+            },
+            {
+              "const": "Screenshot",
+              "description": "Available: capture a full-page screenshot artifact."
+            },
+            {
+              "const": "CallApi",
+              "description": "Planned: domain value exists, executable handler is not implemented yet."
+            },
+            {
+              "const": "Delay",
+              "description": "Planned: domain value exists, executable handler is not implemented yet."
+            },
+            {
+              "const": "If",
+              "description": "Planned: domain value exists, executable handler is not implemented yet."
+            },
+            {
+              "const": "Loop",
+              "description": "Planned: domain value exists, executable handler is not implemented yet."
+            }
           ]
         },
         "selector": {
@@ -79,7 +117,12 @@
           "properties": {
             "mode": {
               "type": "string",
-              "enum": ["selector", "url", "loadstate", "text"],
+              "enum": [
+                "selector",
+                "url",
+                "loadstate",
+                "text"
+              ],
               "description": "WaitFor mode recognized by the current handler."
             }
           },
@@ -96,40 +139,91 @@
       "allOf": [
         {
           "if": {
-            "properties": { "type": { "const": "OpenUrl" } },
-            "required": ["type"]
+            "properties": {
+              "type": {
+                "const": "OpenUrl"
+              }
+            },
+            "required": [
+              "type"
+            ]
           },
-          "then": { "required": ["url"] }
+          "then": {
+            "required": [
+              "url"
+            ]
+          }
         },
         {
           "if": {
             "properties": {
-              "type": { "enum": ["Click", "FillText", "PasteText", "ReadText"] }
+              "type": {
+                "enum": [
+                  "Click",
+                  "FillText",
+                  "PasteText",
+                  "ReadText"
+                ]
+              }
             },
-            "required": ["type"]
+            "required": [
+              "type"
+            ]
           },
-          "then": { "required": ["selector"] }
+          "then": {
+            "required": [
+              "selector"
+            ]
+          }
         },
         {
           "if": {
-            "properties": { "type": { "const": "ReadText" } },
-            "required": ["type"]
+            "properties": {
+              "type": {
+                "const": "ReadText"
+              }
+            },
+            "required": [
+              "type"
+            ]
           },
-          "then": { "required": ["output"] }
+          "then": {
+            "required": [
+              "output"
+            ]
+          }
         },
         {
           "if": {
-            "properties": { "type": { "const": "WaitFor" } },
-            "required": ["type"]
+            "properties": {
+              "type": {
+                "const": "WaitFor"
+              }
+            },
+            "required": [
+              "type"
+            ]
           },
           "then": {
             "anyOf": [
-              { "required": ["selector"] },
-              { "required": ["value"] },
               {
-                "required": ["parameters"],
+                "required": [
+                  "selector"
+                ]
+              },
+              {
+                "required": [
+                  "value"
+                ]
+              },
+              {
+                "required": [
+                  "parameters"
+                ],
                 "properties": {
-                  "parameters": { "minProperties": 1 }
+                  "parameters": {
+                    "minProperties": 1
+                  }
                 }
               }
             ]
@@ -137,26 +231,152 @@
         },
         {
           "if": {
-            "properties": { "type": { "const": "Delay" } },
-            "required": ["type"]
+            "properties": {
+              "type": {
+                "const": "Delay"
+              }
+            },
+            "required": [
+              "type"
+            ]
           },
           "then": {
             "anyOf": [
-              { "required": ["timeoutMs"] },
-              { "required": ["value"] }
+              {
+                "required": [
+                  "timeoutMs"
+                ]
+              },
+              {
+                "required": [
+                  "value"
+                ]
+              }
             ]
           }
         },
         {
           "if": {
-            "properties": { "type": { "enum": ["If", "Loop"] } },
-            "required": ["type"]
+            "properties": {
+              "type": {
+                "enum": [
+                  "If",
+                  "Loop"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ]
           },
           "then": {
-            "required": ["children"],
+            "required": [
+              "children"
+            ],
             "properties": {
-              "children": { "minItems": 1 }
+              "children": {
+                "minItems": 1
+              }
             }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "WaitFor"
+              },
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "const": "selector"
+                  }
+                },
+                "required": [
+                  "mode"
+                ]
+              }
+            },
+            "required": [
+              "type",
+              "parameters"
+            ]
+          },
+          "then": {
+            "required": [
+              "selector"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "WaitFor"
+              },
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "const": "url"
+                  }
+                },
+                "required": [
+                  "mode"
+                ]
+              }
+            },
+            "required": [
+              "type",
+              "parameters"
+            ]
+          },
+          "then": {
+            "anyOf": [
+              {
+                "required": [
+                  "value"
+                ]
+              },
+              {
+                "required": [
+                  "url"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "WaitFor"
+              },
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "enum": [
+                      "loadstate",
+                      "text"
+                    ]
+                  }
+                },
+                "required": [
+                  "mode"
+                ]
+              }
+            },
+            "required": [
+              "type",
+              "parameters"
+            ]
+          },
+          "then": {
+            "required": [
+              "value"
+            ]
           }
         }
       ]
