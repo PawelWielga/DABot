@@ -1,0 +1,26 @@
+{
+  "name": "Paste text and capture result",
+  "steps": [
+    {
+      "type": "OpenUrl",
+      "url": "data:text/html,%3Chtml%3E%3Cbody%3E%3Ctextarea%20id%3D%22editor%22%3E%3C%2Ftextarea%3E%3Cp%20id%3D%22mirror%22%3Eready%3C%2Fp%3E%3Cscript%3Edocument.getElementById('editor').addEventListener('input'%2Cfunction(e)%7Bdocument.getElementById('mirror').textContent%3De.target.value%3B%7D)%3C%2Fscript%3E%3C%2Fbody%3E%3C%2Fhtml%3E"
+    },
+    {
+      "type": "PasteText",
+      "selector": "#editor",
+      "value": "Reusable browser workflow"
+    },
+    {
+      "type": "WaitFor",
+      "value": "Reusable browser workflow"
+    },
+    {
+      "type": "ReadText",
+      "selector": "#mirror",
+      "output": "mirroredText"
+    },
+    {
+      "type": "Screenshot"
+    }
+  ]
+}
