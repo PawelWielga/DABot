@@ -83,8 +83,8 @@ Status legend:
 - [ ] Add proper CLI arguments instead of relying only on config.
 - [ ] Return documented exit codes.
 - [ ] Add Linux publish/smoke-test instructions.
-- [ ] Add browser installation instructions.
-- [ ] Add at least one Playwright integration test.
+- [x] Add browser installation instructions.
+- [x] Add at least one Playwright integration/smoke test.
 - [ ] Align Microsoft.Extensions package major versions.
 - [ ] Update Playwright to a current supported version before building new browser features.
 
