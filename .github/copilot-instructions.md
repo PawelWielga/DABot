@@ -6,6 +6,7 @@
 - Put orchestration and interfaces in Application, concrete external integrations in Infrastructure, and executable composition/CLI concerns in Runner.
 - Preserve existing scenario JSON compatibility unless a migration is explicitly documented.
 - For scenario JSON, use `schemas/scenario.schema.json` and prefer executable step handlers documented in README/CONTRIBUTING.
+- For repository configuration, use `schemas/config.schema.json` and keep it aligned with `BotOptions`, `BrowserOptions`, and `StorageOptions`.
 - Add or update tests whenever behavior changes. Keep tests Linux-friendly and headless-friendly.
 - Treat README, examples, schema, docs, CI, release checklist, and discoverability metadata as part of the definition of done when a change affects them.
 - Never present planned functionality as implemented.
