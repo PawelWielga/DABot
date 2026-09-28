@@ -1,4 +1,5 @@
 {
+  "$schema": "../schemas/scenario.schema.json",
   "name": "Paste text and capture result",
   "steps": [
     {
