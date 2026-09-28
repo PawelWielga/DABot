@@ -2,7 +2,7 @@
 
 Guidelines for agents working in this repository.
 
-DABot is a general-purpose .NET browser automation and durable workflow engine. It executes declarative scenarios, controls Chromium through Playwright, integrates with external systems, and is being extended with persisted runs, suspend/resume, events, page observers, and an optional web management panel.
+DABot is a general-purpose .NET browser automation engine built around declarative scenarios and Playwright. The current implementation executes synchronous browser scenarios; durable runs, suspend/resume, external-system integrations, events, page observers, a web panel, and MCP integration are roadmap work unless the code and README explicitly state otherwise.
 
 ## Product direction
 
@@ -63,6 +63,8 @@ Planned:
 
 ## Durable workflow rules
 
+These rules describe the planned durable execution architecture. They do not imply that durable execution is already implemented.
+
 - `WaitFor` is for short waits inside an active browser execution.
 - `Suspend` is for waits that should survive process termination.
 - `Suspend` is not an error condition.
@@ -107,7 +109,7 @@ The panel must not duplicate domain logic already available in Application.
 
 ## Scenario expectations
 
-Supported or planned generic step types include:
+Currently registered executable step handlers:
 
 - `OpenUrl`
 - `Click`
@@ -116,11 +118,10 @@ Supported or planned generic step types include:
 - `WaitFor`
 - `ReadText`
 - `Screenshot`
-- `CallApi`
-- `Delay`
-- `If`
-- `Loop`
-- `Suspend`
+
+The current domain enum also reserves `CallApi`, `Delay`, `If`, and `Loop`, but they are not executable until handlers are implemented and registered. `Suspend` is planned and is not yet part of the current enum.
+
+Use `schemas/scenario.schema.json` as the machine-readable scenario contract. When the scenario model or handler availability changes, update the schema, examples, tests, README status, and AI instruction files in the same change.
 
 Do not add service-specific step types when the same behavior can be expressed through generic browser steps and events.
 
@@ -164,6 +165,8 @@ Treat the public repository presentation as part of the product, not as a one-ti
 - Keep `README.md` aligned with the code. Features must be marked as available only when they are actually implemented and usable; planned or partial work must remain clearly marked as such.
 - Keep the README Quick Start executable against the current repository layout, target framework, configuration model, runner commands, and browser-installation flow.
 - When adding or changing user-facing capabilities, add or update runnable examples under `examples/`. Examples must use supported behavior and should avoid brittle third-party dependencies where a self-contained example is practical.
+- Keep `schemas/scenario.schema.json` synchronized with the scenario domain model, validation rules, and executable-handler status.
+- Keep `.github/copilot-instructions.md` and path-specific files under `.github/instructions/` synchronized with `AGENTS.md` when cross-cutting agent guidance changes.
 - Keep `docs/comparison.md` accurate when DABot's capabilities or boundaries relative to raw Playwright change. Do not use misleading marketing claims.
 - Keep architecture, PRD, backlog, and feature-status documentation synchronized with implementation changes. Do not leave completed work marked as planned or planned work presented as released.
 - Keep CI configuration and README badges accurate when build, test, target framework, or workflow names change.
