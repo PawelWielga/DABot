@@ -38,12 +38,15 @@ public sealed class DurableRetryScheduler : IDurableRetryScheduler
 
         foreach (var runId in runIds)
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            if (cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
 
             results.Add(
                 await _resumeService.ResumeAsync(
                     runId,
-                    cancellationToken));
+                    CancellationToken.None));
         }
 
         return results;
