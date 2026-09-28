@@ -50,7 +50,7 @@ Do not move website-, vendor-, transport-, Playwright-, or MCP-specific types in
 
 ## Scenario files
 
-The machine-readable scenario contract is [schemas/scenario.schema.json](schemas/scenario.schema.json).
+The machine-readable scenario contract is [schemas/scenario.schema.json](schemas/scenario.schema.json). The committed runtime configuration is described by [schemas/config.schema.json](schemas/config.schema.json).
 
 Runnable examples live under [examples](examples/README.md). When a scenario-facing capability changes:
 
@@ -94,7 +94,7 @@ A change is not complete merely because it compiles. When relevant, it must also
 - README status updates,
 - Quick Start corrections,
 - example updates,
-- JSON Schema updates,
+- JSON Schema updates for scenarios or configuration,
 - architecture/backlog/PRD updates,
 - CI changes,
 - release-readiness checklist updates,
