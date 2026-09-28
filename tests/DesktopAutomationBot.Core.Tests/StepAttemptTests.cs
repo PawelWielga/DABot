@@ -160,6 +160,56 @@ public sealed class StepAttemptTests
         act.Should().Throw<InvalidOperationException>();
     }
 
+    [Fact]
+    public void Restore_RehydratesPersistedCompletedAttempt()
+    {
+        var attemptId = Guid.NewGuid();
+        var runId = Guid.NewGuid();
+        var startedAt = DateTimeOffset.Parse("2026-09-27T10:00:00+02:00");
+        var completedAt = startedAt.AddSeconds(3);
+
+        var restored = StepAttempt.Restore(
+            attemptId,
+            runId,
+            "read",
+            StepType.ReadText,
+            2,
+            StepRetrySafety.SafeToRetry,
+            StepAttemptStatus.Completed,
+            startedAt,
+            completedAt,
+            completedAt,
+            errorMessage: null);
+
+        restored.AttemptId.Should().Be(attemptId);
+        restored.RunId.Should().Be(runId);
+        restored.StepId.Should().Be("read");
+        restored.AttemptNumber.Should().Be(2);
+        restored.Status.Should().Be(StepAttemptStatus.Completed);
+        restored.FinishedAt.Should().Be(completedAt);
+    }
+
+    [Fact]
+    public void Restore_WhenPersistedStateShapeIsInvalid_Throws()
+    {
+        var startedAt = DateTimeOffset.Parse("2026-09-27T10:00:00+02:00");
+
+        var act = () => StepAttempt.Restore(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "read",
+            StepType.ReadText,
+            1,
+            StepRetrySafety.SafeToRetry,
+            StepAttemptStatus.Failed,
+            startedAt,
+            startedAt.AddSeconds(1),
+            finishedAt: null,
+            errorMessage: "failed");
+
+        act.Should().Throw<ArgumentException>();
+    }
+
     private static StepAttempt CreateInterruptedAttempt(StepType stepType)
     {
         var startedAt = DateTimeOffset.Parse("2026-09-27T10:00:00+02:00");
