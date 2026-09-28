@@ -24,6 +24,8 @@ public sealed class ScenarioExecutionContext
                 Variables.Set(name, value);
             }
         }
+
+        Variables.Set("runId", RunId);
     }
 
     public ScenarioDefinition Scenario { get; }
@@ -37,6 +39,19 @@ public sealed class ScenarioExecutionContext
     public string RunId { get; }
 
     public string ScreenshotDirectory => Path.Combine(Options.Storage.ScreenshotsDirectory, RunId);
+
+    public void CaptureOutput(StepExecutionResult result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+
+        if (string.IsNullOrWhiteSpace(result.OutputName) ||
+            result.OutputValue is null)
+        {
+            return;
+        }
+
+        Variables.Set(result.OutputName, result.OutputValue);
+    }
 
     private static string CreateRunId(string scenarioName)
     {

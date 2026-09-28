@@ -328,4 +328,26 @@ public sealed class ScenarioDefinitionValidatorTests
             "scenario.steps[0].value must be a non-negative integer number of milliseconds for Delay.");
     }
 
+
+    [Fact]
+    public void Validate_WhenDelayValueIsVariableReference_IsValid()
+    {
+        var validator = new ScenarioDefinitionValidator();
+
+        var result = validator.Validate(new ScenarioDefinition
+        {
+            Name = "Variable delay",
+            Steps =
+            [
+                new ScenarioStep
+                {
+                    Type = StepType.Delay,
+                    Value = "{{delayMs}}",
+                },
+            ],
+        });
+
+        result.IsValid.Should().BeTrue();
+    }
+
 }

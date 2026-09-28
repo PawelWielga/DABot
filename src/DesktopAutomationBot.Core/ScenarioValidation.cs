@@ -123,6 +123,7 @@ public sealed class ScenarioDefinitionValidator
             }
             else if (!step.TimeoutMs.HasValue &&
                      !string.IsNullOrWhiteSpace(step.Value) &&
+                     !ScenarioVariableInterpolator.IsExactVariableReference(step.Value) &&
                      (!int.TryParse(
                           step.Value,
                           NumberStyles.None,

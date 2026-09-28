@@ -47,7 +47,15 @@ public sealed class ScenarioExecutor : IScenarioExecutor
                     throw new NotSupportedException($"Step type '{step.Type}' is not supported yet.");
                 }
 
-                var stepResult = await handler.ExecuteAsync(step, context, index, cancellationToken);
+                var resolvedStep = ScenarioVariableInterpolator.Resolve(
+                    step,
+                    context.Variables);
+                var stepResult = await handler.ExecuteAsync(
+                    resolvedStep,
+                    context,
+                    index,
+                    cancellationToken);
+                context.CaptureOutput(stepResult);
                 result.Steps.Add(stepResult);
             }
 

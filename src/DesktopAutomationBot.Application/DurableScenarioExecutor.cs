@@ -256,8 +256,11 @@ public sealed class DurableScenarioExecutor :
 
                 try
                 {
-                    stepResult = await handler.ExecuteAsync(
+                    var resolvedStep = ScenarioVariableInterpolator.Resolve(
                         step,
+                        context.Variables);
+                    stepResult = await handler.ExecuteAsync(
+                        resolvedStep,
                         context,
                         index,
                         cancellationToken);
@@ -301,6 +304,7 @@ public sealed class DurableScenarioExecutor :
                         exception.Message);
                 }
 
+                context.CaptureOutput(stepResult);
                 CaptureOutputVariable(
                     variables,
                     stepResult);

@@ -7,5 +7,6 @@ applyTo: "scenarios/**/*.json,examples/**/*.json,schemas/**/*.json"
 - Treat `schemas/scenario.schema.json` as the machine-readable scenario contract.
 - Runnable scenarios should use currently executable steps: `OpenUrl`, `Click`, `FillText`, `PasteText`, `ReadText`, `WaitFor`, `Delay`, and `Screenshot`.
 - `CallApi`, `If`, and `Loop` exist in the current domain enum but do not yet have registered executable handlers.
+- String scenario fields support `{{variableName}}` interpolation from prior outputs/run variables; `runId` is built in.
 - When changing the scenario contract, update the Core model/validator, schema, examples, tests, README project-status table, and backlog together.
 - Keep examples deterministic and self-contained where practical; avoid unnecessary dependence on third-party test sites.

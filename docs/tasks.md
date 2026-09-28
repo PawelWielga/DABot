@@ -68,7 +68,7 @@ Status legend:
 
 ### Scenario engine
 
-- [ ] Implement variable interpolation.
+- [x] Implement variable interpolation.
 - [x] Implement `Delay`.
 - [ ] Implement `If`.
 - [ ] Implement `Loop`.

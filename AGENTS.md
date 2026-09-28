@@ -123,6 +123,8 @@ Currently registered executable step handlers:
 
 The current domain enum also reserves `CallApi`, `If`, and `Loop`, but they are not executable until handlers are implemented and registered. `Suspend` is planned and is not yet part of the current enum.
 
+String scenario inputs support `{{variableName}}` interpolation. Values may come from prior step outputs or run variables, and `runId` is a built-in execution variable. Missing variables must fail explicitly rather than remain unresolved.
+
 Use `schemas/scenario.schema.json` as the machine-readable scenario contract and `schemas/config.schema.json` as the configuration contract. When scenario/configuration models or handler availability change, update the relevant schemas, examples, tests, README status, and AI instruction files in the same change.
 
 Do not add service-specific step types when the same behavior can be expressed through generic browser steps and events.
