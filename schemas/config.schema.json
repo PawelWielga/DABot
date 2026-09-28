@@ -68,6 +68,27 @@
               "type": "string",
               "minLength": 1,
               "default": "artifacts"
+            },
+            "databasePath": {
+              "type": "string",
+              "minLength": 1,
+              "default": "data/dabot.db"
+            }
+          }
+        },
+        "retryWorker": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "pollIntervalMs": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1000
+            },
+            "batchSize": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 100
             }
           }
         }

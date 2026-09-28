@@ -28,6 +28,9 @@ public sealed class RepositoryConfigurationSchemaTests
 
         PropertyNames(botProperties.GetProperty("storage").GetProperty("properties"))
             .Should().BeEquivalentTo(OptionPropertyNames<StorageOptions>());
+
+        PropertyNames(botProperties.GetProperty("retryWorker").GetProperty("properties"))
+            .Should().BeEquivalentTo(OptionPropertyNames<RetryWorkerOptions>());
     }
 
     private static string[] PropertyNames(JsonElement properties) =>
