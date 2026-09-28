@@ -73,6 +73,24 @@ The field is optional. Omitting it keeps the default classification for the step
 
 This setting is about recovery after an interrupted/unknown attempt. It does not itself define how many normal retries are allowed; `retryCount` remains a separate concern.
 
+## Immutable scenario versions
+
+A durable run must execute against an immutable snapshot of a normalized scenario definition, not against a mutable scenario file that may later be edited.
+
+`ScenarioVersion.Capture` creates that snapshot by:
+
+1. normalizing the scenario so every step has a stable ID,
+2. serializing the normalized definition into canonical JSON,
+3. recursively sorting JSON object properties so dictionary/property insertion order does not affect identity,
+4. computing a lowercase SHA-256 `definitionHash` from that canonical JSON,
+5. storing the canonical JSON together with `ScenarioId`, `VersionId`, `VersionNumber`, schema version, and creation time.
+
+The hash covers the normalized scenario definition only. Scenario/version database identifiers and timestamps are metadata and do not change the definition hash.
+
+The snapshot owns its canonical JSON value. Materializing the definition returns a new object graph, so later mutation of the source scenario or of a previously materialized copy cannot change an existing version.
+
+The persistence layer must eventually store both the canonical definition JSON and `definitionHash`. A run must reference one immutable `VersionId` for its entire lifetime. Persisting that snapshot is still part of the durable store work.
+
 ## Migration policy
 
 Schema evolution follows these rules:
@@ -95,3 +113,38 @@ Its current responsibilities are:
 - assign deterministic IDs to legacy steps that do not have one.
 
 Normalization is intentionally separate from browser execution so future compilation steps can add execution metadata without coupling the scenario format to Playwright.
+
+
+## Retry semantics
+
+`retryCount` is optional and must be zero or greater.
+
+It means the number of **additional** attempts after the initial execution:
+
+| retryCount | Maximum attempts |
+| ---: | ---: |
+| omitted / 0 | 1 |
+| 1 | 2 |
+| 2 | 3 |
+
+Durable execution persists each attempt number. Retry budgets therefore survive process restarts and cannot be reset by restarting DABot.
+
+Retry safety is evaluated separately from the numeric budget. Having retry budget available does not make an unsafe operation automatically retryable.
+
+### Retry delay
+
+`retryDelayMs` is optional and must be zero or greater. It defines a fixed delay before the next durable automatic retry becomes eligible:
+
+```json
+{
+  "id": "open-dashboard",
+  "type": "OpenUrl",
+  "url": "https://example.com",
+  "retryCount": 2,
+  "retryDelayMs": 5000
+}
+```
+
+Omitted or `0` means no delay. DABot persists the resulting absolute due time on the run as `RetryNotBefore`, so restarting the process does not reset the delay.
+
+Because `retryDelayMs` is optional and omitted from canonical scenario JSON when it is null, scenario-version snapshots created before this field existed remain canonical and valid within schema version 1.
