@@ -62,7 +62,23 @@ public sealed class RepositoryScenarioFilesTests
     }
 
     [Fact]
-    public async Task Scenario_schema_should_be_valid_json_and_list_every_current_step_type()
+    public async Task Repository_schemas_should_be_valid_json()
+    {
+        var repositoryRoot = FindRepositoryRoot();
+        var schemaDirectory = Path.Combine(repositoryRoot, "schemas");
+        var schemaFiles = Directory.EnumerateFiles(schemaDirectory, "*.json", SearchOption.TopDirectoryOnly).ToArray();
+
+        schemaFiles.Should().NotBeEmpty();
+
+        foreach (var schemaFile in schemaFiles)
+        {
+            var json = await File.ReadAllTextAsync(schemaFile);
+            using var _ = JsonDocument.Parse(json);
+        }
+    }
+
+    [Fact]
+    public async Task Scenario_schema_should_list_every_current_step_type()
     {
         var repositoryRoot = FindRepositoryRoot();
         var schemaPath = Path.Combine(repositoryRoot, "schemas", "scenario.schema.json");
