@@ -59,6 +59,39 @@ public sealed class SqliteRunStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task SaveAndLoad_RetryWait_PreservesRetryNotBefore()
+    {
+        var databasePath = Path.Combine(_tempDirectory, "retry-schedule.db");
+        var options = CreateOptions(databasePath);
+        var version = CreateScenarioVersion();
+        var createdAt = DateTimeOffset.Parse("2026-09-28T10:00:00+02:00");
+        var updatedAt = createdAt.AddMinutes(1);
+        var retryNotBefore = updatedAt.AddSeconds(45);
+        var queued = AutomationRun.Create(version, createdAt);
+
+        var waiting = AutomationRun.Restore(
+            queued.RunId,
+            version,
+            RunState.Restore(RunStatus.Waiting, RunWaitReason.Retry),
+            queued.Cursor,
+            queued.Variables,
+            createdAt,
+            updatedAt,
+            retryNotBefore);
+
+        var firstStore = new SqliteRunStore(options);
+        await firstStore.SaveAsync(waiting, version);
+
+        var restartedStore = new SqliteRunStore(options);
+        var loaded = await restartedStore.LoadAsync(waiting.RunId);
+
+        loaded.Should().NotBeNull();
+        loaded!.Run.State.Status.Should().Be(RunStatus.Waiting);
+        loaded.Run.State.WaitReason.Should().Be(RunWaitReason.Retry);
+        loaded.Run.RetryNotBefore.Should().Be(retryNotBefore);
+    }
+
+    [Fact]
     public async Task SaveAsync_WhenRunChanges_UpdatesMutableSnapshot()
     {
         var databasePath = Path.Combine(_tempDirectory, "updates.db");
@@ -336,7 +369,7 @@ public sealed class SqliteRunStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task ExistingVersion1Database_IsMigratedToVersion2()
+    public async Task ExistingVersion1Database_IsMigratedToVersion3()
     {
         var databasePath = Path.Combine(_tempDirectory, "schema-v1.db");
         await CreateVersion1DatabaseAsync(databasePath);
@@ -368,7 +401,47 @@ public sealed class SqliteRunStoreTests : IDisposable
         command.CommandText = "PRAGMA user_version;";
         var rawVersion = await command.ExecuteScalarAsync();
 
-        Convert.ToInt32(rawVersion).Should().Be(2);
+        Convert.ToInt32(rawVersion).Should().Be(3);
+    }
+
+    [Fact]
+    public async Task ExistingVersion2RetryWait_IsMigratedAndBackfilledToVersion3()
+    {
+        var databasePath = Path.Combine(_tempDirectory, "schema-v2.db");
+        var version = CreateScenarioVersion();
+        var runId = Guid.NewGuid();
+        var createdAt = DateTimeOffset.Parse("2026-09-28T10:30:00+02:00");
+        var updatedAt = createdAt.AddMinutes(2);
+        var cursor = ExecutionCursor.Start(version.MaterializeDefinition());
+
+        await CreateVersion2RetryWaitDatabaseAsync(
+            databasePath,
+            version,
+            runId,
+            cursor,
+            createdAt,
+            updatedAt);
+
+        var store = new SqliteRunStore(CreateOptions(databasePath));
+        var loaded = await store.LoadAsync(runId);
+
+        loaded.Should().NotBeNull();
+        loaded!.Run.State.Status.Should().Be(RunStatus.Waiting);
+        loaded.Run.State.WaitReason.Should().Be(RunWaitReason.Retry);
+        loaded.Run.RetryNotBefore.Should().Be(updatedAt);
+
+        await using var connection = new SqliteConnection(
+            new SqliteConnectionStringBuilder
+            {
+                DataSource = databasePath,
+            }.ToString());
+        await connection.OpenAsync();
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = "PRAGMA user_version;";
+        var rawVersion = await command.ExecuteScalarAsync();
+
+        Convert.ToInt32(rawVersion).Should().Be(3);
     }
 
     public void Dispose()
@@ -411,6 +484,135 @@ public sealed class SqliteRunStoreTests : IDisposable
                 ],
             },
             DateTimeOffset.Parse("2026-09-27T11:00:00+02:00"));
+
+    private static async Task CreateVersion2RetryWaitDatabaseAsync(
+        string databasePath,
+        ScenarioVersion version,
+        Guid runId,
+        ExecutionCursor cursor,
+        DateTimeOffset createdAt,
+        DateTimeOffset updatedAt)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(databasePath)!);
+
+        await using var connection = new SqliteConnection(
+            new SqliteConnectionStringBuilder
+            {
+                DataSource = databasePath,
+            }.ToString());
+        await connection.OpenAsync();
+
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            CREATE TABLE ScenarioVersions (
+                ScenarioId TEXT NOT NULL,
+                VersionId TEXT NOT NULL PRIMARY KEY,
+                VersionNumber INTEGER NOT NULL,
+                SchemaVersion INTEGER NOT NULL,
+                DefinitionHash TEXT NOT NULL,
+                DefinitionJson TEXT NOT NULL,
+                CreatedAt TEXT NOT NULL,
+                UNIQUE (ScenarioId, VersionNumber)
+            );
+
+            CREATE TABLE Runs (
+                RunId TEXT NOT NULL PRIMARY KEY,
+                ScenarioId TEXT NOT NULL,
+                ScenarioVersionId TEXT NOT NULL,
+                Status TEXT NOT NULL,
+                WaitReason TEXT NULL,
+                CursorJson TEXT NOT NULL,
+                VariablesJson TEXT NOT NULL,
+                CreatedAt TEXT NOT NULL,
+                UpdatedAt TEXT NOT NULL,
+                FOREIGN KEY (ScenarioVersionId)
+                    REFERENCES ScenarioVersions(VersionId)
+                    ON DELETE RESTRICT
+            );
+
+            CREATE INDEX IX_Runs_ScenarioVersionId
+                ON Runs(ScenarioVersionId);
+
+            CREATE TABLE StepAttempts (
+                AttemptId TEXT NOT NULL PRIMARY KEY,
+                RunId TEXT NOT NULL,
+                StepId TEXT NOT NULL,
+                StepType TEXT NOT NULL,
+                AttemptNumber INTEGER NOT NULL CHECK (AttemptNumber >= 1),
+                RetrySafety TEXT NOT NULL,
+                Status TEXT NOT NULL,
+                StartedAt TEXT NOT NULL,
+                UpdatedAt TEXT NOT NULL,
+                FinishedAt TEXT NULL,
+                ErrorMessage TEXT NULL,
+                UNIQUE (RunId, StepId, AttemptNumber),
+                FOREIGN KEY (RunId)
+                    REFERENCES Runs(RunId)
+                    ON DELETE CASCADE
+            );
+
+            CREATE INDEX IX_StepAttempts_RunId
+                ON StepAttempts(RunId);
+
+            CREATE INDEX IX_StepAttempts_RunId_Status
+                ON StepAttempts(RunId, Status);
+
+            INSERT INTO ScenarioVersions (
+                ScenarioId,
+                VersionId,
+                VersionNumber,
+                SchemaVersion,
+                DefinitionHash,
+                DefinitionJson,
+                CreatedAt)
+            VALUES (
+                $scenarioId,
+                $versionId,
+                $versionNumber,
+                $schemaVersion,
+                $definitionHash,
+                $definitionJson,
+                $scenarioCreatedAt);
+
+            INSERT INTO Runs (
+                RunId,
+                ScenarioId,
+                ScenarioVersionId,
+                Status,
+                WaitReason,
+                CursorJson,
+                VariablesJson,
+                CreatedAt,
+                UpdatedAt)
+            VALUES (
+                $runId,
+                $scenarioId,
+                $versionId,
+                'Waiting',
+                'Retry',
+                $cursorJson,
+                '{}',
+                $createdAt,
+                $updatedAt);
+
+            PRAGMA user_version = 2;
+            """;
+
+        command.Parameters.AddWithValue("$scenarioId", version.ScenarioId.ToString("D"));
+        command.Parameters.AddWithValue("$versionId", version.VersionId.ToString("D"));
+        command.Parameters.AddWithValue("$versionNumber", version.VersionNumber);
+        command.Parameters.AddWithValue("$schemaVersion", version.SchemaVersion);
+        command.Parameters.AddWithValue("$definitionHash", version.DefinitionHash);
+        command.Parameters.AddWithValue("$definitionJson", version.DefinitionJson);
+        command.Parameters.AddWithValue("$scenarioCreatedAt", version.CreatedAt.ToString("O"));
+        command.Parameters.AddWithValue("$runId", runId.ToString("D"));
+        command.Parameters.AddWithValue("$cursorJson", ExecutionCursorJson.Serialize(cursor));
+        command.Parameters.AddWithValue("$createdAt", createdAt.ToString("O"));
+        command.Parameters.AddWithValue("$updatedAt", updatedAt.ToString("O"));
+
+        await command.ExecuteNonQueryAsync();
+    }
 
     private static async Task CreateVersion1DatabaseAsync(string databasePath)
     {
