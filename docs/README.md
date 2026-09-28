@@ -10,6 +10,7 @@ This directory contains design and implementation documentation. Use this page a
 | Contribute code or documentation | [CONTRIBUTING](../CONTRIBUTING.md) |
 | Instructions for coding/AI agents | [AGENTS](../AGENTS.md) |
 | Generate or validate scenario JSON | [Scenario JSON Schema](../schemas/scenario.schema.json) |
+| Generate or validate runtime configuration | [Configuration JSON Schema](../schemas/config.schema.json) |
 | Understand product requirements | [Product requirements](prd.md) |
 | See implementation status and order | [Implementation backlog](tasks.md) |
 | Understand durable execution design | [Durable workflows](durable-workflows.md) |
@@ -24,7 +25,7 @@ The repository intentionally separates current implementation from future archit
 - `docs/tasks.md` is the implementation-status source of truth.
 - architecture documents may describe planned behavior that is not implemented yet.
 - examples under `examples/` should use executable behavior unless explicitly labeled otherwise.
-- the JSON Schema describes the scenario data contract and labels domain values that are not yet executable.
+- JSON Schemas describe the scenario and configuration contracts; the scenario schema labels domain values that are not yet executable.
 
 When implementation changes, update all affected sources in the same change so they do not contradict each other.
 
