@@ -257,13 +257,14 @@ public sealed class AutomationRunTests
     }
 
     [Fact]
-    public void Restore_WhenRetryNotBeforePredatesUpdatedAt_Throws()
+    public void Restore_WhenRetryNotBeforeIsAlreadyPastRelativeToUpdatedAt_PreservesIt()
     {
         var version = CreateVersion();
         var createdAt = DateTimeOffset.Parse("2026-09-28T10:00:00+02:00");
-        var updatedAt = createdAt.AddMinutes(1);
+        var retryNotBefore = createdAt.AddMinutes(1);
+        var updatedAt = createdAt.AddMinutes(2);
 
-        var act = () => AutomationRun.Restore(
+        var run = AutomationRun.Restore(
             Guid.NewGuid(),
             version,
             RunState.Restore(RunStatus.Waiting, RunWaitReason.Retry),
@@ -271,10 +272,9 @@ public sealed class AutomationRunTests
             variables: null,
             createdAt,
             updatedAt,
-            updatedAt.AddMilliseconds(-1));
+            retryNotBefore);
 
-        act.Should().Throw<ArgumentException>()
-            .WithMessage("*RetryNotBefore*earlier*updated timestamp*");
+        run.RetryNotBefore.Should().Be(retryNotBefore);
     }
 
     private static ScenarioVersion CreateVersion() =>
