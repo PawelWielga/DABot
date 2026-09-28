@@ -157,6 +157,22 @@ A restart between `Suspend` and `Resume` must be supported.
 - Add concurrency tests before enabling multiple workers.
 - Keep tests Linux-friendly and headless-friendly.
 
+## Public repository maintenance
+
+Treat the public repository presentation as part of the product, not as a one-time cleanup task. Whenever implementation or scope changes, update the public-facing material in the same change when it becomes inaccurate or incomplete.
+
+- Keep `README.md` aligned with the code. Features must be marked as available only when they are actually implemented and usable; planned or partial work must remain clearly marked as such.
+- Keep the README Quick Start executable against the current repository layout, target framework, configuration model, runner commands, and browser-installation flow.
+- When adding or changing user-facing capabilities, add or update runnable examples under `examples/`. Examples must use supported behavior and should avoid brittle third-party dependencies where a self-contained example is practical.
+- Keep `docs/comparison.md` accurate when DABot's capabilities or boundaries relative to raw Playwright change. Do not use misleading marketing claims.
+- Keep architecture, PRD, backlog, and feature-status documentation synchronized with implementation changes. Do not leave completed work marked as planned or planned work presented as released.
+- Keep CI configuration and README badges accurate when build, test, target framework, or workflow names change.
+- Keep the MIT license file present unless the project owner explicitly decides to change licensing.
+- Keep release-readiness tracking current. When work satisfies or invalidates criteria for the next release, update the relevant release issue/checklist in the same work session.
+- Review GitHub repository description and topics when the product scope, primary technology, or discoverability keywords materially change. Update them when access allows; otherwise record the required metadata change explicitly.
+- Prefer factual search/discovery terms that describe implemented capabilities, such as browser automation, Playwright, .NET, self-hosting, declarative scenarios, and workflow execution. Do not add keywords solely to attract traffic for features that do not exist yet.
+- Before merging a public-facing change, verify that the resulting README, examples, docs, and metadata tell a consistent story about what DABot is, what works today, and what is planned.
+
 ## Working rules
 
 - Read the product and architecture docs before making scope changes.
@@ -165,6 +181,7 @@ A restart between `Suspend` and `Resume` must be supported.
 - Preserve backward compatibility for existing scenario JSON unless a migration is explicitly documented.
 - Prefer ASCII in source files unless an existing file requires another convention.
 - When changing an interface, update tests and documentation in the same change.
+- Documentation and repository discoverability updates required by the change are part of the definition of done, not optional follow-up work.
 
 ## When in doubt
 
