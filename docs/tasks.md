@@ -64,15 +64,15 @@ Status legend:
 - [ ] Implement `Delay`.
 - [ ] Implement `If`.
 - [ ] Implement `Loop`.
-- [ ] Implement step retry.
-- [ ] Use `RetryCount` from the scenario model.
+- [~] Implement step retry. Durable failure/recovery now persists retry timing and can suspend to `Waiting / Retry`; automatic scheduling and legacy synchronous retry remain.
+- [~] Use `RetryCount` from the scenario model. Durable execution and recovery enforce it as the number of additional attempts; legacy synchronous execution remains.
 - [ ] Validate that every declared step type has a registered handler.
 - [ ] Add cancellation support through the full execution stack.
 - [ ] Add scenario-level timeout where appropriate.
 
 ### Runtime
 
-- [ ] Add proper CLI arguments instead of relying only on config.
+- [~] Add proper CLI arguments instead of relying only on config. The runner now has explicit `run` and `retry-worker` modes; richer command options remain.
 - [ ] Return documented exit codes.
 - [ ] Add Linux publish/smoke-test instructions.
 - [ ] Add browser installation instructions.
@@ -211,11 +211,13 @@ Goal: allow a workflow to stop without blocking a process and continue later.
 - [ ] Persist expected event/correlation data.
 - [ ] Save deterministic resume position.
 - [ ] Return `Suspended` instead of treating suspension as failure.
-- [ ] Add application-level `ResumeRun` use case.
+- [x] Add application-level `ResumeRun` use case for `Waiting / Retry` runs.
 - [ ] Add CLI `resume` command.
 - [ ] Add CLI `cancel` command.
 - [x] Add `Waiting` / `Human` transition for unsafe automatic recovery.
-- [ ] Add max attempt / max error guardrails.
+- [x] Add max-attempt guardrails from `RetryCount` before unattended retry scheduling.
+- [x] Persist retry due time with per-step `retryDelayMs` / run `RetryNotBefore`.
+- [~] Add unattended retry scheduler and optional exponential backoff strategy. Due-run discovery, bounded sweeps, and continuous single-worker polling are implemented; lease/CAS multi-worker safety and exponential backoff remain.
 
 Acceptance criteria:
 

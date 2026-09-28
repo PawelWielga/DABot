@@ -56,6 +56,7 @@ Attempt
 ErrorCount
 LeaseOwner
 LeaseUntil
+RetryNotBefore
 ```
 
 ## ScenarioRunRequest
@@ -264,6 +265,44 @@ Wait reason semantics:
 The future executor outcome `Suspended` is not a persisted run status. It describes the fact that active execution stopped cleanly after the run was durably moved to `Waiting`. This avoids having both `Suspended` and `Waiting` represent the same persisted condition.
 
 
+
+## Retry budget and failure handling
+
+`ScenarioStep.RetryCount` is now an enforced durable execution contract.
+
+Its meaning is:
+
+```text
+maximum attempts = 1 + retryCount
+```
+
+Therefore:
+
+- omitted `retryCount` or `retryCount: 0` allows only the initial attempt,
+- `retryCount: 1` allows attempts `1` and `2`,
+- `retryCount: 2` allows attempts `1`, `2`, and `3`.
+
+Negative values are invalid. The retry budget is evaluated from persisted `StepAttempt` history, so restarting the process never resets it.
+
+When a durable handler fails:
+
+- exhausted budget -> the run becomes `Failed`,
+- remaining budget + `SafeToRetry` / `Idempotent` -> `Waiting / Retry`,
+- remaining budget + `NeedsVerification` -> `Waiting / Human`,
+- remaining budget + `NeverRetryAutomatically` -> `Waiting / Human`.
+
+A retryable failure returns the executor outcome `Suspended`; another process or future scheduler can later invoke the durable resume use case.
+
+Crash recovery applies the same budget. An `Unknown` safe/idempotent attempt is eligible for `Waiting / Retry` only when another attempt remains. A failed attempt persisted before the run snapshot is reconciled with the same rule.
+
+`retryDelayMs` is an optional per-step fixed delay before the next automatic retry. Omitted or `0` means the retry is immediately eligible. When a run enters `Waiting / Retry`, DABot persists an absolute `RetryNotBefore` timestamp. `ResumeAsync` returns `Suspended` without opening the browser while the current time is earlier than that timestamp. Because the due time is persisted, restarting DABot cannot shorten or reset the configured delay.
+
+Recovery reconstructs a missing retry schedule from the persisted attempt timestamp where possible. For example, if a `Failed` attempt was stored but the process died before the run snapshot was updated, the retry due time is calculated from the original failure time rather than from restart time. An already-overdue `RetryNotBefore` remains valid and can resume immediately.
+
+This implements durable fixed retry delay. DABot also has a storage-backed retry scheduler for the current single-worker model: `IRetryRunStore` discovers due `Waiting / Retry` runs by their persisted `RetryNotBefore`, and `IDurableRetryScheduler` resumes a bounded batch sequentially. `IDurableRetryWorker` repeatedly runs those sweeps using the configured poll interval and batch size, and the Runner exposes it through the `retry-worker` mode. Shutdown is graceful: cancellation may stop discovery or polling, but once a durable resume has started it is allowed to reach its normal persistence boundary; the scheduler then stops before starting another run. This prevents stopping the worker from turning an in-flight retry into a terminally cancelled workflow.
+
+This is still intentionally a single-worker implementation. Multiple retry workers must not be enabled until durable run claiming through leases or compare-and-swap is implemented. Exponential backoff also remains separate work.
+
 ## Crash recovery reconciliation
 
 `DurableRunRecoveryService` reconciles a persisted run after a worker/process disappears. Recovery is explicit and operates on one stable `RunId`.
@@ -324,17 +363,30 @@ Example:
 
 ## Resume
 
-Resume must:
+The first application-level resume path is implemented through `IDurableRunResumeService`. It intentionally handles only runs in `Waiting / Retry`.
 
-1. load the run,
-2. verify that it is resumable,
-3. verify event idempotency,
-4. acquire a lease/lock,
-5. merge allowed event data into the execution context,
-6. continue from the saved position,
-7. release or renew the lease as appropriate.
+Retry resume:
 
-Calling resume twice with the same event must not execute the next step twice.
+1. loads the existing run and its immutable scenario version,
+2. requires the persisted state to be exactly `Waiting / Retry`,
+3. rejects a run that still contains a `Started` attempt and requires crash recovery first,
+4. transitions the same run to `Running`,
+5. keeps the stable `RunId`, scenario version, cursor, variables, and artifact directory,
+6. continues execution from the persisted cursor,
+7. derives the next attempt number from persisted attempt history.
+
+Attempt numbers are scoped by run and stable step ID. A first execution uses attempt `1`; a recovered retry after an `Unknown` or replayable completed attempt uses `2`, then `3`, and so on. The executor never resets the attempt number when the process restarts.
+
+`Waiting / Human`, `Waiting / Event`, and `Waiting / Schedule` are not accepted by automatic retry resume. They require their dedicated decision/event/scheduler flows.
+
+The broader durable resume model still needs:
+
+1. event idempotency,
+2. a worker/run lease or compare-and-swap claim before concurrent workers are enabled,
+3. merging allowed event data into the execution context,
+4. lease release/renewal semantics.
+
+Calling event-driven resume twice with the same event must not execute the next step twice. Until run leasing is added, automatic retry resume remains designed for the current single-worker model.
 
 ## WaitFor versus Suspend
 
@@ -444,7 +496,7 @@ Runs
 StepAttempts
 ```
 
-`ScenarioVersions` stores immutable canonical scenario snapshots, including `DefinitionHash`. `Runs` stores the stable run identity, scenario-version reference, run status/wait reason, serialized `ExecutionCursor`, string variables, and creation/update timestamps. `StepAttempts` stores the persisted lifecycle of each step execution, including retry-safety classification and failure diagnostics.
+`ScenarioVersions` stores immutable canonical scenario snapshots, including `DefinitionHash`. `Runs` stores the stable run identity, scenario-version reference, run status/wait reason, optional `RetryNotBefore`, serialized `ExecutionCursor`, string variables, and creation/update timestamps. `StepAttempts` stores the persisted lifecycle of each step execution, including retry-safety classification and failure diagnostics.
 
 Saving a run and its scenario version occurs in one SQLite transaction. Reusing an existing `VersionId` with different immutable scenario data is rejected. Reusing a `RunId` with a different scenario/version identity or creation timestamp is also rejected.
 
@@ -452,7 +504,7 @@ A step attempt must first be persisted as `Started`. The store rejects inserting
 
 After a process restart, `MarkStartedAttemptsUnknownAsync` converts still-persisted `Started` attempts into `Unknown` so the recovery policy can decide whether to retry automatically, verify first, or wait for a human.
 
-The database schema uses SQLite `PRAGMA user_version = 2`. Existing version-1 databases are upgraded transactionally by adding the `StepAttempts` table and indexes without replacing existing scenario/run data. The default database path is `data/dabot.db` and can be overridden with `bot.storage.databasePath`.
+The database schema uses SQLite `PRAGMA user_version = 3`. Version 1 -> 2 adds `StepAttempts`. Version 2 -> 3 adds `Runs.RetryNotBefore`. Existing `Waiting / Retry` rows are backfilled with their previous `UpdatedAt`, making them immediately eligible rather than inventing a new delay during migration. The default database path is `data/dabot.db` and can be overridden with `bot.storage.databasePath`.
 
 A persisted run can be loaded by a fresh `SqliteRunStore` instance after process restart. Loading reconstructs and revalidates `ScenarioVersion`, `RunState`, `ExecutionCursor`, variables, `AutomationRun`, and `StepAttempt` data rather than trusting raw database fields.
 
