@@ -18,6 +18,13 @@ Status legend:
 - [x] Add basic scenario domain model.
 - [x] Add scenario validation.
 - [x] Add `AGENTS.md`.
+- [x] Add public README with Quick Start and explicit available/planned status.
+- [x] Add MIT license.
+- [x] Add build/test CI.
+- [x] Add runnable scenario examples.
+- [x] Add machine-readable JSON Schemas for scenarios and configuration.
+- [x] Add contributor guide, documentation index, and GitHub issue/PR templates.
+- [x] Add repository-wide and path-specific AI/Copilot instructions.
 
 ## Sprint 1 - Browser engine and basic scenarios
 
