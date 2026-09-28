@@ -15,6 +15,7 @@ public sealed class DurableRunRecoveryServiceTests
                 Id = "open",
                 Type = StepType.OpenUrl,
                 Url = "https://example.com",
+                RetryCount = 1,
             });
         var run = CreateRunningRun(version);
         var step = version.MaterializeDefinition().Steps[0];
@@ -42,6 +43,38 @@ public sealed class DurableRunRecoveryServiceTests
 
         result.Decisions.Should().ContainSingle();
         result.Decisions[0].Action.Should().Be(StepRecoveryAction.RetryAutomatically);
+    }
+
+    [Fact]
+    public async Task RecoverAsync_WhenInterruptedSafeAttemptExhaustedRetryBudget_FailsRun()
+    {
+        var version = CreateVersion(
+            new ScenarioStep
+            {
+                Id = "open",
+                Type = StepType.OpenUrl,
+                Url = "https://example.com",
+                RetryCount = 0,
+            });
+        var run = CreateRunningRun(version);
+        var started = StepAttempt.Start(
+            run.RunId,
+            version.MaterializeDefinition().Steps[0],
+            1,
+            run.UpdatedAt.AddSeconds(1));
+        var runStore = new InMemoryRunStore(run, version);
+        var attemptStore = new InMemoryStepAttemptStore(started);
+        var service = CreateService(
+            runStore,
+            attemptStore,
+            run.UpdatedAt.AddMinutes(1));
+
+        var result = await service.RecoverAsync(run.RunId);
+
+        result.Outcome.Should().Be(DurableRunRecoveryOutcome.Failed);
+        result.Run.State.Status.Should().Be(RunStatus.Failed);
+        attemptStore.Attempts.Should().ContainSingle();
+        attemptStore.Attempts[0].Status.Should().Be(StepAttemptStatus.Unknown);
     }
 
     [Fact]
@@ -187,6 +220,7 @@ public sealed class DurableRunRecoveryServiceTests
                 Type = StepType.ReadText,
                 Selector = "#value",
                 Output = "value",
+                RetryCount = 1,
             });
         var run = CreateRunningRun(version);
         var started = StepAttempt.Start(
