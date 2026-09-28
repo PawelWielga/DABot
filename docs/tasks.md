@@ -72,7 +72,7 @@ Status legend:
 
 ### Runtime
 
-- [ ] Add proper CLI arguments instead of relying only on config.
+- [~] Add proper CLI arguments instead of relying only on config. The runner now has explicit `run` and `retry-worker` modes; richer command options remain.
 - [ ] Return documented exit codes.
 - [ ] Add Linux publish/smoke-test instructions.
 - [ ] Add browser installation instructions.
@@ -217,7 +217,7 @@ Goal: allow a workflow to stop without blocking a process and continue later.
 - [x] Add `Waiting` / `Human` transition for unsafe automatic recovery.
 - [x] Add max-attempt guardrails from `RetryCount` before unattended retry scheduling.
 - [x] Persist retry due time with per-step `retryDelayMs` / run `RetryNotBefore`.
-- [~] Add unattended retry scheduler and optional exponential backoff strategy. Due-run discovery and a one-shot scheduler sweep are implemented for the single-worker model; continuous worker hosting and exponential backoff remain.
+- [~] Add unattended retry scheduler and optional exponential backoff strategy. Due-run discovery, bounded sweeps, and continuous single-worker polling are implemented; lease/CAS multi-worker safety and exponential backoff remain.
 
 Acceptance criteria:
 
