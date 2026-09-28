@@ -321,7 +321,9 @@ public sealed class DurableRunRecoveryServiceTests
         result.Run.UpdatedAt.Should().Be(detectedAt);
         result.Run.RetryNotBefore.Should().Be(
             failedAt.AddSeconds(30));
-        result.Run.RetryNotBefore.Should().BeBefore(result.Run.UpdatedAt);
+        result.Run.RetryNotBefore.Should().NotBeNull();
+        result.Run.RetryNotBefore!.Value.Should().BeBefore(
+            result.Run.UpdatedAt);
     }
 
     [Fact]
