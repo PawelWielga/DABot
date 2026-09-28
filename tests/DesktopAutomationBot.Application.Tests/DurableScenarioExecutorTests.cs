@@ -111,6 +111,90 @@ public sealed class DurableScenarioExecutorTests : IDisposable
     }
 
     [Fact]
+    public async Task ExecuteAsync_WhenRetryableHandlerFails_SuspendsForRetry()
+    {
+        var events = new List<string>();
+        var runStore = new RecordingRunStore(events);
+        var attemptStore = new RecordingStepAttemptStore(events);
+        var browser = new RecordingBrowserAutomation(events);
+
+        var handler = new RecordingStepHandler(
+            StepType.OpenUrl,
+            events,
+            (_, _, _, _) => throw new InvalidOperationException("temporary"));
+
+        var executor = CreateExecutor(
+            [handler],
+            browser,
+            runStore,
+            attemptStore);
+
+        var result = await executor.ExecuteAsync(
+            new ScenarioRunRequest
+            {
+                ScenarioVersion = CreateVersion(
+                    new ScenarioStep
+                    {
+                        Id = "open",
+                        Type = StepType.OpenUrl,
+                        Url = "https://example.com",
+                        RetryCount = 1,
+                    }),
+            });
+
+        result.Outcome.Should().Be(DurableExecutionOutcome.Suspended);
+        result.Run.State.Status.Should().Be(RunStatus.Waiting);
+        result.Run.State.WaitReason.Should().Be(RunWaitReason.Retry);
+        result.Run.Cursor.NextStepId.Should().Be("open");
+        result.ErrorMessage.Should().Be("temporary");
+
+        events.Should().ContainInOrder(
+            "attempt:Started",
+            "handler:OpenUrl",
+            "attempt:Failed",
+            "run:Waiting");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenUnsafeRetryableHandlerFails_WaitsForHuman()
+    {
+        var events = new List<string>();
+        var runStore = new RecordingRunStore(events);
+        var attemptStore = new RecordingStepAttemptStore(events);
+        var browser = new RecordingBrowserAutomation(events);
+
+        var handler = new RecordingStepHandler(
+            StepType.Click,
+            events,
+            (_, _, _, _) => throw new InvalidOperationException("uncertain click"));
+
+        var executor = CreateExecutor(
+            [handler],
+            browser,
+            runStore,
+            attemptStore);
+
+        var result = await executor.ExecuteAsync(
+            new ScenarioRunRequest
+            {
+                ScenarioVersion = CreateVersion(
+                    new ScenarioStep
+                    {
+                        Id = "submit",
+                        Type = StepType.Click,
+                        Selector = "#submit",
+                        RetryCount = 1,
+                    }),
+            });
+
+        result.Outcome.Should().Be(DurableExecutionOutcome.Suspended);
+        result.Run.State.Status.Should().Be(RunStatus.Waiting);
+        result.Run.State.WaitReason.Should().Be(RunWaitReason.Human);
+        result.Run.Cursor.NextStepId.Should().Be("submit");
+        result.ErrorMessage.Should().Be("uncertain click");
+    }
+
+    [Fact]
     public async Task ExecuteAsync_WhenCancellationInterruptsHandler_MarksAttemptUnknownAndCancelsRun()
     {
         var events = new List<string>();
@@ -249,7 +333,8 @@ public sealed class DurableScenarioExecutorTests : IDisposable
             },
         };
 
-    private static ScenarioVersion CreateVersion() =>
+    private static ScenarioVersion CreateVersion(
+        ScenarioStep? step = null) =>
         ScenarioVersion.Capture(
             Guid.NewGuid(),
             1,
@@ -258,6 +343,7 @@ public sealed class DurableScenarioExecutorTests : IDisposable
                 Name = "Durable test",
                 Steps =
                 [
+                    step ??
                     new ScenarioStep
                     {
                         Id = "open",
