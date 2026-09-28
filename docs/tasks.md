@@ -25,6 +25,7 @@ Status legend:
 - [x] Add machine-readable JSON Schemas for scenarios and configuration.
 - [x] Add contributor guide, documentation index, and GitHub issue/PR templates.
 - [x] Add repository-wide and path-specific AI/Copilot instructions.
+- [x] Add automated dependency update configuration for NuGet and GitHub Actions.
 
 ## Sprint 1 - Browser engine and basic scenarios
 
