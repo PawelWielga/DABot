@@ -141,6 +141,9 @@ public sealed class ScenarioVersion
 
     public ScenarioDefinition MaterializeDefinition() =>
         ScenarioDefinitionCanonicalJson.Deserialize(DefinitionJson);
+
+    public CompiledScenario Compile() =>
+        ScenarioCompiler.Compile(MaterializeDefinition());
 }
 
 internal static class ScenarioDefinitionCanonicalJson
