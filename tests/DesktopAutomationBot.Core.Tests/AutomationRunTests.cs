@@ -51,7 +51,7 @@ public sealed class AutomationRunTests
 
         variables["Token"] = "changed";
 
-        run.Variables["token"].Should().Be("first");
+        run.Variables["token"].ToInterpolationString().Should().Be("first");
     }
 
     [Fact]
@@ -154,7 +154,7 @@ public sealed class AutomationRunTests
 
         run.State.Should().Be(state);
         run.Cursor.Should().BeEquivalentTo(cursor);
-        run.Variables["value"].Should().Be("42");
+        run.Variables["value"].ToInterpolationString().Should().Be("42");
         run.CreatedAt.Should().Be(createdAt);
         run.UpdatedAt.Should().Be(updatedAt);
         run.ScenarioVersionId.Should().Be(version.VersionId);
