@@ -55,10 +55,10 @@ internal sealed class JsonFileLoggerProvider : ILoggerProvider, ISupportExternal
             }
 
             var properties = new Dictionary<string, object?>();
-            AddProperties(properties, state);
+            AddProperties(properties, state, masker);
             scopeProvider().ForEachScope(
-                static (scope, target) => AddProperties(target, scope),
-                properties);
+                static (scope, target) => AddProperties(target.Properties, scope, target.Masker),
+                (Properties: properties, Masker: masker));
 
             var entry = new
             {
@@ -80,7 +80,8 @@ internal sealed class JsonFileLoggerProvider : ILoggerProvider, ISupportExternal
 
         private static void AddProperties<TState>(
             IDictionary<string, object?> target,
-            TState state)
+            TState state,
+            SensitiveValueMasker masker)
         {
             if (state is not IEnumerable<KeyValuePair<string, object?>> values)
             {
