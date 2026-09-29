@@ -707,6 +707,7 @@ public sealed class DurableScenarioExecutorTests : IDisposable
     private sealed class RecordingRunStore : IRunStore
     {
         private readonly List<string> _events;
+        private readonly Dictionary<Guid, ScenarioVersion> _versions = [];
 
         public RecordingRunStore(List<string> events)
         {
@@ -721,6 +722,7 @@ public sealed class DurableScenarioExecutorTests : IDisposable
             CancellationToken cancellationToken = default)
         {
             Runs.Add(run);
+            _versions[run.RunId] = scenarioVersion;
             _events.Add($"run:{run.State.Status}");
             return Task.CompletedTask;
         }
@@ -735,8 +737,10 @@ public sealed class DurableScenarioExecutorTests : IDisposable
                 return Task.FromResult<StoredAutomationRun?>(null);
             }
 
-            throw new NotSupportedException(
-                "Load is not required by these executor tests.");
+            return Task.FromResult<StoredAutomationRun?>(
+                new StoredAutomationRun(
+                    run,
+                    _versions[runId]));
         }
     }
 
