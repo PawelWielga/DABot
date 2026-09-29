@@ -3,10 +3,11 @@ using Microsoft.Extensions.Logging;
 
 namespace DesktopAutomationBot.Runner;
 
-internal sealed class JsonFileLoggerProvider : ILoggerProvider
+internal sealed class JsonFileLoggerProvider : ILoggerProvider, ISupportExternalScope
 {
     private readonly StreamWriter _writer;
     private readonly object _sync = new();
+    private IExternalScopeProvider _scopeProvider = new LoggerExternalScopeProvider();
 
     public JsonFileLoggerProvider(string path)
     {
@@ -20,17 +21,21 @@ internal sealed class JsonFileLoggerProvider : ILoggerProvider
     }
 
     public ILogger CreateLogger(string categoryName) =>
-        new JsonFileLogger(categoryName, _writer, _sync);
+        new JsonFileLogger(categoryName, _writer, _sync, () => _scopeProvider);
+
+    public void SetScopeProvider(IExternalScopeProvider scopeProvider) =>
+        _scopeProvider = scopeProvider;
 
     public void Dispose() => _writer.Dispose();
 
     private sealed class JsonFileLogger(
         string categoryName,
         StreamWriter writer,
-        object sync) : ILogger
+        object sync,
+        Func<IExternalScopeProvider> scopeProvider) : ILogger
     {
         public IDisposable? BeginScope<TState>(TState state)
-            where TState : notnull => null;
+            where TState : notnull => scopeProvider().Push(state);
 
         public bool IsEnabled(LogLevel logLevel) => logLevel != LogLevel.None;
 
@@ -46,11 +51,11 @@ internal sealed class JsonFileLoggerProvider : ILoggerProvider
                 return;
             }
 
-            var properties = state is IEnumerable<KeyValuePair<string, object?>> values
-                ? values
-                    .Where(pair => pair.Key != "{OriginalFormat}")
-                    .ToDictionary(pair => pair.Key, pair => pair.Value)
-                : new Dictionary<string, object?>();
+            var properties = new Dictionary<string, object?>();
+            AddProperties(properties, state);
+            scopeProvider().ForEachScope(
+                static (scope, target) => AddProperties(target, scope),
+                properties);
 
             var entry = new
             {
@@ -67,6 +72,24 @@ internal sealed class JsonFileLoggerProvider : ILoggerProvider
             lock (sync)
             {
                 writer.WriteLine(json);
+            }
+        }
+
+        private static void AddProperties<TState>(
+            IDictionary<string, object?> target,
+            TState state)
+        {
+            if (state is not IEnumerable<KeyValuePair<string, object?>> values)
+            {
+                return;
+            }
+
+            foreach (var pair in values)
+            {
+                if (pair.Key != "{OriginalFormat}")
+                {
+                    target[pair.Key] = pair.Value;
+                }
             }
         }
     }
