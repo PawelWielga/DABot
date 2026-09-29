@@ -171,6 +171,56 @@ public sealed class ScenarioExecutor : IScenarioExecutor
         }
     }
 
+    private async Task<StepExecutionResult> ExecuteStepWithRetryAsync(
+        ScenarioStep step,
+        IStepHandler handler,
+        ScenarioExecutionContext context,
+        int index,
+        CancellationToken cancellationToken)
+    {
+        var maximumAttempts = StepRetryPolicy.GetMaximumAttempts(step);
+
+        for (var attempt = 1; ; attempt++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            try
+            {
+                var resolvedStep = ScenarioVariableInterpolator.Resolve(
+                    step,
+                    context.Variables);
+
+                return await handler.ExecuteAsync(
+                    resolvedStep,
+                    context,
+                    index,
+                    cancellationToken);
+            }
+            catch (OperationCanceledException)
+                when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception)
+                when (attempt < maximumAttempts)
+            {
+                var delay = StepRetryPolicy.GetRetryDelay(step);
+                _logger.LogWarning(
+                    exception,
+                    "Step {StepIndex} ({StepType}) attempt {Attempt} failed; retrying after {RetryDelayMs} ms",
+                    index + 1,
+                    step.Type,
+                    attempt,
+                    delay.TotalMilliseconds);
+
+                if (delay > TimeSpan.Zero)
+                {
+                    await Task.Delay(delay, cancellationToken);
+                }
+            }
+        }
+    }
+
     private async Task ExecuteStepsAsync(
         IReadOnlyList<ScenarioStep> steps,
         ScenarioExecutionContext context,
@@ -225,11 +275,9 @@ public sealed class ScenarioExecutor : IScenarioExecutor
                 index + 1,
                 step.Type);
 
-            var resolvedStep = ScenarioVariableInterpolator.Resolve(
+            var stepResult = await ExecuteStepWithRetryAsync(
                 step,
-                context.Variables);
-            var stepResult = await handler.ExecuteAsync(
-                resolvedStep,
+                handler,
                 context,
                 index,
                 cancellationToken);
