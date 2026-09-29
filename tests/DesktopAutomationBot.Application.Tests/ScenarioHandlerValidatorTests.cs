@@ -69,7 +69,7 @@ public sealed class ScenarioHandlerValidatorTests
     }
 
     [Fact]
-    public void ValidateOrThrow_WhenStepHasNoHandler_ThrowsScenarioValidationException()
+    public void ValidateOrThrow_WhenControlFlowStepHasNoHandler_DoesNotRequireHandler()
     {
         var scenario = new ScenarioDefinition
         {
@@ -95,9 +95,6 @@ public sealed class ScenarioHandlerValidatorTests
             scenario,
             [StepType.OpenUrl]);
 
-        action.Should()
-            .Throw<ScenarioValidationException>()
-            .Which.Errors.Should()
-            .Contain("scenario.steps[0].type 'Loop' has no registered handler.");
+        action.Should().NotThrow();
     }
 }
