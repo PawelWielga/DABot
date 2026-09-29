@@ -10,7 +10,7 @@ public sealed class AutomationRun
         Guid scenarioVersionId,
         RunState state,
         ExecutionCursor cursor,
-        IReadOnlyDictionary<string, string> variables,
+        IReadOnlyDictionary<string, ScenarioVariableValue> variables,
         DateTimeOffset createdAt,
         DateTimeOffset updatedAt,
         DateTimeOffset? retryNotBefore)
@@ -36,7 +36,7 @@ public sealed class AutomationRun
 
     public ExecutionCursor Cursor { get; }
 
-    public IReadOnlyDictionary<string, string> Variables { get; }
+    public IReadOnlyDictionary<string, ScenarioVariableValue> Variables { get; }
 
     public DateTimeOffset CreatedAt { get; }
 
@@ -49,7 +49,23 @@ public sealed class AutomationRun
         DateTimeOffset createdAt,
         Guid? runId = null,
         ExecutionCursor? cursor = null,
-        IReadOnlyDictionary<string, string>? variables = null)
+        IReadOnlyDictionary<string, string>? variables = null) =>
+        CreateStructured(
+            scenarioVersion,
+            createdAt,
+            runId,
+            cursor,
+            variables?.ToDictionary(
+                pair => pair.Key,
+                pair => ScenarioVariableValue.FromString(pair.Value),
+                StringComparer.OrdinalIgnoreCase));
+
+    public static AutomationRun CreateStructured(
+        ScenarioVersion scenarioVersion,
+        DateTimeOffset createdAt,
+        Guid? runId = null,
+        ExecutionCursor? cursor = null,
+        IReadOnlyDictionary<string, ScenarioVariableValue>? variables = null)
     {
         ArgumentNullException.ThrowIfNull(scenarioVersion);
 
@@ -84,6 +100,28 @@ public sealed class AutomationRun
         RunState state,
         ExecutionCursor cursor,
         IReadOnlyDictionary<string, string>? variables,
+        DateTimeOffset createdAt,
+        DateTimeOffset updatedAt,
+        DateTimeOffset? retryNotBefore = null) =>
+        RestoreStructured(
+            runId,
+            scenarioVersion,
+            state,
+            cursor,
+            variables?.ToDictionary(
+                pair => pair.Key,
+                pair => ScenarioVariableValue.FromString(pair.Value),
+                StringComparer.OrdinalIgnoreCase),
+            createdAt,
+            updatedAt,
+            retryNotBefore);
+
+    public static AutomationRun RestoreStructured(
+        Guid runId,
+        ScenarioVersion scenarioVersion,
+        RunState state,
+        ExecutionCursor cursor,
+        IReadOnlyDictionary<string, ScenarioVariableValue>? variables,
         DateTimeOffset createdAt,
         DateTimeOffset updatedAt,
         DateTimeOffset? retryNotBefore = null)
@@ -173,10 +211,10 @@ public sealed class AutomationRun
     private static ExecutionCursor CopyCursor(ExecutionCursor cursor) =>
         ExecutionCursorJson.Deserialize(ExecutionCursorJson.Serialize(cursor));
 
-    private static IReadOnlyDictionary<string, string> CopyVariables(
-        IReadOnlyDictionary<string, string>? variables)
+    private static IReadOnlyDictionary<string, ScenarioVariableValue> CopyVariables(
+        IReadOnlyDictionary<string, ScenarioVariableValue>? variables)
     {
-        var copy = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var copy = new Dictionary<string, ScenarioVariableValue>(StringComparer.OrdinalIgnoreCase);
 
         if (variables is not null)
         {
@@ -191,10 +229,13 @@ public sealed class AutomationRun
                         nameof(variables));
                 }
 
-                copy.Add(name, value);
+                copy.Add(
+                    name,
+                    ScenarioVariableValue.FromJsonElement(
+                        value.ToJsonElement()));
             }
         }
 
-        return new ReadOnlyDictionary<string, string>(copy);
+        return new ReadOnlyDictionary<string, ScenarioVariableValue>(copy);
     }
 }
