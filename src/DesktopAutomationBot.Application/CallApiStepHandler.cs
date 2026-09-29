@@ -127,9 +127,9 @@ public sealed class CallApiStepHandler : IStepHandler
         {
             try
             {
-                using var document = JsonDocument.Parse(body);
+                using var parsedBody = JsonDocument.Parse(body);
                 return ScenarioVariableValue.FromJsonElement(
-                    document.RootElement);
+                    parsedBody.RootElement);
             }
             catch (JsonException)
             {
