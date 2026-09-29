@@ -101,9 +101,23 @@ public sealed class ScenarioDefinitionValidator
         }
 
         if (string.IsNullOrWhiteSpace(step.Selector) &&
+            step.Locator is null &&
             step.Type is StepType.Click or StepType.FillText or StepType.PasteText or StepType.ReadText)
         {
-            errors.Add($"{path}.selector is required for {step.Type}.");
+            errors.Add($"{path}.selector or locator is required for {step.Type}.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(step.Selector) &&
+            step.Locator is not null)
+        {
+            errors.Add(
+                $"{path} must not define both selector and locator.");
+        }
+
+        if (step.Locator is not null &&
+            string.IsNullOrWhiteSpace(step.Locator.Value))
+        {
+            errors.Add($"{path}.locator.value is required.");
         }
 
         if (string.IsNullOrWhiteSpace(step.Url) && step.Type is StepType.OpenUrl or StepType.CallApi)
@@ -148,6 +162,7 @@ public sealed class ScenarioDefinitionValidator
 
         if (step.Type == StepType.WaitFor &&
             string.IsNullOrWhiteSpace(step.Selector) &&
+            step.Locator is null &&
             string.IsNullOrWhiteSpace(step.Value) &&
             (step.Parameters is null || step.Parameters.Count == 0))
         {
