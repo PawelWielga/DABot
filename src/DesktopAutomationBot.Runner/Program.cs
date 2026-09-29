@@ -35,6 +35,11 @@ try
     var fileLogging = configuration
         .GetSection("logging:file")
         .Get<FileLoggingOptions>() ?? new FileLoggingOptions();
+    var sensitiveLogging = configuration
+        .GetSection("logging:sensitiveValues")
+        .Get<SensitiveValueLoggingOptions>() ?? new SensitiveValueLoggingOptions();
+    var sensitiveValueMasker = new SensitiveValueMasker(
+        sensitiveLogging.EnvironmentVariables);
 
     var services = new ServiceCollection();
     services.AddSingleton<IConfiguration>(configuration);
@@ -49,7 +54,7 @@ try
 
         if (fileLogging.Enabled)
         {
-            builder.AddProvider(new JsonFileLoggerProvider(fileLogging.Path));
+            builder.AddProvider(new JsonFileLoggerProvider(fileLogging.Path, sensitiveValueMasker));
         }
     });
     services.Configure<BotOptions>(configuration.GetSection("bot"));
