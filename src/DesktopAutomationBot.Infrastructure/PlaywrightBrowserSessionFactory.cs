@@ -21,7 +21,9 @@ public sealed class PlaywrightBrowserSessionFactory(
         if (!request.IsPersistent)
         {
             return ValueTask.FromResult<IBrowserSession>(
-                new PlaywrightBrowserAutomation(options));
+                new PlaywrightBrowserAutomation(
+                options,
+                request.Headless));
         }
 
         var profileName = request.ProfileName!;
@@ -48,7 +50,8 @@ public sealed class PlaywrightBrowserSessionFactory(
             new PlaywrightBrowserAutomation(
                 options,
                 profileDirectory,
-                lease));
+                lease,
+                request.Headless));
     }
 
     private static void ValidateProfileName(string profileName)
