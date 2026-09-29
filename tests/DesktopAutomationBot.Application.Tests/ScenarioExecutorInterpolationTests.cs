@@ -104,6 +104,46 @@ public sealed class ScenarioExecutorInterpolationTests : IDisposable
         report.Should().Contain("Expected failure.");
     }
 
+    [Fact]
+    public async Task ExecuteAsync_WhenReportCannotBeWritten_PreservesOriginalFailure()
+    {
+        var artifactRoot = Path.Combine(_tempDirectory, "blocked-artifacts");
+        var browser = new RecordingBrowserAutomation
+        {
+            BlockArtifactDirectoryAfterHtmlCapture = true,
+        };
+        var executor = new ScenarioExecutor(
+            new BotOptions
+            {
+                Storage = new StorageOptions
+                {
+                    ScreenshotsDirectory = Path.Combine(_tempDirectory, "screenshots"),
+                    ArtifactsDirectory = artifactRoot,
+                },
+            },
+            new ScenarioValidationService(),
+            [new ThrowingOpenUrlStepHandler()],
+            browser);
+
+        var result = await executor.ExecuteAsync(
+            new ScenarioDefinition
+            {
+                Name = "report-write-failure",
+                Steps =
+                [
+                    new ScenarioStep
+                    {
+                        Type = StepType.OpenUrl,
+                        Url = "https://example.com",
+                    },
+                ],
+            });
+
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Be("Expected failure.");
+        result.ReportPath.Should().BeNull();
+    }
+
     private sealed class ThrowingOpenUrlStepHandler : IStepHandler
     {
         public StepType StepType => StepType.OpenUrl;
@@ -160,6 +200,8 @@ public sealed class ScenarioExecutorInterpolationTests : IDisposable
         public string? ScreenshotPath { get; private set; }
 
         public string? HtmlPath { get; private set; }
+
+        public bool BlockArtifactDirectoryAfterHtmlCapture { get; init; }
 
         public Task OpenAsync(CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
@@ -240,6 +282,14 @@ public sealed class ScenarioExecutorInterpolationTests : IDisposable
             HtmlPath = filePath;
             Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
             File.WriteAllText(filePath, "<html><body>failure</body></html>");
+
+            if (BlockArtifactDirectoryAfterHtmlCapture)
+            {
+                var directory = Path.GetDirectoryName(filePath)!;
+                Directory.Delete(directory, recursive: true);
+                File.WriteAllText(directory, "block directory recreation");
+            }
+
             return Task.FromResult(filePath);
         }
 

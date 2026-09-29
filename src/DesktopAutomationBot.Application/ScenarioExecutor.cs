@@ -113,17 +113,25 @@ public sealed class ScenarioExecutor : IScenarioExecutor
         }
         finally
         {
-            var reportPath = Path.Combine(
-                context.ArtifactDirectory,
-                "run-report.json");
-            result.ReportPath = reportPath;
-            var reportJson = JsonSerializer.Serialize(
-                result,
-                new JsonSerializerOptions { WriteIndented = true });
-            await File.WriteAllTextAsync(
-                reportPath,
-                reportJson,
-                CancellationToken.None);
+            try
+            {
+                var reportPath = Path.Combine(
+                    context.ArtifactDirectory,
+                    "run-report.json");
+                result.ReportPath = reportPath;
+                var reportJson = JsonSerializer.Serialize(
+                    result,
+                    new JsonSerializerOptions { WriteIndented = true });
+                await File.WriteAllTextAsync(
+                    reportPath,
+                    reportJson,
+                    CancellationToken.None);
+            }
+            catch
+            {
+                result.ReportPath = null;
+                // Diagnostics must never hide the execution outcome.
+            }
 
             await _browserAutomation.DisposeAsync();
         }
