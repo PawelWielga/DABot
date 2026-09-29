@@ -41,13 +41,20 @@ public sealed class CallApiStepHandler(IHttpAutomationClient httpClient) : IStep
                 $"CallApi returned HTTP {response.StatusCode} for {method} {url}.");
         }
 
+        var outputValue = step.Output is null
+            ? null
+            : ExtractOutput(
+                response.Body,
+                GetString(step, "responsePath"));
+
         return new StepExecutionResult
         {
             Index = index,
             Type = StepType,
             Success = true,
             OutputName = step.Output,
-            OutputValue = step.Output is null ? null : ExtractOutput(response.Body, GetString(step, "responsePath")),
+            OutputValue = outputValue?.ToInterpolationString(),
+            OutputVariableValue = outputValue,
         };
     }
 
@@ -76,16 +83,29 @@ public sealed class CallApiStepHandler(IHttpAutomationClient httpClient) : IStep
         return value.GetString();
     }
 
-    private static string ExtractOutput(string body, string? responsePath)
+    private static ScenarioVariableValue ExtractOutput(
+        string body,
+        string? responsePath)
     {
         if (string.IsNullOrWhiteSpace(responsePath))
         {
-            return body;
+            try
+            {
+                using var document = JsonDocument.Parse(body);
+                return ScenarioVariableValue.FromJsonElement(
+                    document.RootElement);
+            }
+            catch (JsonException)
+            {
+                return ScenarioVariableValue.FromString(body);
+            }
         }
 
         using var document = JsonDocument.Parse(body);
         var current = document.RootElement;
-        foreach (var segment in responsePath.Split('.', StringSplitOptions.RemoveEmptyEntries))
+        foreach (var segment in responsePath.Split(
+                     '.',
+                     StringSplitOptions.RemoveEmptyEntries))
         {
             if (current.ValueKind != JsonValueKind.Object ||
                 !current.TryGetProperty(segment, out current))
@@ -95,8 +115,6 @@ public sealed class CallApiStepHandler(IHttpAutomationClient httpClient) : IStep
             }
         }
 
-        return current.ValueKind == JsonValueKind.String
-            ? current.GetString() ?? string.Empty
-            : current.GetRawText();
+        return ScenarioVariableValue.FromJsonElement(current);
     }
 }
