@@ -209,6 +209,83 @@ public sealed class ScenarioExecutorInterpolationTests : IDisposable
         result.Steps.Should().HaveCount(3);
     }
 
+
+    [Fact]
+    public async Task ExecuteAsync_WhenStepFailsWithinRetryBudget_RetriesAndSucceeds()
+    {
+        var browser = new RecordingBrowserAutomation();
+        var handler = new FlakyScreenshotStepHandler(failuresBeforeSuccess: 2);
+        var executor = new ScenarioExecutor(
+            new BotOptions
+            {
+                Storage = new StorageOptions
+                {
+                    ScreenshotsDirectory = Path.Combine(_tempDirectory, "screenshots"),
+                    ArtifactsDirectory = Path.Combine(_tempDirectory, "artifacts"),
+                },
+            },
+            new ScenarioValidationService(),
+            [handler],
+            browser);
+
+        var result = await executor.ExecuteAsync(
+            new ScenarioDefinition
+            {
+                Name = "retry-test",
+                Steps =
+                [
+                    new ScenarioStep
+                    {
+                        Type = StepType.Screenshot,
+                        RetryCount = 2,
+                        RetryDelayMs = 0,
+                    },
+                ],
+            });
+
+        result.Success.Should().BeTrue();
+        handler.ExecutionCount.Should().Be(3);
+        result.Steps.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenRetryBudgetIsExhausted_ReturnsFailure()
+    {
+        var browser = new RecordingBrowserAutomation();
+        var handler = new FlakyScreenshotStepHandler(failuresBeforeSuccess: 3);
+        var executor = new ScenarioExecutor(
+            new BotOptions
+            {
+                Storage = new StorageOptions
+                {
+                    ScreenshotsDirectory = Path.Combine(_tempDirectory, "screenshots"),
+                    ArtifactsDirectory = Path.Combine(_tempDirectory, "artifacts"),
+                },
+            },
+            new ScenarioValidationService(),
+            [handler],
+            browser);
+
+        var result = await executor.ExecuteAsync(
+            new ScenarioDefinition
+            {
+                Name = "retry-failure",
+                Steps =
+                [
+                    new ScenarioStep
+                    {
+                        Type = StepType.Screenshot,
+                        RetryCount = 1,
+                        RetryDelayMs = 0,
+                    },
+                ],
+            });
+
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Be("Transient failure.");
+        handler.ExecutionCount.Should().Be(2);
+    }
+
     private sealed class ThrowingOpenUrlStepHandler : IStepHandler
     {
         public StepType StepType => StepType.OpenUrl;
@@ -221,6 +298,43 @@ public sealed class ScenarioExecutorInterpolationTests : IDisposable
             throw new InvalidOperationException("Expected failure.");
     }
 
+
+
+    private sealed class FlakyScreenshotStepHandler : IStepHandler
+    {
+        private readonly int _failuresBeforeSuccess;
+
+        public FlakyScreenshotStepHandler(int failuresBeforeSuccess)
+        {
+            _failuresBeforeSuccess = failuresBeforeSuccess;
+        }
+
+        public int ExecutionCount { get; private set; }
+
+        public StepType StepType => StepType.Screenshot;
+
+        public Task<StepExecutionResult> ExecuteAsync(
+            ScenarioStep step,
+            ScenarioExecutionContext context,
+            int index,
+            CancellationToken cancellationToken)
+        {
+            ExecutionCount++;
+
+            if (ExecutionCount <= _failuresBeforeSuccess)
+            {
+                throw new InvalidOperationException("Transient failure.");
+            }
+
+            return Task.FromResult(
+                new StepExecutionResult
+                {
+                    Index = index,
+                    Type = step.Type,
+                    Success = true,
+                });
+        }
+    }
 
     private sealed class CountingScreenshotStepHandler : IStepHandler
     {

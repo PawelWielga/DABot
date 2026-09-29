@@ -114,7 +114,7 @@
         },
         "retryCount": {
           "type": "integer",
-          "description": "Reserved for planned retry support. The current executor does not apply retries."
+          "description": "Number of additional attempts after the initial execution. Applied by both synchronous and durable execution."
         },
         "parameters": {
           "type": "object",
