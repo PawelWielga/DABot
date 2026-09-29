@@ -234,11 +234,11 @@ public sealed class DurableScenarioExecutor :
 
                 if (step.Type is StepType.If or StepType.Loop)
                 {
-                    ExecutionCursor nextCursor;
+                    ExecutionCursor controlCursor;
 
                     if (step.Type == StepType.If)
                     {
-                        nextCursor = ControlFlowStepEvaluator.EvaluateIf(
+                        controlCursor = ControlFlowStepEvaluator.EvaluateIf(
                             step,
                             context.Variables)
                             ? DurableExecutionCursorNavigator.EnterIf(
@@ -255,7 +255,7 @@ public sealed class DurableScenarioExecutor :
                         var count = ControlFlowStepEvaluator.GetLoopCount(
                             step,
                             context.Variables);
-                        nextCursor = count > 0
+                        controlCursor = count > 0
                             ? DurableExecutionCursorNavigator.EnterLoop(
                                 step,
                                 run.Cursor)
@@ -266,7 +266,7 @@ public sealed class DurableScenarioExecutor :
                                 context.Variables);
                     }
 
-                    var controlState = nextCursor.IsCompleted
+                    var controlState = controlCursor.IsCompleted
                         ? run.State.Complete()
                         : run.State;
 
@@ -274,7 +274,7 @@ public sealed class DurableScenarioExecutor :
                         run,
                         scenarioVersion,
                         controlState,
-                        nextCursor,
+                        controlCursor,
                         variables,
                         NextTimestamp(run.UpdatedAt));
 
