@@ -114,6 +114,22 @@
               "default": "logs/dabot.jsonl"
             }
           }
+        },
+        "sensitiveValues": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "environmentVariables": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true,
+              "default": [],
+              "description": "Environment variable names whose current values are replaced with *** in file log messages, exceptions, and structured string properties."
+            }
+          }
         }
       }
     }
