@@ -562,7 +562,7 @@ public sealed class SqliteRunStoreTests : IDisposable
             createdAt,
             Guid.NewGuid());
 
-        return AutomationRun.Restore(
+        return AutomationRun.RestoreStructured(
             queued.RunId,
             version,
             state,
