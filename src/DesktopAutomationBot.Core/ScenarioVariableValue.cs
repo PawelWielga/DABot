@@ -1,8 +1,9 @@
-using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace DesktopAutomationBot.Core;
 
+[JsonConverter(typeof(ScenarioVariableValueJsonConverter))]
 public sealed class ScenarioVariableValue : IEquatable<ScenarioVariableValue>
 {
     private readonly JsonElement _value;
@@ -65,4 +66,25 @@ public sealed class ScenarioVariableValue : IEquatable<ScenarioVariableValue>
 
     public static implicit operator ScenarioVariableValue(string value) =>
         FromString(value);
+}
+
+
+public sealed class ScenarioVariableValueJsonConverter :
+    JsonConverter<ScenarioVariableValue>
+{
+    public override ScenarioVariableValue Read(
+        ref Utf8JsonReader reader,
+        Type typeToConvert,
+        JsonSerializerOptions options)
+    {
+        using var document = JsonDocument.ParseValue(ref reader);
+        return ScenarioVariableValue.FromJsonElement(
+            document.RootElement);
+    }
+
+    public override void Write(
+        Utf8JsonWriter writer,
+        ScenarioVariableValue value,
+        JsonSerializerOptions options) =>
+        value.ToJsonElement().WriteTo(writer);
 }
