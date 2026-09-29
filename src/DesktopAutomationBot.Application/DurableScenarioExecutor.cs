@@ -375,7 +375,7 @@ public sealed class DurableScenarioExecutor :
                 {
                     var waitReason =
                         SuspendStepEvaluator.GetWaitReason(step);
-                    var nextCursor =
+                    var suspendCursor =
                         DurableExecutionCursorNavigator.AdvanceCursor(
                             scenario,
                             run.Cursor,
@@ -387,7 +387,7 @@ public sealed class DurableScenarioExecutor :
                         run,
                         scenarioVersion,
                         run.State.Wait(waitReason),
-                        nextCursor,
+                        suspendCursor,
                         variables,
                         updatedAt);
 
