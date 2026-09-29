@@ -232,6 +232,60 @@ public sealed class DurableScenarioExecutor :
                         scenario,
                         run.Cursor);
 
+                if (step.Type is StepType.If or StepType.Loop)
+                {
+                    ExecutionCursor nextCursor;
+
+                    if (step.Type == StepType.If)
+                    {
+                        nextCursor = ControlFlowStepEvaluator.EvaluateIf(
+                            step,
+                            context.Variables)
+                            ? DurableExecutionCursorNavigator.EnterIf(
+                                step,
+                                run.Cursor)
+                            : DurableExecutionCursorNavigator.AdvanceCursor(
+                                scenario,
+                                run.Cursor,
+                                index,
+                                context.Variables);
+                    }
+                    else
+                    {
+                        var count = ControlFlowStepEvaluator.GetLoopCount(
+                            step,
+                            context.Variables);
+                        nextCursor = count > 0
+                            ? DurableExecutionCursorNavigator.EnterLoop(
+                                step,
+                                run.Cursor)
+                            : DurableExecutionCursorNavigator.AdvanceCursor(
+                                scenario,
+                                run.Cursor,
+                                index,
+                                context.Variables);
+                    }
+
+                    var controlState = nextCursor.IsCompleted
+                        ? run.State.Complete()
+                        : run.State;
+
+                    run = RestoreSnapshot(
+                        run,
+                        scenarioVersion,
+                        controlState,
+                        nextCursor,
+                        variables,
+                        NextTimestamp(run.UpdatedAt));
+
+                    await _runStore.SaveAsync(
+                        run,
+                        scenarioVersion,
+                        CancellationToken.None);
+
+                    continue;
+                }
+
                 if (!_handlers.TryGetValue(step.Type, out var handler))
                 {
                     throw new NotSupportedException(
@@ -325,9 +379,11 @@ public sealed class DurableScenarioExecutor :
                 stepResults.Add(stepResult);
 
                 var nextCursor =
-                    DurableExecutionCursorNavigator.AdvanceTopLevelCursor(
+                    DurableExecutionCursorNavigator.AdvanceCursor(
                         scenario,
-                        index);
+                        run.Cursor,
+                        index,
+                        context.Variables);
 
                 var nextState = nextCursor.IsCompleted
                     ? run.State.Complete()
