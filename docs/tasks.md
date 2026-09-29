@@ -70,8 +70,8 @@ Status legend:
 
 - [x] Implement variable interpolation.
 - [x] Implement `Delay`.
-- [ ] Implement `If`.
-- [ ] Implement `Loop`.
+- [x] Implement `If`. Boolean literals and exact variable references control nested child execution in synchronous and durable runners.
+- [x] Implement `Loop`. Non-negative literal or variable-resolved iteration counts execute nested children with persisted durable cursor frames.
 - [~] Implement step retry. Durable failure/recovery now persists retry timing and can suspend to `Waiting / Retry`; automatic scheduling and legacy synchronous retry remain.
 - [~] Use `RetryCount` from the scenario model. Durable execution and recovery enforce it as the number of additional attempts; legacy synchronous execution remains.
 - [x] Validate that every declared step type has a registered handler.
