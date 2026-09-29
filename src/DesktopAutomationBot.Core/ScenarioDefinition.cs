@@ -16,6 +16,8 @@ public sealed record ScenarioDefinition
 
     public int? TimeoutMs { get; init; }
 
+    public string? BrowserProfile { get; init; }
+
     public List<ScenarioStep> Steps { get; init; } = [];
 }
 
