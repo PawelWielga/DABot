@@ -65,6 +65,83 @@ public sealed class ScenarioDefinitionValidatorTests
         result.Errors.Should().Contain("scenario.steps[0].url is required for OpenUrl.");
     }
 
+
+    [Fact]
+    public void Validate_WhenElementStepHasNoSelectorOrLocator_ReturnsValidationError()
+    {
+        var validator = new ScenarioDefinitionValidator();
+
+        var result = validator.Validate(new ScenarioDefinition
+        {
+            Name = "Missing locator",
+            Steps =
+            [
+                new ScenarioStep
+                {
+                    Type = StepType.Click,
+                },
+            ],
+        });
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(
+            "scenario.steps[0].selector or locator is required for Click.");
+    }
+
+    [Fact]
+    public void Validate_WhenElementStepUsesRichLocator_IsValid()
+    {
+        var validator = new ScenarioDefinitionValidator();
+
+        var result = validator.Validate(new ScenarioDefinition
+        {
+            Name = "Rich locator",
+            Steps =
+            [
+                new ScenarioStep
+                {
+                    Type = StepType.Click,
+                    Locator = new ScenarioLocator
+                    {
+                        Kind = ScenarioLocatorKind.Text,
+                        Value = "Submit",
+                        Exact = true,
+                    },
+                },
+            ],
+        });
+
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Validate_WhenSelectorAndLocatorAreBothSet_ReturnsValidationError()
+    {
+        var validator = new ScenarioDefinitionValidator();
+
+        var result = validator.Validate(new ScenarioDefinition
+        {
+            Name = "Ambiguous locator",
+            Steps =
+            [
+                new ScenarioStep
+                {
+                    Type = StepType.Click,
+                    Selector = "#submit",
+                    Locator = new ScenarioLocator
+                    {
+                        Kind = ScenarioLocatorKind.TestId,
+                        Value = "submit",
+                    },
+                },
+            ],
+        });
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(
+            "scenario.steps[0] must not define both selector and locator.");
+    }
+
     [Fact]
     public void Validate_WhenReadTextIsMissingOutput_ReturnsValidationError()
     {
