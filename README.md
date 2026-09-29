@@ -258,6 +258,15 @@ Durable retries can be processed continuously with:
 
 ```bash
 dotnet run --project src/DesktopAutomationBot.Runner -- retry-worker
+
+Manual durable-run control uses the persisted run ID:
+
+```bash
+dotnet run --project src/DesktopAutomationBot.Runner -- resume --run-id <guid>
+dotnet run --project src/DesktopAutomationBot.Runner -- cancel --run-id <guid>
+```
+
+Manual `resume` is for non-retry waiting runs. `cancel` currently accepts queued/waiting runs; cancelling an actively running process is deliberately rejected until worker lease/CAS coordination is implemented.
 ```
 
 The retry worker polls SQLite using `bot.retryWorker.pollIntervalMs` and processes at most `bot.retryWorker.batchSize` due runs per sweep. Ctrl+C requests a graceful stop: an active durable retry is allowed to finish, then the worker stops before starting the next run.
