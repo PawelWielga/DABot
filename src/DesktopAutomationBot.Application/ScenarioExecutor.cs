@@ -72,35 +72,11 @@ public sealed class ScenarioExecutor : IScenarioExecutor
             executionToken.ThrowIfCancellationRequested();
             await _browserAutomation.OpenAsync(executionToken);
 
-            for (var index = 0; index < scenario.Steps.Count; index++)
-            {
-                executionToken.ThrowIfCancellationRequested();
-                var step = scenario.Steps[index];
-                if (!_handlers.TryGetValue(step.Type, out var handler))
-                {
-                    throw new NotSupportedException($"Step type '{step.Type}' is not supported yet.");
-                }
-
-                _logger.LogInformation(
-                    "Executing step {StepIndex} ({StepType})",
-                    index + 1,
-                    step.Type);
-
-                var resolvedStep = ScenarioVariableInterpolator.Resolve(
-                    step,
-                    context.Variables);
-                var stepResult = await handler.ExecuteAsync(
-                    resolvedStep,
-                    context,
-                    index,
-                    executionToken);
-                context.CaptureOutput(stepResult);
-                result.Steps.Add(stepResult);
-                _logger.LogInformation(
-                    "Completed step {StepIndex} ({StepType})",
-                    index + 1,
-                    step.Type);
-            }
+            await ExecuteStepsAsync(
+                scenario.Steps,
+                context,
+                result,
+                executionToken);
 
             result.Success = true;
             _logger.LogInformation(
@@ -192,6 +168,78 @@ public sealed class ScenarioExecutor : IScenarioExecutor
             }
 
             await _browserAutomation.DisposeAsync();
+        }
+    }
+
+    private async Task ExecuteStepsAsync(
+        IReadOnlyList<ScenarioStep> steps,
+        ScenarioExecutionContext context,
+        ScenarioExecutionResult result,
+        CancellationToken cancellationToken)
+    {
+        for (var index = 0; index < steps.Count; index++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var step = steps[index];
+
+            if (step.Type == StepType.If)
+            {
+                if (ControlFlowStepEvaluator.EvaluateIf(step, context.Variables))
+                {
+                    await ExecuteStepsAsync(
+                        step.Children,
+                        context,
+                        result,
+                        cancellationToken);
+                }
+
+                continue;
+            }
+
+            if (step.Type == StepType.Loop)
+            {
+                var count = ControlFlowStepEvaluator.GetLoopCount(
+                    step,
+                    context.Variables);
+
+                for (var iteration = 0; iteration < count; iteration++)
+                {
+                    await ExecuteStepsAsync(
+                        step.Children,
+                        context,
+                        result,
+                        cancellationToken);
+                }
+
+                continue;
+            }
+
+            if (!_handlers.TryGetValue(step.Type, out var handler))
+            {
+                throw new NotSupportedException(
+                    $"Step type '{step.Type}' is not supported yet.");
+            }
+
+            _logger.LogInformation(
+                "Executing step {StepIndex} ({StepType})",
+                index + 1,
+                step.Type);
+
+            var resolvedStep = ScenarioVariableInterpolator.Resolve(
+                step,
+                context.Variables);
+            var stepResult = await handler.ExecuteAsync(
+                resolvedStep,
+                context,
+                index,
+                cancellationToken);
+            context.CaptureOutput(stepResult);
+            result.Steps.Add(stepResult);
+
+            _logger.LogInformation(
+                "Completed step {StepIndex} ({StepType})",
+                index + 1,
+                step.Type);
         }
     }
 }
