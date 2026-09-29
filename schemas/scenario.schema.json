@@ -447,6 +447,32 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "If",
+                  "Loop"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "required": [
+              "value",
+              "children"
+            ],
+            "properties": {
+              "children": {
+                "minItems": 1
+              }
+            }
+          }
         }
       ]
     }
