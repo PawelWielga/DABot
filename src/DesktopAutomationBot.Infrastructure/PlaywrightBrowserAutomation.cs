@@ -4,7 +4,7 @@ using Microsoft.Playwright;
 
 namespace DesktopAutomationBot.Infrastructure;
 
-public sealed class PlaywrightBrowserAutomation : IBrowserAutomation
+public sealed class PlaywrightBrowserAutomation : IBrowserSession
 {
     private readonly BotOptions _options;
     private IPlaywright? _playwright;

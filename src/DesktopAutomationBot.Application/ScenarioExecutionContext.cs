@@ -7,13 +7,13 @@ public sealed class ScenarioExecutionContext
 {
     public ScenarioExecutionContext(
         ScenarioDefinition scenario,
-        IBrowserAutomation browserAutomation,
+        IBrowserSession browserSession,
         BotOptions options,
         Guid? durableRunId = null,
         IReadOnlyDictionary<string, ScenarioVariableValue>? initialVariables = null)
     {
         Scenario = scenario;
-        BrowserAutomation = browserAutomation;
+        BrowserSession = browserSession;
         Options = options;
         RunId = durableRunId?.ToString("D") ?? CreateRunId(scenario.Name);
 
@@ -30,7 +30,9 @@ public sealed class ScenarioExecutionContext
 
     public ScenarioDefinition Scenario { get; }
 
-    public IBrowserAutomation BrowserAutomation { get; }
+    public IBrowserSession BrowserSession { get; }
+
+    public IBrowserAutomation BrowserAutomation => BrowserSession;
 
     public BotOptions Options { get; }
 
@@ -41,6 +43,21 @@ public sealed class ScenarioExecutionContext
     public string ScreenshotDirectory => Path.Combine(Options.Storage.ScreenshotsDirectory, RunId);
 
     public string ArtifactDirectory => Path.Combine(Options.Storage.ArtifactsDirectory, RunId);
+
+    public ScenarioExecutionContext(
+        ScenarioDefinition scenario,
+        IBrowserAutomation browserAutomation,
+        BotOptions options,
+        Guid? durableRunId = null,
+        IReadOnlyDictionary<string, ScenarioVariableValue>? initialVariables = null)
+        : this(
+            scenario,
+            BrowserSessionAdapter.Wrap(browserAutomation),
+            options,
+            durableRunId,
+            initialVariables)
+    {
+    }
 
     public void CaptureOutput(StepExecutionResult result)
     {

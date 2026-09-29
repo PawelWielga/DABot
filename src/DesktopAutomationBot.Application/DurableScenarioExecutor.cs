@@ -9,10 +9,28 @@ public sealed class DurableScenarioExecutor :
     private readonly BotOptions _options;
     private readonly IScenarioValidationService _validationService;
     private readonly IReadOnlyDictionary<StepType, IStepHandler> _handlers;
-    private readonly IBrowserAutomation _browserAutomation;
+    private readonly IBrowserSessionFactory _browserSessionFactory;
     private readonly IRunStore _runStore;
     private readonly IStepAttemptStore _stepAttemptStore;
     private readonly TimeProvider _timeProvider;
+
+    public DurableScenarioExecutor(
+        BotOptions options,
+        IScenarioValidationService validationService,
+        IEnumerable<IStepHandler> handlers,
+        IBrowserSessionFactory browserSessionFactory,
+        IRunStore runStore,
+        IStepAttemptStore stepAttemptStore,
+        TimeProvider timeProvider)
+    {
+        _options = options;
+        _validationService = validationService;
+        _browserSessionFactory = browserSessionFactory;
+        _runStore = runStore;
+        _stepAttemptStore = stepAttemptStore;
+        _timeProvider = timeProvider;
+        _handlers = handlers.ToDictionary(handler => handler.StepType);
+    }
 
     public DurableScenarioExecutor(
         BotOptions options,
@@ -22,14 +40,15 @@ public sealed class DurableScenarioExecutor :
         IRunStore runStore,
         IStepAttemptStore stepAttemptStore,
         TimeProvider timeProvider)
+        : this(
+            options,
+            validationService,
+            handlers,
+            new FixedBrowserSessionFactory(browserAutomation),
+            runStore,
+            stepAttemptStore,
+            timeProvider)
     {
-        _options = options;
-        _validationService = validationService;
-        _browserAutomation = browserAutomation;
-        _runStore = runStore;
-        _stepAttemptStore = stepAttemptStore;
-        _timeProvider = timeProvider;
-        _handlers = handlers.ToDictionary(handler => handler.StepType);
     }
 
     public async Task<DurableScenarioExecutionResult> ExecuteAsync(
@@ -202,9 +221,11 @@ public sealed class DurableScenarioExecutor :
                 pair.Value.ToJsonElement()),
             StringComparer.OrdinalIgnoreCase);
         var stepResults = new List<StepExecutionResult>();
+        var browserSession = await _browserSessionFactory.CreateAsync(
+            cancellationToken);
         var context = new ScenarioExecutionContext(
             scenario,
-            _browserAutomation,
+            browserSession,
             _options,
             run.RunId,
             variables);
@@ -213,7 +234,7 @@ public sealed class DurableScenarioExecutor :
 
         try
         {
-            await _browserAutomation.OpenAsync(cancellationToken);
+            await browserSession.OpenAsync(cancellationToken);
 
             while (!run.Cursor.IsCompleted)
             {
@@ -442,7 +463,7 @@ public sealed class DurableScenarioExecutor :
         }
         finally
         {
-            await _browserAutomation.DisposeAsync();
+            await browserSession.DisposeAsync();
         }
     }
 
