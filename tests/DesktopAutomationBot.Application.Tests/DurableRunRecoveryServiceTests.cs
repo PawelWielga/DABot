@@ -363,7 +363,7 @@ public sealed class DurableRunRecoveryServiceTests
                 Url = "https://example.com",
             });
         var running = CreateRunningRun(version);
-        var waiting = AutomationRun.Restore(
+        var waiting = AutomationRun.RestoreStructured(
             running.RunId,
             version,
             running.State.Wait(RunWaitReason.Event),
