@@ -232,7 +232,7 @@ internal static class DurableExecutionCursorNavigator
         }
 
         var parentFrame = remainingFrames[^1];
-        var parent = FindById(siblings, parentFrame.StepId)
+        var parent = FindRecursive(scenario.Steps, parentFrame.StepId)
             ?? throw new InvalidOperationException(
                 $"Execution cursor container '{parentFrame.StepId}' does not exist.");
 
@@ -261,6 +261,27 @@ internal static class DurableExecutionCursorNavigator
             remainingFrames,
             parent.Id!,
             variables);
+    }
+
+    private static ScenarioStep? FindRecursive(
+        IReadOnlyList<ScenarioStep> steps,
+        string id)
+    {
+        foreach (var step in steps)
+        {
+            if (string.Equals(step.Id, id, StringComparison.OrdinalIgnoreCase))
+            {
+                return step;
+            }
+
+            var nested = FindRecursive(step.Children, id);
+            if (nested is not null)
+            {
+                return nested;
+            }
+        }
+
+        return null;
     }
 
     private static ScenarioStep? FindById(
