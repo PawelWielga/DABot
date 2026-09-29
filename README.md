@@ -245,6 +245,15 @@ dotnet run --project src/DesktopAutomationBot.Runner -- run --scenario examples/
 
 Use `--help` or `-h` to print the CLI contract. `--scenario` (or `-s`) overrides `bot.scenarioPath` only for the current run.
 
+Persistent browser profiles can be prepared and verified directly from the CLI:
+
+```bash
+dotnet run --project src/DesktopAutomationBot.Runner -- profile setup --profile work-account --url https://example.com/login
+dotnet run --project src/DesktopAutomationBot.Runner -- profile test --profile work-account
+```
+
+Interactive setup forces a headed browser so login/MFA can be completed manually; the test command verifies that the profile can be exclusively acquired and launched headlessly.
+
 Durable retries can be processed continuously with:
 
 ```bash
