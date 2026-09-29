@@ -80,6 +80,34 @@ public sealed class ScenarioVariableInterpolatorTests
         resolved.Parameters["payload"].GetProperty("ids").GetArrayLength().Should().Be(2);
     }
 
+
+    [Fact]
+    public void Resolve_InterpolatesRichLocatorValue()
+    {
+        var variables = new ScenarioVariableBag();
+        variables.Set("button", "Save");
+
+        var step = new ScenarioStep
+        {
+            Type = StepType.Click,
+            Locator = new ScenarioLocator
+            {
+                Kind = ScenarioLocatorKind.Text,
+                Value = "{{button}}",
+                Exact = true,
+            },
+        };
+
+        var resolved = ScenarioVariableInterpolator.Resolve(
+            step,
+            variables);
+
+        resolved.Locator.Should().NotBeNull();
+        resolved.Locator!.Kind.Should().Be(ScenarioLocatorKind.Text);
+        resolved.Locator.Value.Should().Be("Save");
+        resolved.Locator.Exact.Should().BeTrue();
+    }
+
     [Fact]
     public void ResolveText_WhenVariableIsMissing_ThrowsHelpfulError()
     {
