@@ -1,5 +1,6 @@
 using System.Text.Json;
 using DesktopAutomationBot.Core;
+using Microsoft.Extensions.Logging;
 
 namespace DesktopAutomationBot.Application;
 
@@ -9,16 +10,19 @@ public sealed class ScenarioExecutor : IScenarioExecutor
     private readonly IScenarioValidationService _validationService;
     private readonly IReadOnlyDictionary<StepType, IStepHandler> _handlers;
     private readonly IBrowserAutomation _browserAutomation;
+    private readonly ILogger<ScenarioExecutor> _logger;
 
     public ScenarioExecutor(
         BotOptions options,
         IScenarioValidationService validationService,
         IEnumerable<IStepHandler> handlers,
-        IBrowserAutomation browserAutomation)
+        IBrowserAutomation browserAutomation,
+        ILogger<ScenarioExecutor>? logger = null)
     {
         _options = options;
         _validationService = validationService;
         _browserAutomation = browserAutomation;
+        _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<ScenarioExecutor>.Instance;
         _handlers = handlers.ToDictionary(handler => handler.StepType);
     }
 
@@ -33,6 +37,18 @@ public sealed class ScenarioExecutor : IScenarioExecutor
         var context = new ScenarioExecutionContext(scenario, _browserAutomation, _options);
         Directory.CreateDirectory(context.ScreenshotDirectory);
         Directory.CreateDirectory(context.ArtifactDirectory);
+
+        using var logScope = _logger.BeginScope(
+            new Dictionary<string, object?>
+            {
+                ["RunId"] = context.RunId,
+                ["ScenarioName"] = scenario.Name,
+            });
+
+        _logger.LogInformation(
+            "Starting scenario {ScenarioName} with run {RunId}",
+            scenario.Name,
+            context.RunId);
 
         var result = new ScenarioExecutionResult
         {
@@ -55,6 +71,11 @@ public sealed class ScenarioExecutor : IScenarioExecutor
                     throw new NotSupportedException($"Step type '{step.Type}' is not supported yet.");
                 }
 
+                _logger.LogInformation(
+                    "Executing step {StepIndex} ({StepType})",
+                    index + 1,
+                    step.Type);
+
                 var resolvedStep = ScenarioVariableInterpolator.Resolve(
                     step,
                     context.Variables);
@@ -65,19 +86,33 @@ public sealed class ScenarioExecutor : IScenarioExecutor
                     cancellationToken);
                 context.CaptureOutput(stepResult);
                 result.Steps.Add(stepResult);
+                _logger.LogInformation(
+                    "Completed step {StepIndex} ({StepType})",
+                    index + 1,
+                    step.Type);
             }
 
             result.Success = true;
+            _logger.LogInformation(
+                "Scenario {ScenarioName} completed successfully",
+                scenario.Name);
             return result;
         }
         catch (OperationCanceledException)
             when (cancellationToken.IsCancellationRequested)
         {
+            _logger.LogWarning(
+                "Scenario {ScenarioName} was cancelled",
+                scenario.Name);
             throw;
         }
         catch (Exception exception)
         {
             result.ErrorMessage = exception.Message;
+            _logger.LogError(
+                exception,
+                "Scenario {ScenarioName} failed",
+                scenario.Name);
 
             try
             {
