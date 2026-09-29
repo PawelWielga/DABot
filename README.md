@@ -168,7 +168,7 @@ Agents should use the README and implementation backlog to distinguish current f
 | Variable interpolation | Available |
 | Durable retry recovery/scheduling | Partial |
 | Conditions and loops | Planned |
-| Persistent named browser profiles | Planned |
+| Persistent named browser profiles | Available |
 | Durable run persistence | Planned |
 | Suspend and resume | Planned |
 | External event model | Planned |
