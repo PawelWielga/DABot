@@ -155,6 +155,38 @@ try
         }
     }
 
+
+    if (commandLine.Command is RunnerCommand.Resume or RunnerCommand.Cancel)
+    {
+        var control = provider.GetRequiredService<IDurableRunControlService>();
+        var runId = commandLine.RunId!.Value;
+
+        if (commandLine.Command == RunnerCommand.Cancel)
+        {
+            var cancelled = await control.CancelAsync(runId);
+            Console.WriteLine(
+                $"Run {runId}: {cancelled.State.Status}");
+            return RunnerExitCodes.Success;
+        }
+
+        var resumed = await control.ResumeManuallyAsync(runId);
+        Console.WriteLine(
+            $"Run {runId}: {resumed.Run.State.Status} ({resumed.Outcome})");
+
+        if (!string.IsNullOrWhiteSpace(resumed.ErrorMessage))
+        {
+            Console.Error.WriteLine(resumed.ErrorMessage);
+        }
+
+        return resumed.Outcome switch
+        {
+            DurableExecutionOutcome.Completed => RunnerExitCodes.Success,
+            DurableExecutionOutcome.Suspended => RunnerExitCodes.Success,
+            DurableExecutionOutcome.Cancelled => RunnerExitCodes.Cancelled,
+            _ => RunnerExitCodes.ExecutionFailed,
+        };
+    }
+
     var options = provider.GetRequiredService<BotOptions>();
     var loader = provider.GetRequiredService<IScenarioLoader>();
     var executor = provider.GetRequiredService<IScenarioExecutor>();

@@ -247,6 +247,88 @@ public sealed class DurableRunResumeServiceTests : IDisposable
         browser.OpenCount.Should().Be(0);
     }
 
+
+    [Fact]
+    public async Task ResumeManuallyAsync_FromHumanWait_ContinuesExecution()
+    {
+        var version = CreateVersion(
+            new ScenarioStep
+            {
+                Id = "submit",
+                Type = StepType.Click,
+                Selector = "#submit",
+            });
+        var running = CreateRunningRun(version);
+        var waiting = Restore(
+            running,
+            version,
+            running.State.Wait(RunWaitReason.Human),
+            running.Cursor,
+            running.UpdatedAt.AddSeconds(1));
+        var runStore = new InMemoryRunStore(waiting, version);
+        var browser = new FakeBrowserAutomation();
+        var handler = new FakeStepHandler(StepType.Click);
+        var executor = CreateExecutor(
+            [handler],
+            browser,
+            runStore,
+            new InMemoryStepAttemptStore());
+
+        var result = await executor.ResumeManuallyAsync(waiting.RunId);
+
+        result.Outcome.Should().Be(DurableExecutionOutcome.Completed);
+        result.Run.State.Status.Should().Be(RunStatus.Completed);
+        handler.ExecutionCount.Should().Be(1);
+        browser.OpenCount.Should().Be(1);
+        browser.DisposeCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task CancelAsync_FromWaiting_CancelsWithoutOpeningBrowser()
+    {
+        var version = CreateVersion();
+        var running = CreateRunningRun(version);
+        var waiting = Restore(
+            running,
+            version,
+            running.State.Wait(RunWaitReason.Human),
+            running.Cursor,
+            running.UpdatedAt.AddSeconds(1));
+        var runStore = new InMemoryRunStore(waiting, version);
+        var browser = new FakeBrowserAutomation();
+        var executor = CreateExecutor(
+            [new FakeStepHandler(StepType.OpenUrl)],
+            browser,
+            runStore,
+            new InMemoryStepAttemptStore());
+
+        var cancelled = await executor.CancelAsync(waiting.RunId);
+
+        cancelled.State.Status.Should().Be(RunStatus.Cancelled);
+        browser.OpenCount.Should().Be(0);
+
+        var persisted = await runStore.LoadAsync(waiting.RunId);
+        persisted!.Run.State.Status.Should().Be(RunStatus.Cancelled);
+    }
+
+    [Fact]
+    public async Task CancelAsync_WhenRunIsRunning_RejectsUnsafeCrossProcessCancellation()
+    {
+        var version = CreateVersion();
+        var running = CreateRunningRun(version);
+        var executor = CreateExecutor(
+            [new FakeStepHandler(StepType.OpenUrl)],
+            new FakeBrowserAutomation(),
+            new InMemoryRunStore(running, version),
+            new InMemoryStepAttemptStore());
+
+        var action = () => executor.CancelAsync(running.RunId);
+
+        await action.Should()
+            .ThrowAsync<InvalidOperationException>()
+            .WithMessage("*lease/CAS*");
+    }
+
     [Fact]
     public async Task ResumeAsync_WhenStartedAttemptStillExists_RequiresRecoveryFirst()
     {

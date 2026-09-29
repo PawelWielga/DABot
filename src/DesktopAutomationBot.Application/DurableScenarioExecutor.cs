@@ -4,7 +4,8 @@ namespace DesktopAutomationBot.Application;
 
 public sealed class DurableScenarioExecutor :
     IDurableScenarioExecutor,
-    IDurableRunResumeService
+    IDurableRunResumeService,
+    IDurableRunControlService
 {
     private readonly BotOptions _options;
     private readonly IScenarioValidationService _validationService;
@@ -201,6 +202,116 @@ public sealed class DurableScenarioExecutor :
             run,
             scenarioVersion,
             cancellationToken);
+    }
+
+    public async Task<DurableScenarioExecutionResult> ResumeManuallyAsync(
+        Guid runId,
+        CancellationToken cancellationToken = default)
+    {
+        if (runId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Run ID must not be empty.",
+                nameof(runId));
+        }
+
+        var stored = await _runStore.LoadAsync(
+            runId,
+            cancellationToken);
+
+        if (stored is null)
+        {
+            throw new KeyNotFoundException(
+                $"Durable run '{runId}' does not exist.");
+        }
+
+        var run = stored.Run;
+        var scenarioVersion = stored.ScenarioVersion;
+
+        if (run.State.Status != RunStatus.Waiting)
+        {
+            throw new InvalidOperationException(
+                $"Run '{runId}' can be resumed manually only from Waiting. Current state is '{run.State.Status}'.");
+        }
+
+        if (run.State.WaitReason == RunWaitReason.Retry)
+        {
+            throw new InvalidOperationException(
+                $"Run '{runId}' is waiting for Retry and must use the normal retry resume path.");
+        }
+
+        var attempts = await _stepAttemptStore.LoadStepAttemptsAsync(
+            run.RunId,
+            cancellationToken);
+
+        if (attempts.Any(attempt => attempt.Status == StepAttemptStatus.Started))
+        {
+            throw new InvalidOperationException(
+                $"Run '{runId}' still contains a started step attempt. Crash recovery must reconcile started attempts before resume.");
+        }
+
+        var scenario = scenarioVersion.MaterializeDefinition();
+        _validationService.ValidateOrThrow(scenario);
+        ScenarioHandlerValidator.ValidateOrThrow(
+            scenario,
+            _handlers.Keys);
+
+        run = RestoreSnapshot(
+            run,
+            scenarioVersion,
+            run.State.Resume(),
+            run.Cursor,
+            run.Variables,
+            NextTimestamp(run.UpdatedAt));
+
+        await _runStore.SaveAsync(
+            run,
+            scenarioVersion,
+            cancellationToken);
+
+        return await ExecuteRunningRunAsync(
+            run,
+            scenarioVersion,
+            cancellationToken);
+    }
+
+    public async Task<AutomationRun> CancelAsync(
+        Guid runId,
+        CancellationToken cancellationToken = default)
+    {
+        if (runId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Run ID must not be empty.",
+                nameof(runId));
+        }
+
+        var stored = await _runStore.LoadAsync(
+            runId,
+            cancellationToken);
+
+        if (stored is null)
+        {
+            throw new KeyNotFoundException(
+                $"Durable run '{runId}' does not exist.");
+        }
+
+        var run = stored.Run;
+        if (run.State.IsTerminal)
+        {
+            return run;
+        }
+
+        if (run.State.Status == RunStatus.Running)
+        {
+            throw new InvalidOperationException(
+                $"Run '{runId}' is currently Running. Cross-process cancellation of active runs requires worker lease/CAS coordination and is not safe yet.");
+        }
+
+        return await CancelAsync(
+            run,
+            stored.ScenarioVersion,
+            run.Variables);
     }
 
     private async Task<DurableScenarioExecutionResult> ExecuteRunningRunAsync(

@@ -6,6 +6,8 @@ public enum RunnerCommand
     RetryWorker,
     ProfileSetup,
     ProfileTest,
+    Resume,
+    Cancel,
 }
 
 public sealed record RunnerCommandLine(
@@ -13,6 +15,7 @@ public sealed record RunnerCommandLine(
     string? ScenarioPath,
     string? ProfileName,
     string? Url,
+    Guid? RunId,
     bool ShowHelp)
 {
     public const string Usage =
@@ -22,12 +25,15 @@ public sealed record RunnerCommandLine(
           DesktopAutomationBot.Runner retry-worker
           DesktopAutomationBot.Runner profile setup --profile <name> [--url <url>]
           DesktopAutomationBot.Runner profile test --profile <name>
+          DesktopAutomationBot.Runner resume --run-id <guid>
+          DesktopAutomationBot.Runner cancel --run-id <guid>
           DesktopAutomationBot.Runner --help
 
         Options:
           --scenario, -s <path>  Run the specified scenario instead of bot.scenarioPath.
           --profile, -p <name>   Select a named persistent browser profile.
           --url <url>            Optional initial URL for interactive profile setup.
+          --run-id <guid>        Select a persisted durable run.
           --help, -h             Show this help text.
         """;
 
@@ -43,6 +49,7 @@ public sealed record RunnerCommandLine(
             ScenarioPath: null,
             ProfileName: null,
             Url: null,
+            RunId: null,
             ShowHelp: false);
         error = null;
 
@@ -97,6 +104,39 @@ public sealed record RunnerCommandLine(
                 options,
                 out options,
                 out error);
+        }
+
+        if (command is "resume" or "cancel")
+        {
+            if (args.Count == 2 && IsHelp(args[1]))
+            {
+                options = options with
+                {
+                    Command = command == "resume"
+                        ? RunnerCommand.Resume
+                        : RunnerCommand.Cancel,
+                    ShowHelp = true,
+                };
+                return true;
+            }
+
+            if (args.Count == 3 &&
+                args[1] == "--run-id" &&
+                Guid.TryParse(args[2], out var runId) &&
+                runId != Guid.Empty)
+            {
+                options = options with
+                {
+                    Command = command == "resume"
+                        ? RunnerCommand.Resume
+                        : RunnerCommand.Cancel,
+                    RunId = runId,
+                };
+                return true;
+            }
+
+            error = $"{command} requires --run-id <guid>.";
+            return false;
         }
 
         if (command != "run")
