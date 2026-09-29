@@ -11,6 +11,8 @@ public sealed record CompiledScenario
 
     public int? TimeoutMs { get; init; }
 
+    public string? BrowserProfile { get; init; }
+
     public required IReadOnlyList<CompiledStep> Steps { get; init; }
 }
 
@@ -76,6 +78,7 @@ public static class ScenarioCompiler
             SchemaVersion = normalized.SchemaVersion,
             Name = normalized.Name,
             TimeoutMs = normalized.TimeoutMs,
+            BrowserProfile = normalized.BrowserProfile,
             Steps = CompileSteps(normalized.Steps),
         };
     }
@@ -89,6 +92,7 @@ public static class ScenarioCompiler
             SchemaVersion = scenario.SchemaVersion,
             Name = scenario.Name,
             TimeoutMs = scenario.TimeoutMs,
+            BrowserProfile = scenario.BrowserProfile,
             Steps = scenario.Steps.Select(MaterializeStep).ToList(),
         };
     }

@@ -20,6 +20,30 @@ public sealed class ScenarioDefinitionValidatorTests
     }
 
 
+
+    [Fact]
+    public void Validate_WhenBrowserProfileNameIsUnsafe_ReturnsValidationError()
+    {
+        var validator = new ScenarioDefinitionValidator();
+
+        var result = validator.Validate(new ScenarioDefinition
+        {
+            Name = "Unsafe profile",
+            BrowserProfile = "../outside",
+            Steps =
+            [
+                new ScenarioStep
+                {
+                    Type = StepType.Screenshot,
+                },
+            ],
+        });
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(
+            "scenario.browserProfile must start with an alphanumeric character and contain only alphanumeric characters, '.', '_' or '-' (maximum 64 characters).");
+    }
+
     [Fact]
     public void Validate_WhenScenarioTimeoutIsNotPositive_ReturnsValidationError()
     {

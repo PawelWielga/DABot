@@ -51,6 +51,10 @@ public sealed class ScenarioExecutor : IScenarioExecutor
             _handlers.Keys);
 
         var browserSession = await _browserSessionFactory.CreateAsync(
+            new BrowserSessionRequest
+            {
+                ProfileName = scenario.BrowserProfile,
+            },
             cancellationToken);
         var context = new ScenarioExecutionContext(
             scenario,

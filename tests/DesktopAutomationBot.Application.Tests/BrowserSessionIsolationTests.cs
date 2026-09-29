@@ -64,6 +64,42 @@ public sealed class BrowserSessionIsolationTests : IDisposable
                 session.NavigatedUrls.Count == 1);
     }
 
+
+    [Fact]
+    public async Task ExecuteAsync_WithBrowserProfile_PassesNamedProfileToFactory()
+    {
+        var factory = new RecordingBrowserSessionFactory();
+        var executor = new ScenarioExecutor(
+            new BotOptions
+            {
+                Storage = new StorageOptions
+                {
+                    ScreenshotsDirectory = Path.Combine(
+                        _tempDirectory,
+                        "screenshots"),
+                    ArtifactsDirectory = Path.Combine(
+                        _tempDirectory,
+                        "artifacts"),
+                },
+            },
+            new ScenarioValidationService(),
+            [new OpenUrlStepHandler()],
+            factory);
+
+        var scenario = CreateScenario(
+            "profile-run",
+            "https://profile.example") with
+        {
+            BrowserProfile = "work-account",
+        };
+
+        var result = await executor.ExecuteAsync(scenario);
+
+        result.Success.Should().BeTrue();
+        factory.RequestedProfiles.Should().ContainSingle()
+            .Which.Should().Be("work-account");
+    }
+
     private static ScenarioDefinition CreateScenario(
         string name,
         string url) =>
@@ -97,7 +133,16 @@ public sealed class BrowserSessionIsolationTests : IDisposable
 
         public List<RecordingBrowserSession> Sessions { get; } = [];
 
+        public List<string?> RequestedProfiles { get; } = [];
+
         public ValueTask<IBrowserSession> CreateAsync(
+            CancellationToken cancellationToken = default) =>
+            CreateAsync(
+                new BrowserSessionRequest(),
+                cancellationToken);
+
+        public ValueTask<IBrowserSession> CreateAsync(
+            BrowserSessionRequest request,
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -106,6 +151,7 @@ public sealed class BrowserSessionIsolationTests : IDisposable
             lock (_sync)
             {
                 Sessions.Add(session);
+                RequestedProfiles.Add(request.ProfileName);
             }
 
             return ValueTask.FromResult<IBrowserSession>(session);

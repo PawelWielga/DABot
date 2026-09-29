@@ -170,9 +170,9 @@ Goal: remove the assumption that browser automation is one global singleton and 
 - [x] Introduce `IBrowserSession`.
 - [x] Introduce `IBrowserSessionFactory`.
 - [x] Support ephemeral sessions. The Playwright factory creates a fresh browser/session object for every execution.
-- [ ] Support persistent sessions with named profiles.
-- [ ] Store persistent profile directories outside version control.
-- [ ] Add profile-level locking/lease.
+- [x] Support persistent sessions with named profiles. Optional `scenario.browserProfile` selects a Playwright persistent context.
+- [x] Store persistent profile directories outside version control. Profiles default to `data/browser-profiles`, covered by the existing runtime-data ignore rule.
+- [x] Add profile-level locking/lease. A cross-process file lease prevents concurrent use of the same named profile.
 - [ ] Add headed interactive profile setup.
 - [ ] Add profile health/test operation.
 - [x] Make session ownership explicit in execution context. `ScenarioExecutionContext` exposes the owned `IBrowserSession` while retaining the compatibility `BrowserAutomation` view.

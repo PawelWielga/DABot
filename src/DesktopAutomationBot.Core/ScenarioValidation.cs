@@ -47,6 +47,13 @@ public sealed class ScenarioDefinitionValidator
             errors.Add("scenario.timeoutMs must be greater than zero when specified.");
         }
 
+        if (!string.IsNullOrWhiteSpace(scenario.BrowserProfile) &&
+            !IsValidBrowserProfileName(scenario.BrowserProfile))
+        {
+            errors.Add(
+                "scenario.browserProfile must start with an alphanumeric character and contain only alphanumeric characters, '.', '_' or '-' (maximum 64 characters).");
+        }
+
         if (scenario.Steps.Count == 0)
         {
             errors.Add("scenario.steps must contain at least one step.");
@@ -67,6 +74,19 @@ public sealed class ScenarioDefinitionValidator
         {
             throw new ScenarioValidationException(result.Errors);
         }
+    }
+
+    private static bool IsValidBrowserProfileName(string value)
+    {
+        if (value.Length is < 1 or > 64 ||
+            !char.IsLetterOrDigit(value[0]))
+        {
+            return false;
+        }
+
+        return value.All(character =>
+            char.IsLetterOrDigit(character) ||
+            character is '.' or '_' or '-');
     }
 
     private static void ValidateSteps(

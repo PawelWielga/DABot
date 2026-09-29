@@ -222,6 +222,10 @@ public sealed class DurableScenarioExecutor :
             StringComparer.OrdinalIgnoreCase);
         var stepResults = new List<StepExecutionResult>();
         var browserSession = await _browserSessionFactory.CreateAsync(
+            new BrowserSessionRequest
+            {
+                ProfileName = scenario.BrowserProfile,
+            },
             cancellationToken);
         var context = new ScenarioExecutionContext(
             scenario,
