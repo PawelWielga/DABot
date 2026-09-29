@@ -54,7 +54,7 @@ public sealed class DurableScenarioExecutorTests : IDisposable
         result.Success.Should().BeTrue();
         result.Run.State.Status.Should().Be(RunStatus.Completed);
         result.Run.Cursor.IsCompleted.Should().BeTrue();
-        result.Run.Variables["captured"].Should().Be("value");
+        result.Run.Variables["captured"].ToInterpolationString().Should().Be("value");
         contextRunId.Should().Be(runId.ToString("D"));
 
         events.Should().ContainInOrder(

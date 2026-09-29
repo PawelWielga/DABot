@@ -118,7 +118,7 @@
         },
         "parameters": {
           "type": "object",
-          "description": "Generic step parameters. String-valued parameters support {{variableName}} interpolation. WaitFor recognizes mode; CallApi recognizes method, responsePath and bearerTokenEnv.",
+          "description": "Generic step parameters. String-valued parameters support {{variableName}} interpolation; an exact variable reference preserves the runtime JSON type. WaitFor recognizes mode; CallApi recognizes method, responsePath, bearerTokenSecret and legacy bearerTokenEnv.",
           "properties": {
             "mode": {
               "oneOf": [
@@ -137,6 +137,16 @@
                 }
               ],
               "description": "WaitFor mode or a variable reference resolving to one of the supported modes."
+            },
+            "bearerTokenSecret": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Secret name resolved at execution time through ISecretProvider. The secret value is never stored as a normal run variable."
+            },
+            "bearerTokenEnv": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Backward-compatible environment-variable secret reference. Prefer bearerTokenSecret for provider-neutral scenarios."
             }
           },
           "additionalProperties": true

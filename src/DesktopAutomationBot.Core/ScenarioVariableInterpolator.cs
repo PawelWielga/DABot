@@ -51,7 +51,7 @@ public static class ScenarioVariableInterpolator
                         $"Scenario variable '{name}' is not defined.");
                 }
 
-                return resolvedValue;
+                return resolvedValue.ToInterpolationString();
             });
     }
 
@@ -80,10 +80,39 @@ public static class ScenarioVariableInterpolator
 
         return parameters.ToDictionary(
             pair => pair.Key,
-            pair => pair.Value.ValueKind == JsonValueKind.String
-                ? JsonSerializer.SerializeToElement(
-                    ResolveText(pair.Value.GetString(), variables))
-                : pair.Value.Clone(),
+            pair => ResolveParameter(pair.Value, variables),
             StringComparer.Ordinal);
+    }
+
+    private static JsonElement ResolveParameter(
+        JsonElement parameter,
+        ScenarioVariableBag variables)
+    {
+        if (parameter.ValueKind != JsonValueKind.String)
+        {
+            return parameter.Clone();
+        }
+
+        var text = parameter.GetString();
+        var match = text is null
+            ? Match.Empty
+            : VariableReferencePattern.Match(text);
+
+        if (match.Success &&
+            match.Index == 0 &&
+            match.Length == text!.Length)
+        {
+            var name = match.Groups["name"].Value;
+            if (!variables.TryGetValue(name, out var structuredValue))
+            {
+                throw new InvalidOperationException(
+                    $"Scenario variable '{name}' is not defined.");
+            }
+
+            return structuredValue.ToJsonElement();
+        }
+
+        return JsonSerializer.SerializeToElement(
+            ResolveText(text, variables));
     }
 }

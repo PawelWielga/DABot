@@ -345,7 +345,7 @@ public sealed class DurableRunResumeServiceTests : IDisposable
         ExecutionCursor cursor,
         DateTimeOffset updatedAt,
         DateTimeOffset? retryNotBefore = null) =>
-        AutomationRun.Restore(
+        AutomationRun.RestoreStructured(
             run.RunId,
             version,
             state,

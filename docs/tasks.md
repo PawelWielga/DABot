@@ -124,11 +124,11 @@ Goal: define deterministic execution and recovery semantics before durable persi
 
 ### Variables and secrets
 
-- [ ] Replace string-only runtime variables with structured values.
-- [ ] Preserve convenient string interpolation for simple scenarios.
-- [ ] Introduce `ISecretProvider` or an equivalent abstraction.
-- [ ] Keep secret references separate from persisted normal variables.
-- [ ] Define redaction rules for logs and diagnostics.
+- [x] Replace string-only runtime variables with structured values. Runtime state now stores JSON-compatible `ScenarioVariableValue` instances and SQLite preserves their JSON types.
+- [x] Preserve convenient string interpolation for simple scenarios. Embedded references stringify compactly while exact parameter references preserve structured JSON values.
+- [x] Introduce `ISecretProvider` or an equivalent abstraction. The default infrastructure provider resolves named environment-backed secrets.
+- [x] Keep secret references separate from persisted normal variables. `CallApi` supports provider-neutral `bearerTokenSecret`; resolved values are not added to run variables.
+- [x] Define redaction rules for logs and diagnostics. `docs/secrets-and-variables.md` defines persistence/redaction boundaries and the existing file-log masker remains defense in depth.
 
 ### Browser semantics
 

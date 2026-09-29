@@ -51,7 +51,34 @@ public sealed class AutomationRunTests
 
         variables["Token"] = "changed";
 
-        run.Variables["token"].Should().Be("first");
+        run.Variables["token"].ToInterpolationString().Should().Be("first");
+    }
+
+
+    [Fact]
+    public void CreateStructured_PreservesJsonValueTypesAndCopiesValues()
+    {
+        var variables = new Dictionary<string, ScenarioVariableValue>
+        {
+            ["enabled"] = ScenarioVariableValue.FromBoolean(true),
+            ["count"] = ScenarioVariableValue.FromNumber(7),
+            ["payload"] = ScenarioVariableValue.ParseJson("""{"name":"test"}"""),
+        };
+
+        var run = AutomationRun.CreateStructured(
+            CreateVersion(),
+            DateTimeOffset.UtcNow,
+            variables: variables);
+
+        variables["enabled"] = ScenarioVariableValue.FromBoolean(false);
+
+        run.Variables["enabled"].Kind.Should().Be(System.Text.Json.JsonValueKind.True);
+        run.Variables["count"].ToJsonElement().GetInt32().Should().Be(7);
+        run.Variables["payload"].ToJsonElement()
+            .GetProperty("name")
+            .GetString()
+            .Should()
+            .Be("test");
     }
 
     [Fact]
@@ -154,7 +181,7 @@ public sealed class AutomationRunTests
 
         run.State.Should().Be(state);
         run.Cursor.Should().BeEquivalentTo(cursor);
-        run.Variables["value"].Should().Be("42");
+        run.Variables["value"].ToInterpolationString().Should().Be("42");
         run.CreatedAt.Should().Be(createdAt);
         run.UpdatedAt.Should().Be(updatedAt);
         run.ScenarioVersionId.Should().Be(version.VersionId);

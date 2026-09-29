@@ -45,6 +45,41 @@ public sealed class ScenarioVariableInterpolatorTests
         resolved.Children[0].Url.Should().Be("https://example.com/child");
     }
 
+
+    [Fact]
+    public void Resolve_ExactParameterReference_PreservesStructuredJsonType()
+    {
+        var variables = new ScenarioVariableBag();
+        variables.Set(
+            "count",
+            ScenarioVariableValue.FromNumber(3));
+        variables.Set(
+            "payload",
+            ScenarioVariableValue.ParseJson("""{"enabled":true,"ids":[1,2]}"""));
+
+        var step = new ScenarioStep
+        {
+            Type = StepType.CallApi,
+            Value = "count={{count}}",
+            Parameters = new Dictionary<string, JsonElement>
+            {
+                ["count"] = JsonSerializer.SerializeToElement("{{count}}"),
+                ["payload"] = JsonSerializer.SerializeToElement("{{payload}}"),
+            },
+        };
+
+        var resolved = ScenarioVariableInterpolator.Resolve(
+            step,
+            variables);
+
+        resolved.Value.Should().Be("count=3");
+        resolved.Parameters!["count"].ValueKind.Should().Be(JsonValueKind.Number);
+        resolved.Parameters["count"].GetInt32().Should().Be(3);
+        resolved.Parameters["payload"].ValueKind.Should().Be(JsonValueKind.Object);
+        resolved.Parameters["payload"].GetProperty("enabled").GetBoolean().Should().BeTrue();
+        resolved.Parameters["payload"].GetProperty("ids").GetArrayLength().Should().Be(2);
+    }
+
     [Fact]
     public void ResolveText_WhenVariableIsMissing_ThrowsHelpfulError()
     {

@@ -140,7 +140,7 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
                 reader.GetString(7),
                 "AutomationRun.RetryNotBefore");
 
-        var run = AutomationRun.Restore(
+        var run = AutomationRun.RestoreStructured(
             ParseGuid(reader.GetString(0), "RunId"),
             scenarioVersion,
             state,
@@ -1033,17 +1033,37 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
     }
 
     private static string SerializeVariables(
-        IReadOnlyDictionary<string, string> variables) =>
-        JsonSerializer.Serialize(variables);
-
-    private static Dictionary<string, string> DeserializeVariables(string json)
+        IReadOnlyDictionary<string, ScenarioVariableValue> variables)
     {
-        var values = JsonSerializer.Deserialize<Dictionary<string, string>>(json)
-            ?? throw new InvalidOperationException("Stored run variables could not be deserialized.");
-
-        return new Dictionary<string, string>(
-            values,
+        var serializable = variables.ToDictionary(
+            pair => pair.Key,
+            pair => pair.Value.ToJsonElement(),
             StringComparer.OrdinalIgnoreCase);
+
+        return JsonSerializer.Serialize(serializable);
+    }
+
+    private static Dictionary<string, ScenarioVariableValue> DeserializeVariables(
+        string json)
+    {
+        using var document = JsonDocument.Parse(json);
+        if (document.RootElement.ValueKind != JsonValueKind.Object)
+        {
+            throw new InvalidOperationException(
+                "Stored run variables must be a JSON object.");
+        }
+
+        var values = new Dictionary<string, ScenarioVariableValue>(
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (var property in document.RootElement.EnumerateObject())
+        {
+            values.Add(
+                property.Name,
+                ScenarioVariableValue.FromJsonElement(property.Value));
+        }
+
+        return values;
     }
 
     private static string FormatTimestamp(DateTimeOffset value) =>

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using DesktopAutomationBot.Application;
 using DesktopAutomationBot.Core;
 using DesktopAutomationBot.Infrastructure;
@@ -51,11 +52,48 @@ public sealed class SqliteRunStoreTests : IDisposable
         loaded.Run.State.Status.Should().Be(RunStatus.Waiting);
         loaded.Run.State.WaitReason.Should().Be(RunWaitReason.Event);
         loaded.Run.Cursor.Should().BeEquivalentTo(cursor);
-        loaded.Run.Variables["correlation"].Should().Be("abc-123");
+        loaded.Run.Variables["correlation"].ToInterpolationString().Should().Be("abc-123");
         loaded.Run.CreatedAt.Should().Be(createdAt);
         loaded.Run.UpdatedAt.Should().Be(updatedAt);
 
         File.Exists(databasePath).Should().BeTrue();
+    }
+
+
+    [Fact]
+    public async Task SaveAndLoad_PreservesStructuredVariableJsonTypes()
+    {
+        var databasePath = Path.Combine(
+            _tempDirectory,
+            "structured-variables.db");
+        var options = CreateOptions(databasePath);
+        var version = CreateScenarioVersion();
+        var run = AutomationRun.CreateStructured(
+            version,
+            DateTimeOffset.UtcNow,
+            variables: new Dictionary<string, ScenarioVariableValue>
+            {
+                ["enabled"] = ScenarioVariableValue.FromBoolean(true),
+                ["count"] = ScenarioVariableValue.FromNumber(12),
+                ["payload"] = ScenarioVariableValue.ParseJson(
+                    """{"items":[1,2],"name":"stored"}"""),
+            });
+
+        var store = new SqliteRunStore(options);
+        await store.SaveAsync(run, version);
+
+        var loaded = await new SqliteRunStore(options)
+            .LoadAsync(run.RunId);
+
+        loaded.Should().NotBeNull();
+        loaded!.Run.Variables["enabled"].Kind
+            .Should().Be(JsonValueKind.True);
+        loaded.Run.Variables["count"].ToJsonElement()
+            .GetInt32().Should().Be(12);
+        loaded.Run.Variables["payload"].ToJsonElement()
+            .GetProperty("items")
+            .GetArrayLength()
+            .Should().Be(2);
     }
 
     [Fact]
@@ -69,7 +107,7 @@ public sealed class SqliteRunStoreTests : IDisposable
         var retryNotBefore = updatedAt.AddSeconds(45);
         var queued = AutomationRun.Create(version, createdAt);
 
-        var waiting = AutomationRun.Restore(
+        var waiting = AutomationRun.RestoreStructured(
             queued.RunId,
             version,
             RunState.Restore(RunStatus.Waiting, RunWaitReason.Retry),
@@ -131,7 +169,7 @@ public sealed class SqliteRunStoreTests : IDisposable
 
         loaded.Should().NotBeNull();
         loaded!.Run.State.Status.Should().Be(RunStatus.Running);
-        loaded.Run.Variables["state"].Should().Be("running");
+        loaded.Run.Variables["state"].ToInterpolationString().Should().Be("running");
         loaded.Run.CreatedAt.Should().Be(createdAt);
         loaded.Run.UpdatedAt.Should().Be(createdAt.AddMinutes(1));
     }
@@ -525,7 +563,7 @@ public sealed class SqliteRunStoreTests : IDisposable
             createdAt,
             Guid.NewGuid());
 
-        return AutomationRun.Restore(
+        return AutomationRun.RestoreStructured(
             queued.RunId,
             version,
             state,
