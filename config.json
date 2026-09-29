@@ -4,6 +4,9 @@
     "file": {
       "enabled": true,
       "path": "logs/dabot.jsonl"
+    },
+    "sensitiveValues": {
+      "environmentVariables": []
     }
   },
   "bot": {
