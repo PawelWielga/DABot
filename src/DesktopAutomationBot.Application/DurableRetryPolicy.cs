@@ -33,13 +33,16 @@ internal static class DurableRetryPolicy
             attempts,
             step.Id);
 
+        var currentOccurrenceAttemptCount =
+            GetCurrentOccurrenceAttemptCount(attempts, step.Id);
+
         if (!StepRetryPolicy.HasRemainingAttempt(
                 step,
-                GetCurrentOccurrenceAttemptCount(attempts, step.Id)))
+                currentOccurrenceAttemptCount))
         {
             throw new InvalidOperationException(
                 $"Step '{step.Id}' exhausted its retry budget after " +
-                $"{highestAttemptNumber} attempt(s).");
+                $"{currentOccurrenceAttemptCount} attempt(s) in the current execution.");
         }
 
         return checked(highestAttemptNumber + 1);
