@@ -483,6 +483,76 @@ public sealed class DurableScenarioExecutorTests : IDisposable
             .Equal("after");
     }
 
+
+    [Fact]
+    public async Task ExecuteAsync_WithSuspend_PersistsNextCursorAndManualResumeContinues()
+    {
+        var events = new List<string>();
+        var runStore = new RecordingRunStore(events);
+        var attemptStore = new RecordingStepAttemptStore(events);
+        var browser = new RecordingBrowserAutomation(events);
+        var handler = new RecordingStepHandler(
+            StepType.Screenshot,
+            events,
+            (step, _, index, _) => Task.FromResult(
+                new StepExecutionResult
+                {
+                    Index = index,
+                    Type = step.Type,
+                    Success = true,
+                }));
+
+        var executor = CreateExecutor(
+            [handler],
+            browser,
+            runStore,
+            attemptStore);
+
+        var version = ScenarioVersion.Capture(
+            Guid.NewGuid(),
+            1,
+            new ScenarioDefinition
+            {
+                Name = "Suspend and resume",
+                Steps =
+                [
+                    new ScenarioStep
+                    {
+                        Id = "pause",
+                        Type = StepType.Suspend,
+                    },
+                    new ScenarioStep
+                    {
+                        Id = "after",
+                        Type = StepType.Screenshot,
+                    },
+                ],
+            },
+            DateTimeOffset.Parse("2026-09-29T09:00:00+02:00"));
+
+        var suspended = await executor.ExecuteAsync(
+            new ScenarioRunRequest
+            {
+                ScenarioVersion = version,
+            });
+
+        suspended.Outcome.Should().Be(DurableExecutionOutcome.Suspended);
+        suspended.Run.State.Status.Should().Be(RunStatus.Waiting);
+        suspended.Run.State.WaitReason.Should().Be(RunWaitReason.Human);
+        suspended.Run.Cursor.NextStepId.Should().Be("after");
+
+        var resumed = await executor.ResumeManuallyAsync(
+            suspended.Run.RunId);
+
+        resumed.Outcome.Should().Be(DurableExecutionOutcome.Completed);
+        resumed.Run.Cursor.IsCompleted.Should().BeTrue();
+        attemptStore.Attempts
+            .Where(attempt => attempt.Status == StepAttemptStatus.Completed)
+            .Select(attempt => attempt.StepId)
+            .Should()
+            .Equal("after");
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_tempDirectory))
