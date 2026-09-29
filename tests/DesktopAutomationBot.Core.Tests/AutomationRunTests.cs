@@ -54,6 +54,33 @@ public sealed class AutomationRunTests
         run.Variables["token"].ToInterpolationString().Should().Be("first");
     }
 
+
+    [Fact]
+    public void CreateStructured_PreservesJsonValueTypesAndCopiesValues()
+    {
+        var variables = new Dictionary<string, ScenarioVariableValue>
+        {
+            ["enabled"] = ScenarioVariableValue.FromBoolean(true),
+            ["count"] = ScenarioVariableValue.FromNumber(7),
+            ["payload"] = ScenarioVariableValue.ParseJson("""{"name":"test"}"""),
+        };
+
+        var run = AutomationRun.CreateStructured(
+            CreateVersion(),
+            DateTimeOffset.UtcNow,
+            variables: variables);
+
+        variables["enabled"] = ScenarioVariableValue.FromBoolean(false);
+
+        run.Variables["enabled"].Kind.Should().Be(System.Text.Json.JsonValueKind.True);
+        run.Variables["count"].ToJsonElement().GetInt32().Should().Be(7);
+        run.Variables["payload"].ToJsonElement()
+            .GetProperty("name")
+            .GetString()
+            .Should()
+            .Be("test");
+    }
+
     [Fact]
     public void Create_CopiesExecutionCursor()
     {
