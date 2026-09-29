@@ -155,6 +155,21 @@ public sealed class PlaywrightBrowserAutomation : IBrowserAutomation
         return filePath;
     }
 
+    public async Task<string> SaveHtmlSnapshotAsync(
+        string filePath,
+        CancellationToken cancellationToken = default)
+    {
+        var page = await GetPageAsync(cancellationToken);
+        Directory.CreateDirectory(Path.GetDirectoryName(filePath) ?? ".");
+        var html = await page.ContentAsync()
+            .WaitAsync(cancellationToken);
+        await File.WriteAllTextAsync(
+            filePath,
+            html,
+            cancellationToken);
+        return filePath;
+    }
+
     public async ValueTask DisposeAsync()
     {
         if (_page is not null)
