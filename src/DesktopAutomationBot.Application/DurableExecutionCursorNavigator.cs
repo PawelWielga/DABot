@@ -81,10 +81,41 @@ internal static class DurableExecutionCursorNavigator
         };
     }
 
+    public static ExecutionCursor EnterLoop(
+        ScenarioStep step,
+        ExecutionCursor cursor)
+    {
+        ArgumentNullException.ThrowIfNull(step);
+        ArgumentNullException.ThrowIfNull(cursor);
+
+        if (step.Type != StepType.Loop || step.Children.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "Only a non-empty Loop step can be entered.");
+        }
+
+        return cursor with
+        {
+            NextStepId = step.Children[0].Id,
+            Frames =
+            [
+                .. cursor.Frames,
+                new ExecutionFrame
+                {
+                    StepId = step.Id!,
+                    Kind = ExecutionFrameKind.Loop,
+                    NextChildIndex = 0,
+                    Iteration = 0,
+                },
+            ],
+        };
+    }
+
     public static ExecutionCursor AdvanceCursor(
         ScenarioDefinition scenario,
         ExecutionCursor cursor,
-        int completedStepIndex)
+        int completedStepIndex,
+        ScenarioVariableBag variables)
     {
         ArgumentNullException.ThrowIfNull(scenario);
         ArgumentNullException.ThrowIfNull(cursor);
@@ -111,8 +142,27 @@ internal static class DurableExecutionCursorNavigator
             };
         }
 
+        if (activeFrame.Kind == ExecutionFrameKind.Loop)
+        {
+            var count = ControlFlowStepEvaluator.GetLoopCount(parent, variables);
+            var nextIteration = activeFrame.Iteration!.Value + 1;
+            if (nextIteration < count)
+            {
+                frames[^1] = activeFrame with
+                {
+                    NextChildIndex = 0,
+                    Iteration = nextIteration,
+                };
+                return cursor with
+                {
+                    NextStepId = parent.Children[0].Id,
+                    Frames = frames,
+                };
+            }
+        }
+
         frames.RemoveAt(frames.Count - 1);
-        return AdvanceAfterContainer(scenario, frames, parent.Id!);
+        return AdvanceAfterContainer(scenario, frames, parent.Id!, variables);
     }
 
     public static ExecutionCursor AdvanceTopLevelCursor(
@@ -136,7 +186,8 @@ internal static class DurableExecutionCursorNavigator
     private static ExecutionCursor AdvanceAfterContainer(
         ScenarioDefinition scenario,
         List<ExecutionFrame> remainingFrames,
-        string completedContainerId)
+        string completedContainerId,
+        ScenarioVariableBag variables)
     {
         var siblings = scenario.Steps;
         if (remainingFrames.Count > 0)
@@ -180,12 +231,36 @@ internal static class DurableExecutionCursorNavigator
             return ExecutionCursor.Completed();
         }
 
-        var completedParent = remainingFrames[^1].StepId;
+        var parentFrame = remainingFrames[^1];
+        var parent = FindById(siblings, parentFrame.StepId)
+            ?? throw new InvalidOperationException(
+                $"Execution cursor container '{parentFrame.StepId}' does not exist.");
+
+        if (parentFrame.Kind == ExecutionFrameKind.Loop)
+        {
+            var count = ControlFlowStepEvaluator.GetLoopCount(parent, variables);
+            var nextIteration = parentFrame.Iteration!.Value + 1;
+            if (nextIteration < count)
+            {
+                remainingFrames[^1] = parentFrame with
+                {
+                    NextChildIndex = 0,
+                    Iteration = nextIteration,
+                };
+                return new ExecutionCursor
+                {
+                    NextStepId = parent.Children[0].Id,
+                    Frames = remainingFrames,
+                };
+            }
+        }
+
         remainingFrames.RemoveAt(remainingFrames.Count - 1);
         return AdvanceAfterContainer(
             scenario,
             remainingFrames,
-            completedParent);
+            parent.Id!,
+            variables);
     }
 
     private static ScenarioStep? FindById(
