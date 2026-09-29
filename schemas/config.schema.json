@@ -75,6 +75,12 @@
               "type": "string",
               "minLength": 1,
               "default": "data/dabot.db"
+            },
+            "browserProfilesDirectory": {
+              "type": "string",
+              "minLength": 1,
+              "default": "data/browser-profiles",
+              "description": "Runtime directory for persistent browser profile data; keep it outside version control."
             }
           }
         },
