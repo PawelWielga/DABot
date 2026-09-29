@@ -7,14 +7,29 @@ namespace DesktopAutomationBot.Infrastructure;
 public sealed class PlaywrightBrowserAutomation : IBrowserSession
 {
     private readonly BotOptions _options;
+    private readonly string? _persistentProfileDirectory;
+    private readonly IAsyncDisposable? _profileLease;
     private IPlaywright? _playwright;
     private IBrowser? _browser;
     private IBrowserContext? _context;
     private IPage? _page;
 
     public PlaywrightBrowserAutomation(BotOptions options)
+        : this(
+            options,
+            persistentProfileDirectory: null,
+            profileLease: null)
+    {
+    }
+
+    internal PlaywrightBrowserAutomation(
+        BotOptions options,
+        string? persistentProfileDirectory,
+        IAsyncDisposable? profileLease)
     {
         _options = options;
+        _persistentProfileDirectory = persistentProfileDirectory;
+        _profileLease = profileLease;
     }
 
     public async Task OpenAsync(CancellationToken cancellationToken = default)
@@ -37,6 +52,30 @@ public sealed class PlaywrightBrowserAutomation : IBrowserSession
         if (_options.Browser.SlowMoMs > 0)
         {
             launchOptions.SlowMo = _options.Browser.SlowMoMs;
+        }
+
+        if (_persistentProfileDirectory is not null)
+        {
+            _context = await _playwright.Chromium.LaunchPersistentContextAsync(
+                _persistentProfileDirectory,
+                new BrowserTypeLaunchPersistentContextOptions
+                {
+                    Headless = _options.Browser.Headless,
+                    SlowMo = _options.Browser.SlowMoMs > 0
+                        ? _options.Browser.SlowMoMs
+                        : null,
+                    ViewportSize = new ViewportSize
+                    {
+                        Width = _options.Browser.ViewportWidth,
+                        Height = _options.Browser.ViewportHeight,
+                    },
+                }).WaitAsync(cancellationToken);
+
+            _page = _context.Pages.FirstOrDefault() ??
+                await _context.NewPageAsync()
+                    .WaitAsync(cancellationToken);
+            ApplyTimeouts(_page);
+            return;
         }
 
         _browser = await _playwright.Chromium.LaunchAsync(launchOptions)
@@ -261,6 +300,11 @@ public sealed class PlaywrightBrowserAutomation : IBrowserSession
         _context = null;
         _browser = null;
         _playwright = null;
+
+        if (_profileLease is not null)
+        {
+            await _profileLease.DisposeAsync();
+        }
     }
 
     private static ILocator CreateLocator(
