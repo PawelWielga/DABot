@@ -13,11 +13,26 @@ public sealed record ScenarioRunRequest
     public Dictionary<string, string> Variables { get; init; } =
         new(StringComparer.OrdinalIgnoreCase);
 
-    public AutomationRun CreateRun(DateTimeOffset createdAt) =>
-        AutomationRun.Create(
+    public Dictionary<string, ScenarioVariableValue> StructuredVariables { get; init; } =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    public AutomationRun CreateRun(DateTimeOffset createdAt)
+    {
+        var variables = Variables.ToDictionary(
+            pair => pair.Key,
+            pair => ScenarioVariableValue.FromString(pair.Value),
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (name, value) in StructuredVariables)
+        {
+            variables[name] = value;
+        }
+
+        return AutomationRun.CreateStructured(
             ScenarioVersion,
             createdAt,
             RunId,
             Cursor,
-            Variables);
+            variables);
+    }
 }
