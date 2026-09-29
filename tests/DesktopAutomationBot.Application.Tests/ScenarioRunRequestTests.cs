@@ -29,7 +29,7 @@ public sealed class ScenarioRunRequestTests
         run.RunId.Should().Be(runId);
         run.ScenarioVersionId.Should().Be(version.VersionId);
         run.Cursor.Should().BeEquivalentTo(cursor);
-        run.Variables["input"].Should().Be("value");
+        run.Variables["input"].ToInterpolationString().Should().Be("value");
         run.CreatedAt.Should().Be(createdAt);
     }
 
