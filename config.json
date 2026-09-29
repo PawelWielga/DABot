@@ -1,5 +1,11 @@
 {
   "$schema": "./schemas/config.schema.json",
+  "logging": {
+    "file": {
+      "enabled": true,
+      "path": "logs/dabot.jsonl"
+    }
+  },
   "bot": {
     "scenarioPath": "scenarios/sample-open-url.json",
     "browser": {
