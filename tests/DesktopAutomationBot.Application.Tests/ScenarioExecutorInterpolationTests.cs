@@ -144,6 +144,71 @@ public sealed class ScenarioExecutorInterpolationTests : IDisposable
         result.ReportPath.Should().BeNull();
     }
 
+
+    [Fact]
+    public async Task ExecuteAsync_WithNestedIfAndLoop_ExecutesExpectedChildren()
+    {
+        var browser = new RecordingBrowserAutomation();
+        var handler = new CountingScreenshotStepHandler();
+        var executor = new ScenarioExecutor(
+            new BotOptions
+            {
+                Storage = new StorageOptions
+                {
+                    ScreenshotsDirectory = Path.Combine(_tempDirectory, "screenshots"),
+                    ArtifactsDirectory = Path.Combine(_tempDirectory, "artifacts"),
+                },
+            },
+            new ScenarioValidationService(),
+            [handler],
+            browser);
+
+        var result = await executor.ExecuteAsync(
+            new ScenarioDefinition
+            {
+                Name = "control-flow",
+                Steps =
+                [
+                    new ScenarioStep
+                    {
+                        Type = StepType.Loop,
+                        Value = "3",
+                        Children =
+                        [
+                            new ScenarioStep
+                            {
+                                Type = StepType.If,
+                                Value = "true",
+                                Children =
+                                [
+                                    new ScenarioStep
+                                    {
+                                        Type = StepType.Screenshot,
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    new ScenarioStep
+                    {
+                        Type = StepType.If,
+                        Value = "false",
+                        Children =
+                        [
+                            new ScenarioStep
+                            {
+                                Type = StepType.Screenshot,
+                            },
+                        ],
+                    },
+                ],
+            });
+
+        result.Success.Should().BeTrue();
+        handler.ExecutionCount.Should().Be(3);
+        result.Steps.Should().HaveCount(3);
+    }
+
     private sealed class ThrowingOpenUrlStepHandler : IStepHandler
     {
         public StepType StepType => StepType.OpenUrl;
@@ -154,6 +219,30 @@ public sealed class ScenarioExecutorInterpolationTests : IDisposable
             int index,
             CancellationToken cancellationToken) =>
             throw new InvalidOperationException("Expected failure.");
+    }
+
+
+    private sealed class CountingScreenshotStepHandler : IStepHandler
+    {
+        public int ExecutionCount { get; private set; }
+
+        public StepType StepType => StepType.Screenshot;
+
+        public Task<StepExecutionResult> ExecuteAsync(
+            ScenarioStep step,
+            ScenarioExecutionContext context,
+            int index,
+            CancellationToken cancellationToken)
+        {
+            ExecutionCount++;
+            return Task.FromResult(
+                new StepExecutionResult
+                {
+                    Index = index,
+                    Type = step.Type,
+                    Success = true,
+                });
+        }
     }
 
     public void Dispose()
