@@ -13,7 +13,11 @@
     },
     {
       "type": "Click",
-      "selector": "#submit"
+      "locator": {
+        "kind": "Text",
+        "value": "Submit",
+        "exact": true
+      }
     },
     {
       "type": "WaitFor",
