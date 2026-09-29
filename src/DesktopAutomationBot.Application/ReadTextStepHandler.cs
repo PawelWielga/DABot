@@ -8,7 +8,7 @@ public sealed class ReadTextStepHandler : IStepHandler
 
     public async Task<StepExecutionResult> ExecuteAsync(ScenarioStep step, ScenarioExecutionContext context, int index, CancellationToken cancellationToken)
     {
-        var outputValue = await context.BrowserAutomation.ReadTextAsync(step.Selector!, step.TimeoutMs, cancellationToken);
+        var outputValue = await context.BrowserAutomation.ReadTextAsync(ScenarioStepLocator.Resolve(step), step.TimeoutMs, cancellationToken);
         context.Variables.Set(step.Output!, outputValue);
 
         return new StepExecutionResult
