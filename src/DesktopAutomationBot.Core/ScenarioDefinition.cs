@@ -27,6 +27,8 @@ public sealed record ScenarioStep
 
     public string? Selector { get; init; }
 
+    public ScenarioLocator? Locator { get; init; }
+
     public string? Url { get; init; }
 
     public string? Value { get; init; }
