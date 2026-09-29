@@ -1,16 +1,10 @@
 namespace DesktopAutomationBot.Application;
 
-internal sealed class FixedBrowserSessionFactory(
-    IBrowserAutomation automation) : IBrowserSessionFactory
+internal static class BrowserSessionAdapter
 {
-    public ValueTask<IBrowserSession> CreateAsync(
-        CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        return ValueTask.FromResult<IBrowserSession>(
-            automation as IBrowserSession ??
-            new DelegatingBrowserSession(automation));
-    }
+    public static IBrowserSession Wrap(IBrowserAutomation automation) =>
+        automation as IBrowserSession ??
+        new DelegatingBrowserSession(automation);
 
     private sealed class DelegatingBrowserSession(
         IBrowserAutomation inner) : IBrowserSession
@@ -117,5 +111,17 @@ internal sealed class FixedBrowserSessionFactory(
             inner.SaveHtmlSnapshotAsync(filePath, cancellationToken);
 
         public ValueTask DisposeAsync() => inner.DisposeAsync();
+    }
+}
+
+internal sealed class FixedBrowserSessionFactory(
+    IBrowserAutomation automation) : IBrowserSessionFactory
+{
+    public ValueTask<IBrowserSession> CreateAsync(
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return ValueTask.FromResult(
+            BrowserSessionAdapter.Wrap(automation));
     }
 }
