@@ -127,7 +127,7 @@ internal static class DurableExecutionCursorNavigator
 
         var frames = cursor.Frames.ToList();
         var activeFrame = frames[^1];
-        var parent = FindById(scenario.Steps, activeFrame.StepId)
+        var parent = FindRecursive(scenario.Steps, activeFrame.StepId)
             ?? throw new InvalidOperationException(
                 $"Execution cursor container '{activeFrame.StepId}' does not exist.");
 
