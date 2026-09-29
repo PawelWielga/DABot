@@ -19,6 +19,7 @@ public static class ScenarioVariableInterpolator
         return step with
         {
             Selector = ResolveText(step.Selector, variables),
+            Locator = ResolveLocator(step.Locator, variables),
             Url = ResolveText(step.Url, variables),
             Value = ResolveText(step.Value, variables),
             Parameters = ResolveParameters(step.Parameters, variables),
@@ -67,6 +68,21 @@ public static class ScenarioVariableInterpolator
         return match.Success &&
                match.Index == 0 &&
                match.Length == value.Length;
+    }
+
+    private static ScenarioLocator? ResolveLocator(
+        ScenarioLocator? locator,
+        ScenarioVariableBag variables)
+    {
+        if (locator is null)
+        {
+            return null;
+        }
+
+        return locator with
+        {
+            Value = ResolveText(locator.Value, variables) ?? string.Empty,
+        };
     }
 
     private static Dictionary<string, JsonElement>? ResolveParameters(

@@ -73,6 +73,45 @@ The field is optional. Omitting it keeps the default classification for the step
 
 This setting is about recovery after an interrupted/unknown attempt. It does not itself define how many normal retries are allowed; `retryCount` remains a separate concern.
 
+
+## Element locators
+
+Element-oriented steps may use either the legacy `selector` field or the richer `locator` object.
+
+Legacy selector syntax remains fully supported:
+
+```json
+{
+  "type": "Click",
+  "selector": "#submit"
+}
+```
+
+New scenarios may instead choose an explicit locator strategy:
+
+```json
+{
+  "type": "Click",
+  "locator": {
+    "kind": "Text",
+    "value": "Submit",
+    "exact": true
+  }
+}
+```
+
+Supported locator kinds are:
+
+- `Selector` — normal Playwright selector syntax;
+- `Text` — Playwright `GetByText`, with optional `exact`;
+- `TestId` — Playwright `GetByTestId`.
+
+`Click`, `FillText`, `PasteText`, `ReadText`, and selector-mode `WaitFor` use the same locator abstraction. A step must not define both `selector` and `locator`, so targeting is deterministic.
+
+Locator values support normal runtime interpolation such as `"value": "{{buttonText}}"`.
+
+The browser abstraction keeps selector-based overloads for compatibility with existing implementations and tests. Rich locator overloads are the forward-compatible contract used by current step handlers.
+
 ## Variable interpolation
 
 String-valued execution inputs may reference runtime variables with `{{variableName}}`.

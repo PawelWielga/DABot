@@ -1,4 +1,5 @@
 using DesktopAutomationBot.Application;
+using DesktopAutomationBot.Core;
 using Microsoft.Playwright;
 
 namespace DesktopAutomationBot.Infrastructure;
@@ -64,28 +65,70 @@ public sealed class PlaywrightBrowserAutomation : IBrowserAutomation
         }).WaitAsync(cancellationToken);
     }
 
-    public async Task ClickAsync(string selector, int? timeoutMs = null, CancellationToken cancellationToken = default)
+    public Task ClickAsync(
+        string selector,
+        int? timeoutMs = null,
+        CancellationToken cancellationToken = default) =>
+        ClickAsync(
+            ScenarioLocator.FromSelector(selector),
+            timeoutMs,
+            cancellationToken);
+
+    public async Task ClickAsync(
+        ScenarioLocator locator,
+        int? timeoutMs = null,
+        CancellationToken cancellationToken = default)
     {
         var page = await GetPageAsync(cancellationToken);
-        await page.Locator(selector).ClickAsync(new LocatorClickOptions
+        await CreateLocator(page, locator).ClickAsync(new LocatorClickOptions
         {
             Timeout = GetTimeout(timeoutMs),
         }).WaitAsync(cancellationToken);
     }
 
-    public async Task FillTextAsync(string selector, string value, int? timeoutMs = null, CancellationToken cancellationToken = default)
+    public Task FillTextAsync(
+        string selector,
+        string value,
+        int? timeoutMs = null,
+        CancellationToken cancellationToken = default) =>
+        FillTextAsync(
+            ScenarioLocator.FromSelector(selector),
+            value,
+            timeoutMs,
+            cancellationToken);
+
+    public async Task FillTextAsync(
+        ScenarioLocator locator,
+        string value,
+        int? timeoutMs = null,
+        CancellationToken cancellationToken = default)
     {
         var page = await GetPageAsync(cancellationToken);
-        await page.Locator(selector).FillAsync(value, new LocatorFillOptions
+        await CreateLocator(page, locator).FillAsync(value, new LocatorFillOptions
         {
             Timeout = GetTimeout(timeoutMs),
         }).WaitAsync(cancellationToken);
     }
 
-    public async Task PasteTextAsync(string selector, string value, int? timeoutMs = null, CancellationToken cancellationToken = default)
+    public Task PasteTextAsync(
+        string selector,
+        string value,
+        int? timeoutMs = null,
+        CancellationToken cancellationToken = default) =>
+        PasteTextAsync(
+            ScenarioLocator.FromSelector(selector),
+            value,
+            timeoutMs,
+            cancellationToken);
+
+    public async Task PasteTextAsync(
+        ScenarioLocator locatorDefinition,
+        string value,
+        int? timeoutMs = null,
+        CancellationToken cancellationToken = default)
     {
         var page = await GetPageAsync(cancellationToken);
-        var locator = page.Locator(selector);
+        var locator = CreateLocator(page, locatorDefinition);
         await locator.ClickAsync(new LocatorClickOptions
         {
             Timeout = GetTimeout(timeoutMs),
@@ -96,23 +139,49 @@ public sealed class PlaywrightBrowserAutomation : IBrowserAutomation
             .WaitAsync(cancellationToken);
     }
 
-    public async Task<string> ReadTextAsync(string selector, int? timeoutMs = null, CancellationToken cancellationToken = default)
+    public Task<string> ReadTextAsync(
+        string selector,
+        int? timeoutMs = null,
+        CancellationToken cancellationToken = default) =>
+        ReadTextAsync(
+            ScenarioLocator.FromSelector(selector),
+            timeoutMs,
+            cancellationToken);
+
+    public async Task<string> ReadTextAsync(
+        ScenarioLocator locator,
+        int? timeoutMs = null,
+        CancellationToken cancellationToken = default)
     {
         var page = await GetPageAsync(cancellationToken);
-        return await page.Locator(selector).InnerTextAsync(new LocatorInnerTextOptions
-        {
-            Timeout = GetTimeout(timeoutMs),
-        }).WaitAsync(cancellationToken);
+        return await CreateLocator(page, locator).InnerTextAsync(
+            new LocatorInnerTextOptions
+            {
+                Timeout = GetTimeout(timeoutMs),
+            }).WaitAsync(cancellationToken);
     }
 
-    public async Task WaitForSelectorAsync(string selector, int? timeoutMs = null, CancellationToken cancellationToken = default)
+    public Task WaitForSelectorAsync(
+        string selector,
+        int? timeoutMs = null,
+        CancellationToken cancellationToken = default) =>
+        WaitForLocatorAsync(
+            ScenarioLocator.FromSelector(selector),
+            timeoutMs,
+            cancellationToken);
+
+    public async Task WaitForLocatorAsync(
+        ScenarioLocator locator,
+        int? timeoutMs = null,
+        CancellationToken cancellationToken = default)
     {
         var page = await GetPageAsync(cancellationToken);
-        await page.Locator(selector).WaitForAsync(new LocatorWaitForOptions
-        {
-            State = WaitForSelectorState.Visible,
-            Timeout = GetTimeout(timeoutMs),
-        }).WaitAsync(cancellationToken);
+        await CreateLocator(page, locator).WaitForAsync(
+            new LocatorWaitForOptions
+            {
+                State = WaitForSelectorState.Visible,
+                Timeout = GetTimeout(timeoutMs),
+            }).WaitAsync(cancellationToken);
     }
 
     public async Task WaitForTextAsync(string text, int? timeoutMs = null, CancellationToken cancellationToken = default)
@@ -192,6 +261,33 @@ public sealed class PlaywrightBrowserAutomation : IBrowserAutomation
         _context = null;
         _browser = null;
         _playwright = null;
+    }
+
+    private static ILocator CreateLocator(
+        IPage page,
+        ScenarioLocator locator)
+    {
+        ArgumentNullException.ThrowIfNull(locator);
+        ArgumentException.ThrowIfNullOrWhiteSpace(locator.Value);
+
+        return locator.Kind switch
+        {
+            ScenarioLocatorKind.Selector =>
+                page.Locator(locator.Value),
+            ScenarioLocatorKind.Text =>
+                page.GetByText(
+                    locator.Value,
+                    new PageGetByTextOptions
+                    {
+                        Exact = locator.Exact,
+                    }),
+            ScenarioLocatorKind.TestId =>
+                page.GetByTestId(locator.Value),
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(locator),
+                locator.Kind,
+                "Unsupported locator kind."),
+        };
     }
 
     private async Task<IPage> GetPageAsync(

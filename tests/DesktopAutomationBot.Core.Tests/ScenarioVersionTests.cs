@@ -100,6 +100,54 @@ public sealed class ScenarioVersionTests
         version.DefinitionJson.Should().NotContain("retryDelayMs");
     }
 
+
+    [Fact]
+    public void Capture_WhenLocatorIsOmitted_DoesNotChangeLegacyCanonicalShape()
+    {
+        var version = ScenarioVersion.Capture(
+            Guid.NewGuid(),
+            1,
+            CreateScenario(),
+            DateTimeOffset.UtcNow);
+
+        version.DefinitionJson.Should().NotContain("locator");
+    }
+
+    [Fact]
+    public void Capture_WhenLocatorIsConfigured_PersistsItInCanonicalDefinition()
+    {
+        var scenario = new ScenarioDefinition
+        {
+            Name = "Locator scenario",
+            Steps =
+            [
+                new ScenarioStep
+                {
+                    Type = StepType.Click,
+                    Locator = new ScenarioLocator
+                    {
+                        Kind = ScenarioLocatorKind.Text,
+                        Value = "Submit",
+                        Exact = true,
+                    },
+                },
+            ],
+        };
+
+        var version = ScenarioVersion.Capture(
+            Guid.NewGuid(),
+            1,
+            scenario,
+            DateTimeOffset.UtcNow);
+
+        version.DefinitionJson.Should().Contain("locator");
+        var locator = version.MaterializeDefinition().Steps[0].Locator;
+        locator.Should().NotBeNull();
+        locator!.Kind.Should().Be(ScenarioLocatorKind.Text);
+        locator.Value.Should().Be("Submit");
+        locator.Exact.Should().BeTrue();
+    }
+
     [Fact]
     public void Capture_WhenRetryDelayIsConfigured_PersistsItInCanonicalDefinition()
     {

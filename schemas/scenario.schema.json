@@ -92,7 +92,7 @@
         "selector": {
           "type": "string",
           "minLength": 1,
-          "description": "Playwright selector used by element-oriented steps. Supports {{variableName}} interpolation."
+          "description": "Legacy Playwright selector for element-oriented steps. Preserved for compatibility; new scenarios may use locator instead. Supports {{variableName}} interpolation."
         },
         "url": {
           "type": "string",
@@ -157,6 +157,35 @@
           "items": {
             "$ref": "#/$defs/step"
           }
+        },
+        "locator": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "value"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "Selector",
+                "Text",
+                "TestId"
+              ],
+              "default": "Selector",
+              "description": "Locator strategy. Selector uses Playwright selector syntax; Text uses getByText; TestId uses getByTestId."
+            },
+            "value": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Locator value. Supports {{variableName}} interpolation."
+            },
+            "exact": {
+              "type": "boolean",
+              "default": false,
+              "description": "For Text locators, require an exact text match."
+            }
+          }
         }
       },
       "allOf": [
@@ -197,8 +226,17 @@
             ]
           },
           "then": {
-            "required": [
-              "selector"
+            "anyOf": [
+              {
+                "required": [
+                  "selector"
+                ]
+              },
+              {
+                "required": [
+                  "locator"
+                ]
+              }
             ]
           }
         },
@@ -235,6 +273,11 @@
               {
                 "required": [
                   "selector"
+                ]
+              },
+              {
+                "required": [
+                  "locator"
                 ]
               },
               {
@@ -382,6 +425,11 @@
               },
               {
                 "required": [
+                  "locator"
+                ]
+              },
+              {
+                "required": [
                   "url"
                 ]
               }
@@ -483,6 +531,15 @@
               }
             }
           }
+        },
+        {
+          "not": {
+            "required": [
+              "selector",
+              "locator"
+            ]
+          },
+          "description": "A step must not define both legacy selector and locator."
         }
       ]
     }

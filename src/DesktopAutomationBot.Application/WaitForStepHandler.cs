@@ -13,7 +13,8 @@ public sealed class WaitForStepHandler : IStepHandler
 
         if (string.IsNullOrWhiteSpace(mode))
         {
-            if (!string.IsNullOrWhiteSpace(step.Selector))
+            if (step.Locator is not null ||
+                !string.IsNullOrWhiteSpace(step.Selector))
             {
                 mode = "selector";
             }
@@ -26,7 +27,10 @@ public sealed class WaitForStepHandler : IStepHandler
         switch (mode)
         {
             case "selector":
-                await context.BrowserAutomation.WaitForSelectorAsync(step.Selector!, step.TimeoutMs, cancellationToken);
+                await context.BrowserAutomation.WaitForLocatorAsync(
+                    ScenarioStepLocator.Resolve(step),
+                    step.TimeoutMs,
+                    cancellationToken);
                 break;
             case "url":
                 await context.BrowserAutomation.WaitForUrlAsync(step.Value ?? step.Url ?? string.Empty, step.TimeoutMs, cancellationToken);
@@ -38,9 +42,13 @@ public sealed class WaitForStepHandler : IStepHandler
                 await context.BrowserAutomation.WaitForTextAsync(step.Value!, step.TimeoutMs, cancellationToken);
                 break;
             default:
-                if (!string.IsNullOrWhiteSpace(step.Selector))
+                if (step.Locator is not null ||
+                    !string.IsNullOrWhiteSpace(step.Selector))
                 {
-                    await context.BrowserAutomation.WaitForSelectorAsync(step.Selector, step.TimeoutMs, cancellationToken);
+                    await context.BrowserAutomation.WaitForLocatorAsync(
+                        ScenarioStepLocator.Resolve(step),
+                        step.TimeoutMs,
+                        cancellationToken);
                     break;
                 }
 

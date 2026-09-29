@@ -8,7 +8,7 @@ public sealed class ClickStepHandler : IStepHandler
 
     public async Task<StepExecutionResult> ExecuteAsync(ScenarioStep step, ScenarioExecutionContext context, int index, CancellationToken cancellationToken)
     {
-        await context.BrowserAutomation.ClickAsync(step.Selector!, step.TimeoutMs, cancellationToken);
+        await context.BrowserAutomation.ClickAsync(ScenarioStepLocator.Resolve(step), step.TimeoutMs, cancellationToken);
 
         return new StepExecutionResult
         {
