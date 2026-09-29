@@ -49,17 +49,29 @@ public sealed record ScenarioStep
 
 public sealed class ScenarioVariableBag
 {
-    private readonly Dictionary<string, string> _values = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, ScenarioVariableValue> _values =
+        new(StringComparer.OrdinalIgnoreCase);
 
-    public IReadOnlyDictionary<string, string> Values => _values;
+    public IReadOnlyDictionary<string, ScenarioVariableValue> Values => _values;
 
     public void Set(string name, string value)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(value);
+        _values[name] = ScenarioVariableValue.FromString(value);
+    }
+
+    public void Set(string name, ScenarioVariableValue value)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(value);
         _values[name] = value;
     }
 
-    public bool TryGetValue(string name, out string value) => _values.TryGetValue(name, out value!);
+    public bool TryGetValue(
+        string name,
+        out ScenarioVariableValue value) =>
+        _values.TryGetValue(name, out value!);
 }
 
 public sealed record StepExecutionResult
