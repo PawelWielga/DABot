@@ -95,6 +95,8 @@ public sealed class ScenarioExecutorInterpolationTests : IDisposable
         result.ErrorMessage.Should().Be("Expected failure.");
         result.RunId.Should().NotBeNullOrWhiteSpace();
         result.FailureScreenshotPath.Should().Be(browser.ScreenshotPath);
+        result.FailureHtmlPath.Should().Be(browser.HtmlPath);
+        File.Exists(result.FailureHtmlPath).Should().BeTrue();
         File.Exists(result.ReportPath).Should().BeTrue();
 
         var report = await File.ReadAllTextAsync(result.ReportPath!);
@@ -156,6 +158,8 @@ public sealed class ScenarioExecutorInterpolationTests : IDisposable
         public string? NavigatedUrl { get; private set; }
 
         public string? ScreenshotPath { get; private set; }
+
+        public string? HtmlPath { get; private set; }
 
         public Task OpenAsync(CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
@@ -226,6 +230,16 @@ public sealed class ScenarioExecutorInterpolationTests : IDisposable
             ScreenshotPath = filePath;
             Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
             File.WriteAllText(filePath, "fake screenshot");
+            return Task.FromResult(filePath);
+        }
+
+        public Task<string> SaveHtmlSnapshotAsync(
+            string filePath,
+            CancellationToken cancellationToken = default)
+        {
+            HtmlPath = filePath;
+            Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
+            File.WriteAllText(filePath, "<html><body>failure</body></html>");
             return Task.FromResult(filePath);
         }
 

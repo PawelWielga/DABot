@@ -62,7 +62,7 @@ Status legend:
 - [ ] Add file logging.
 - [~] Add per-run log correlation. Run reports and diagnostic artifacts carry the same `RunId`; structured/file logging still needs the same scope.
 - [x] Capture screenshot on failure.
-- [ ] Capture HTML snapshot on failure.
+- [x] Capture HTML snapshot on failure.
 - [x] Write machine-readable run/error report.
 - [ ] Mask configured sensitive values.
 
