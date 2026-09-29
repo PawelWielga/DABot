@@ -22,7 +22,8 @@
       "scenariosDirectory": "scenarios",
       "screenshotsDirectory": "screenshots",
       "artifactsDirectory": "artifacts",
-      "databasePath": "data/dabot.db"
+      "databasePath": "data/dabot.db",
+      "browserProfilesDirectory": "data/browser-profiles"
     },
     "retryWorker": {
       "pollIntervalMs": 1000,
