@@ -111,6 +111,41 @@ public sealed class ScenarioDefinitionValidatorTests
             $"scenario.schemaVersion '{ScenarioSchema.CurrentVersion + 1}' is not supported. Supported version is {ScenarioSchema.CurrentVersion}.");
     }
 
+
+    [Theory]
+    [InlineData(StepType.If, "not-bool", "scenario.steps[0].value must be 'true', 'false', or a variable reference for If.")]
+    [InlineData(StepType.Loop, "-1", "scenario.steps[0].value must be a non-negative integer or a variable reference for Loop.")]
+    public void Validate_WhenControlFlowValueIsInvalid_ReturnsValidationError(
+        StepType type,
+        string value,
+        string expectedError)
+    {
+        var validator = new ScenarioDefinitionValidator();
+
+        var result = validator.Validate(new ScenarioDefinition
+        {
+            Name = "Invalid control flow",
+            Steps =
+            [
+                new ScenarioStep
+                {
+                    Type = type,
+                    Value = value,
+                    Children =
+                    [
+                        new ScenarioStep
+                        {
+                            Type = StepType.Screenshot,
+                        },
+                    ],
+                },
+            ],
+        });
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(expectedError);
+    }
+
     [Fact]
     public void Validate_WhenNestedStepIdsAreDuplicated_ReturnsValidationError()
     {
