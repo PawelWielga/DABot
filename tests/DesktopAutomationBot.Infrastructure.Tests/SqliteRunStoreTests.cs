@@ -51,7 +51,7 @@ public sealed class SqliteRunStoreTests : IDisposable
         loaded.Run.State.Status.Should().Be(RunStatus.Waiting);
         loaded.Run.State.WaitReason.Should().Be(RunWaitReason.Event);
         loaded.Run.Cursor.Should().BeEquivalentTo(cursor);
-        loaded.Run.Variables["correlation"].Should().Be("abc-123");
+        loaded.Run.Variables["correlation"].ToInterpolationString().Should().Be("abc-123");
         loaded.Run.CreatedAt.Should().Be(createdAt);
         loaded.Run.UpdatedAt.Should().Be(updatedAt);
 
@@ -69,7 +69,7 @@ public sealed class SqliteRunStoreTests : IDisposable
         var retryNotBefore = updatedAt.AddSeconds(45);
         var queued = AutomationRun.Create(version, createdAt);
 
-        var waiting = AutomationRun.Restore(
+        var waiting = AutomationRun.RestoreStructured(
             queued.RunId,
             version,
             RunState.Restore(RunStatus.Waiting, RunWaitReason.Retry),
@@ -131,7 +131,7 @@ public sealed class SqliteRunStoreTests : IDisposable
 
         loaded.Should().NotBeNull();
         loaded!.Run.State.Status.Should().Be(RunStatus.Running);
-        loaded.Run.Variables["state"].Should().Be("running");
+        loaded.Run.Variables["state"].ToInterpolationString().Should().Be("running");
         loaded.Run.CreatedAt.Should().Be(createdAt);
         loaded.Run.UpdatedAt.Should().Be(createdAt.AddMinutes(1));
     }
