@@ -9,8 +9,22 @@ public sealed class ScenarioExecutor : IScenarioExecutor
     private readonly BotOptions _options;
     private readonly IScenarioValidationService _validationService;
     private readonly IReadOnlyDictionary<StepType, IStepHandler> _handlers;
-    private readonly IBrowserAutomation _browserAutomation;
+    private readonly IBrowserSessionFactory _browserSessionFactory;
     private readonly ILogger<ScenarioExecutor> _logger;
+
+    public ScenarioExecutor(
+        BotOptions options,
+        IScenarioValidationService validationService,
+        IEnumerable<IStepHandler> handlers,
+        IBrowserSessionFactory browserSessionFactory,
+        ILogger<ScenarioExecutor>? logger = null)
+    {
+        _options = options;
+        _validationService = validationService;
+        _browserSessionFactory = browserSessionFactory;
+        _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<ScenarioExecutor>.Instance;
+        _handlers = handlers.ToDictionary(handler => handler.StepType);
+    }
 
     public ScenarioExecutor(
         BotOptions options,
@@ -18,12 +32,13 @@ public sealed class ScenarioExecutor : IScenarioExecutor
         IEnumerable<IStepHandler> handlers,
         IBrowserAutomation browserAutomation,
         ILogger<ScenarioExecutor>? logger = null)
+        : this(
+            options,
+            validationService,
+            handlers,
+            new FixedBrowserSessionFactory(browserAutomation),
+            logger)
     {
-        _options = options;
-        _validationService = validationService;
-        _browserAutomation = browserAutomation;
-        _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<ScenarioExecutor>.Instance;
-        _handlers = handlers.ToDictionary(handler => handler.StepType);
     }
 
     public async Task<ScenarioExecutionResult> ExecuteAsync(ScenarioDefinition scenario, CancellationToken cancellationToken = default)
@@ -35,7 +50,12 @@ public sealed class ScenarioExecutor : IScenarioExecutor
             scenario,
             _handlers.Keys);
 
-        var context = new ScenarioExecutionContext(scenario, _browserAutomation, _options);
+        var browserSession = await _browserSessionFactory.CreateAsync(
+            cancellationToken);
+        var context = new ScenarioExecutionContext(
+            scenario,
+            browserSession,
+            _options);
         Directory.CreateDirectory(context.ScreenshotDirectory);
         Directory.CreateDirectory(context.ArtifactDirectory);
 
@@ -71,7 +91,7 @@ public sealed class ScenarioExecutor : IScenarioExecutor
         try
         {
             executionToken.ThrowIfCancellationRequested();
-            await _browserAutomation.OpenAsync(executionToken);
+            await browserSession.OpenAsync(executionToken);
 
             await ExecuteStepsAsync(
                 scenario.Steps,
@@ -120,7 +140,7 @@ public sealed class ScenarioExecutor : IScenarioExecutor
                     context.ArtifactDirectory,
                     "failure.html");
                 result.FailureHtmlPath =
-                    await _browserAutomation.SaveHtmlSnapshotAsync(
+                    await browserSession.SaveHtmlSnapshotAsync(
                         htmlPath,
                         CancellationToken.None);
             }
@@ -135,7 +155,7 @@ public sealed class ScenarioExecutor : IScenarioExecutor
                     context.ArtifactDirectory,
                     "failure.png");
                 result.FailureScreenshotPath =
-                    await _browserAutomation.TakeScreenshotAsync(
+                    await browserSession.TakeScreenshotAsync(
                         screenshotPath,
                         CancellationToken.None);
             }
@@ -168,7 +188,7 @@ public sealed class ScenarioExecutor : IScenarioExecutor
                 // Diagnostics must never hide the execution outcome.
             }
 
-            await _browserAutomation.DisposeAsync();
+            await browserSession.DisposeAsync();
         }
     }
 
