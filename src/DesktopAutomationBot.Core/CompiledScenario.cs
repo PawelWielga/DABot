@@ -35,6 +35,8 @@ public sealed record CompiledActionStep : CompiledStep
 {
     public string? Selector { get; init; }
 
+    public ScenarioLocator? Locator { get; init; }
+
     public string? Url { get; init; }
 
     public string? Value { get; init; }
@@ -144,6 +146,7 @@ public static class ScenarioCompiler
                 RetrySafety = common.RetrySafety,
                 Parameters = common.Parameters,
                 Selector = step.Selector,
+                Locator = step.Locator,
                 Url = step.Url,
                 Value = step.Value,
                 Output = step.Output,
@@ -182,6 +185,7 @@ public static class ScenarioCompiler
             CompiledActionStep action => common with
             {
                 Selector = action.Selector,
+                Locator = action.Locator,
                 Url = action.Url,
                 Value = action.Value,
                 Output = action.Output,
