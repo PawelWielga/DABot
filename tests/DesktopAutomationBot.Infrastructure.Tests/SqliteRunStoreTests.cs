@@ -58,6 +58,43 @@ public sealed class SqliteRunStoreTests : IDisposable
         File.Exists(databasePath).Should().BeTrue();
     }
 
+
+    [Fact]
+    public async Task SaveAndLoad_PreservesStructuredVariableJsonTypes()
+    {
+        var databasePath = Path.Combine(
+            _tempDirectory,
+            "structured-variables.db");
+        var options = CreateOptions(databasePath);
+        var version = CreateScenarioVersion();
+        var run = AutomationRun.CreateStructured(
+            version,
+            DateTimeOffset.UtcNow,
+            variables: new Dictionary<string, ScenarioVariableValue>
+            {
+                ["enabled"] = ScenarioVariableValue.FromBoolean(true),
+                ["count"] = ScenarioVariableValue.FromNumber(12),
+                ["payload"] = ScenarioVariableValue.ParseJson(
+                    """{"items":[1,2],"name":"stored"}"""),
+            });
+
+        var store = new SqliteRunStore(options);
+        await store.SaveAsync(run, version);
+
+        var loaded = await new SqliteRunStore(options)
+            .LoadAsync(run.RunId);
+
+        loaded.Should().NotBeNull();
+        loaded!.Run.Variables["enabled"].Kind
+            .Should().Be(JsonValueKind.True);
+        loaded.Run.Variables["count"].ToJsonElement()
+            .GetInt32().Should().Be(12);
+        loaded.Run.Variables["payload"].ToJsonElement()
+            .GetProperty("items")
+            .GetArrayLength()
+            .Should().Be(2);
+    }
+
     [Fact]
     public async Task SaveAndLoad_RetryWait_PreservesRetryNotBefore()
     {
