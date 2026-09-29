@@ -86,6 +86,9 @@ public sealed record StepExecutionResult
 
     public string? OutputValue { get; init; }
 
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ScenarioVariableValue? OutputVariableValue { get; init; }
+
     public string? ArtifactPath { get; init; }
 
     public string? ErrorMessage { get; init; }
