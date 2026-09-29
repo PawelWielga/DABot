@@ -100,7 +100,7 @@ Goal: define deterministic execution and recovery semantics before durable persi
 - [x] Persist scenario definition hash per version.
 - [x] Define migration policy for future scenario schema versions.
 - [x] Introduce typed internal step definitions or an equivalent compiled execution model. `ScenarioCompiler` produces immutable typed action/If/Loop nodes from normalized validated scenario JSON.
-- [~] Add a scenario compilation/normalization stage before execution. Normalization/validation and the typed compiler are implemented; executors still consume the compatibility `ScenarioDefinition` model while migration proceeds.
+- [x] Add a scenario compilation/normalization stage before execution. Both synchronous and durable execution enter through `ScenarioCompiler`; handlers still receive materialized compatibility steps behind that boundary.
 - [ ] Add a richer locator abstraction while preserving selector compatibility.
 
 ### Execution state
