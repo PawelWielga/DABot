@@ -7,10 +7,12 @@ internal sealed class JsonFileLoggerProvider : ILoggerProvider, ISupportExternal
 {
     private readonly StreamWriter _writer;
     private readonly object _sync = new();
+    private readonly SensitiveValueMasker _masker;
     private IExternalScopeProvider _scopeProvider = new LoggerExternalScopeProvider();
 
-    public JsonFileLoggerProvider(string path)
+    public JsonFileLoggerProvider(string path, SensitiveValueMasker masker)
     {
+        _masker = masker;
         var fullPath = Path.GetFullPath(path);
         Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
         _writer = new StreamWriter(
@@ -21,7 +23,7 @@ internal sealed class JsonFileLoggerProvider : ILoggerProvider, ISupportExternal
     }
 
     public ILogger CreateLogger(string categoryName) =>
-        new JsonFileLogger(categoryName, _writer, _sync, () => _scopeProvider);
+        new JsonFileLogger(categoryName, _writer, _sync, () => _scopeProvider, _masker);
 
     public void SetScopeProvider(IExternalScopeProvider scopeProvider) =>
         _scopeProvider = scopeProvider;
@@ -32,7 +34,8 @@ internal sealed class JsonFileLoggerProvider : ILoggerProvider, ISupportExternal
         string categoryName,
         StreamWriter writer,
         object sync,
-        Func<IExternalScopeProvider> scopeProvider) : ILogger
+        Func<IExternalScopeProvider> scopeProvider,
+        SensitiveValueMasker masker) : ILogger
     {
         public IDisposable? BeginScope<TState>(TState state)
             where TState : notnull => scopeProvider().Push(state);
@@ -52,10 +55,10 @@ internal sealed class JsonFileLoggerProvider : ILoggerProvider, ISupportExternal
             }
 
             var properties = new Dictionary<string, object?>();
-            AddProperties(properties, state);
+            AddProperties(properties, state, masker);
             scopeProvider().ForEachScope(
-                static (scope, target) => AddProperties(target, scope),
-                properties);
+                static (scope, target) => AddProperties(target.Properties, scope, target.Masker),
+                (Properties: properties, Masker: masker));
 
             var entry = new
             {
@@ -63,8 +66,8 @@ internal sealed class JsonFileLoggerProvider : ILoggerProvider, ISupportExternal
                 level = logLevel.ToString(),
                 category = categoryName,
                 eventId = eventId.Id,
-                message = formatter(state, exception),
-                exception = exception?.ToString(),
+                message = masker.MaskText(formatter(state, exception)),
+                exception = masker.MaskText(exception?.ToString()),
                 properties,
             };
 
@@ -77,7 +80,8 @@ internal sealed class JsonFileLoggerProvider : ILoggerProvider, ISupportExternal
 
         private static void AddProperties<TState>(
             IDictionary<string, object?> target,
-            TState state)
+            TState state,
+            SensitiveValueMasker masker)
         {
             if (state is not IEnumerable<KeyValuePair<string, object?>> values)
             {
@@ -88,7 +92,7 @@ internal sealed class JsonFileLoggerProvider : ILoggerProvider, ISupportExternal
             {
                 if (pair.Key != "{OriginalFormat}")
                 {
-                    target[pair.Key] = pair.Value;
+                    target[pair.Key] = masker.MaskValue(pair.Value);
                 }
             }
         }
