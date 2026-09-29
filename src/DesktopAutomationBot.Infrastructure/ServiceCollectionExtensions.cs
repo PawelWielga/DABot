@@ -17,7 +17,7 @@ public static class ServiceCollectionExtensions
             static provider => provider.GetRequiredService<SqliteRunStore>());
         services.AddSingleton<IHttpAutomationClient, HttpAutomationClient>();
         services.AddSingleton<ISecretProvider, EnvironmentSecretProvider>();
-        services.AddSingleton<IBrowserAutomation, PlaywrightBrowserAutomation>();
+        services.AddSingleton<IBrowserSessionFactory, PlaywrightBrowserSessionFactory>();
         return services;
     }
 }
