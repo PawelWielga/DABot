@@ -402,6 +402,7 @@ public sealed class DurableScenarioExecutorTests : IDisposable
                 ScenarioVersion = version,
             });
 
+        result.ErrorMessage.Should().BeNull();
         result.Outcome.Should().Be(DurableExecutionOutcome.Completed);
         result.Run.Cursor.IsCompleted.Should().BeTrue();
         result.Steps.Should().HaveCount(2);
