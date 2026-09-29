@@ -32,6 +32,10 @@ try
         .AddJsonFile("config.local.json", optional: true, reloadOnChange: false)
         .Build();
 
+    var fileLogging = configuration
+        .GetSection("logging:file")
+        .Get<FileLoggingOptions>() ?? new FileLoggingOptions();
+
     var services = new ServiceCollection();
     services.AddSingleton<IConfiguration>(configuration);
     services.AddLogging(builder =>
@@ -42,6 +46,11 @@ try
             options.TimestampFormat = "yyyy-MM-dd HH:mm:ss ";
             options.IncludeScopes = true;
         });
+
+        if (fileLogging.Enabled)
+        {
+            builder.AddProvider(new JsonFileLoggerProvider(fileLogging.Path));
+        }
     });
     services.Configure<BotOptions>(configuration.GetSection("bot"));
     services.AddSingleton(sp => sp.GetRequiredService<IOptions<BotOptions>>().Value);
