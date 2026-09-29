@@ -4,6 +4,8 @@ public sealed record BrowserSessionRequest
 {
     public string? ProfileName { get; init; }
 
+    public bool? Headless { get; init; }
+
     public bool IsPersistent => !string.IsNullOrWhiteSpace(ProfileName);
 }
 
