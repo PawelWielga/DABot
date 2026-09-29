@@ -76,7 +76,7 @@ Status legend:
 - [~] Use `RetryCount` from the scenario model. Durable execution and recovery enforce it as the number of additional attempts; legacy synchronous execution remains.
 - [x] Validate that every declared step type has a registered handler.
 - [x] Add cancellation support through the full execution stack. Cancellation propagates through runner, scenario executors, step handlers, and Playwright operations; one-shot Ctrl+C exits with code 130.
-- [ ] Add scenario-level timeout where appropriate.
+- [x] Add scenario-level timeout. Optional `scenario.timeoutMs` cancels the execution token and records a timeout failure when the whole run exceeds its configured duration.
 
 ### Runtime
 
