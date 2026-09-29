@@ -6,6 +6,7 @@ using DesktopAutomationBot.Runner;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 
 if (!RunnerCommandLine.TryParse(
         args,
@@ -33,6 +34,15 @@ try
 
     var services = new ServiceCollection();
     services.AddSingleton<IConfiguration>(configuration);
+    services.AddLogging(builder =>
+    {
+        builder.AddSimpleConsole(options =>
+        {
+            options.SingleLine = true;
+            options.TimestampFormat = "yyyy-MM-dd HH:mm:ss ";
+            options.IncludeScopes = true;
+        });
+    });
     services.Configure<BotOptions>(configuration.GetSection("bot"));
     services.AddSingleton(sp => sp.GetRequiredService<IOptions<BotOptions>>().Value);
     services.AddApplication();
