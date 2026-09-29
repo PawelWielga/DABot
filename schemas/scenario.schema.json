@@ -81,11 +81,11 @@
             },
             {
               "const": "If",
-              "description": "Planned: domain value exists, executable handler is not implemented yet."
+              "description": "Available: execute children when value resolves to true. Value accepts true/false or an exact variable reference."
             },
             {
               "const": "Loop",
-              "description": "Planned: domain value exists, executable handler is not implemented yet."
+              "description": "Available: execute children a fixed number of times. Value accepts a non-negative integer or an exact variable reference."
             }
           ]
         },
@@ -101,7 +101,7 @@
         },
         "value": {
           "type": "string",
-          "description": "Text/value consumed by a step. Supports {{variableName}} interpolation; Delay accepts a non-negative integer number of milliseconds or a variable reference resolving to one."
+          "description": "Text/value consumed by a step. Supports {{variableName}} interpolation; Delay accepts milliseconds, If accepts true/false, and Loop accepts a non-negative iteration count."
         },
         "output": {
           "type": "string",
@@ -143,7 +143,7 @@
         },
         "children": {
           "type": "array",
-          "description": "Nested steps reserved for control-flow steps such as If and Loop.",
+          "description": "Nested steps executed by If and Loop control-flow steps.",
           "items": {
             "$ref": "#/$defs/step"
           }
