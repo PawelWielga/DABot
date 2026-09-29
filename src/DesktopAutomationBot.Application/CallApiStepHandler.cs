@@ -3,8 +3,23 @@ using DesktopAutomationBot.Core;
 
 namespace DesktopAutomationBot.Application;
 
-public sealed class CallApiStepHandler(IHttpAutomationClient httpClient) : IStepHandler
+public sealed class CallApiStepHandler : IStepHandler
 {
+    private readonly IHttpAutomationClient _httpClient;
+    private readonly ISecretProvider _secretProvider;
+
+    public CallApiStepHandler(
+        IHttpAutomationClient httpClient,
+        ISecretProvider secretProvider)
+    {
+        _httpClient = httpClient;
+        _secretProvider = secretProvider;
+    }
+
+    public CallApiStepHandler(IHttpAutomationClient httpClient)
+        : this(httpClient, new EnvironmentFallbackSecretProvider())
+    {
+    }
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
 
     public StepType StepType => StepType.CallApi;
@@ -28,10 +43,12 @@ public sealed class CallApiStepHandler(IHttpAutomationClient httpClient) : IStep
         };
 
         var url = step.Url ?? throw new InvalidOperationException("CallApi requires url.");
-        var bearerToken = ResolveBearerToken(step);
+        var bearerToken = await ResolveBearerTokenAsync(
+            step,
+            cancellationToken);
         var timeout = TimeSpan.FromMilliseconds(step.TimeoutMs ?? (int)DefaultTimeout.TotalMilliseconds);
 
-        var response = await httpClient.SendAsync(
+        var response = await _httpClient.SendAsync(
             new HttpAutomationRequest(httpMethod, url, step.Value, bearerToken, timeout),
             cancellationToken);
 
@@ -58,17 +75,24 @@ public sealed class CallApiStepHandler(IHttpAutomationClient httpClient) : IStep
         };
     }
 
-    private static string? ResolveBearerToken(ScenarioStep step)
+    private async ValueTask<string?> ResolveBearerTokenAsync(
+        ScenarioStep step,
+        CancellationToken cancellationToken)
     {
-        var environmentVariable = GetString(step, "bearerTokenEnv");
-        if (string.IsNullOrWhiteSpace(environmentVariable))
+        var secretName = GetString(step, "bearerTokenSecret");
+        var legacyEnvironmentName = GetString(step, "bearerTokenEnv");
+        var resolvedName = secretName ?? legacyEnvironmentName;
+
+        if (string.IsNullOrWhiteSpace(resolvedName))
         {
             return null;
         }
 
-        return Environment.GetEnvironmentVariable(environmentVariable)
+        return await _secretProvider.GetSecretAsync(
+            resolvedName,
+            cancellationToken)
             ?? throw new InvalidOperationException(
-                $"Environment variable '{environmentVariable}' configured by bearerTokenEnv is not set.");
+                $"Secret '{resolvedName}' configured for CallApi bearer authentication is not available.");
     }
 
     private static string? GetString(ScenarioStep step, string name)
@@ -81,6 +105,18 @@ public sealed class CallApiStepHandler(IHttpAutomationClient httpClient) : IStep
         }
 
         return value.GetString();
+    }
+
+    private sealed class EnvironmentFallbackSecretProvider : ISecretProvider
+    {
+        public ValueTask<string?> GetSecretAsync(
+            string name,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return ValueTask.FromResult(
+                Environment.GetEnvironmentVariable(name));
+        }
     }
 
     private static ScenarioVariableValue ExtractOutput(
