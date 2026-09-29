@@ -506,7 +506,7 @@ public sealed class DurableRunRecoveryService : IDurableRunRecoveryService
         ExecutionCursor cursor,
         DateTimeOffset updatedAt,
         DateTimeOffset? retryNotBefore = null) =>
-        AutomationRun.Restore(
+        AutomationRun.RestoreStructured(
             run.RunId,
             scenarioVersion,
             state,
