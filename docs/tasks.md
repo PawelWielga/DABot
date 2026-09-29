@@ -167,17 +167,17 @@ Acceptance criteria:
 
 Goal: remove the assumption that browser automation is one global singleton and prepare safe persistent sessions.
 
-- [ ] Introduce `IBrowserSession`.
-- [ ] Introduce `IBrowserSessionFactory`.
-- [ ] Support ephemeral sessions.
+- [x] Introduce `IBrowserSession`.
+- [x] Introduce `IBrowserSessionFactory`.
+- [x] Support ephemeral sessions. The Playwright factory creates a fresh browser/session object for every execution.
 - [ ] Support persistent sessions with named profiles.
 - [ ] Store persistent profile directories outside version control.
 - [ ] Add profile-level locking/lease.
 - [ ] Add headed interactive profile setup.
 - [ ] Add profile health/test operation.
-- [ ] Make session ownership explicit in execution context.
-- [ ] Remove browser lifetime assumptions from `ScenarioExecutor`.
-- [ ] Add tests for independent concurrent sessions.
+- [x] Make session ownership explicit in execution context. `ScenarioExecutionContext` exposes the owned `IBrowserSession` while retaining the compatibility `BrowserAutomation` view.
+- [x] Remove browser lifetime assumptions from `ScenarioExecutor`. Synchronous and durable executors acquire and dispose one session per execution/resume.
+- [x] Add tests for independent concurrent sessions.
 
 Acceptance criteria:
 
