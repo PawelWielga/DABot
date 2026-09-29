@@ -93,6 +93,68 @@ try
         }
     }
 
+
+    if (commandLine.Command is RunnerCommand.ProfileSetup or RunnerCommand.ProfileTest)
+    {
+        var profileService = provider.GetRequiredService<IBrowserProfileService>();
+        var profileName = commandLine.ProfileName!;
+
+        using var profileCancellation = new CancellationTokenSource();
+        ConsoleCancelEventHandler profileCancelHandler = (_, eventArgs) =>
+        {
+            eventArgs.Cancel = true;
+            profileCancellation.Cancel();
+        };
+
+        Console.CancelKeyPress += profileCancelHandler;
+
+        try
+        {
+            if (commandLine.Command == RunnerCommand.ProfileTest)
+            {
+                var testResult = await profileService.TestAsync(
+                    profileName,
+                    profileCancellation.Token);
+
+                if (testResult.Success)
+                {
+                    Console.WriteLine(
+                        $"Browser profile '{profileName}' is healthy.");
+                    return RunnerExitCodes.Success;
+                }
+
+                Console.Error.WriteLine(
+                    $"Browser profile '{profileName}' test failed: {testResult.ErrorMessage}");
+                return RunnerExitCodes.ExecutionFailed;
+            }
+
+            await using var session = await profileService.OpenInteractiveAsync(
+                profileName,
+                commandLine.Url,
+                profileCancellation.Token);
+
+            Console.WriteLine(
+                $"Interactive browser profile '{profileName}' is open.");
+            if (!string.IsNullOrWhiteSpace(commandLine.Url))
+            {
+                Console.WriteLine(
+                    $"Initial URL: {commandLine.Url}");
+            }
+
+            Console.WriteLine(
+                "Complete login/setup in the browser, then press Enter here to close and save the profile. Press Ctrl+C to cancel.");
+
+            await Console.In.ReadLineAsync(
+                profileCancellation.Token);
+
+            return RunnerExitCodes.Success;
+        }
+        finally
+        {
+            Console.CancelKeyPress -= profileCancelHandler;
+        }
+    }
+
     var options = provider.GetRequiredService<BotOptions>();
     var loader = provider.GetRequiredService<IScenarioLoader>();
     var executor = provider.GetRequiredService<IScenarioExecutor>();

@@ -9,6 +9,7 @@ public sealed class PlaywrightBrowserAutomation : IBrowserSession
     private readonly BotOptions _options;
     private readonly string? _persistentProfileDirectory;
     private readonly IAsyncDisposable? _profileLease;
+    private readonly bool? _headlessOverride;
     private IPlaywright? _playwright;
     private IBrowser? _browser;
     private IBrowserContext? _context;
@@ -18,18 +19,32 @@ public sealed class PlaywrightBrowserAutomation : IBrowserSession
         : this(
             options,
             persistentProfileDirectory: null,
-            profileLease: null)
+            profileLease: null,
+            headlessOverride: null)
     {
     }
 
     internal PlaywrightBrowserAutomation(
         BotOptions options,
         string? persistentProfileDirectory,
-        IAsyncDisposable? profileLease)
+        IAsyncDisposable? profileLease,
+        bool? headlessOverride)
     {
         _options = options;
         _persistentProfileDirectory = persistentProfileDirectory;
         _profileLease = profileLease;
+        _headlessOverride = headlessOverride;
+    }
+
+    internal PlaywrightBrowserAutomation(
+        BotOptions options,
+        bool? headlessOverride)
+        : this(
+            options,
+            persistentProfileDirectory: null,
+            profileLease: null,
+            headlessOverride)
+    {
     }
 
     public async Task OpenAsync(CancellationToken cancellationToken = default)
@@ -46,7 +61,7 @@ public sealed class PlaywrightBrowserAutomation : IBrowserSession
 
         var launchOptions = new BrowserTypeLaunchOptions
         {
-            Headless = _options.Browser.Headless,
+            Headless = _headlessOverride ?? _options.Browser.Headless,
         };
 
         if (_options.Browser.SlowMoMs > 0)
@@ -60,7 +75,7 @@ public sealed class PlaywrightBrowserAutomation : IBrowserSession
                 _persistentProfileDirectory,
                 new BrowserTypeLaunchPersistentContextOptions
                 {
-                    Headless = _options.Browser.Headless,
+                    Headless = _headlessOverride ?? _options.Browser.Headless,
                     SlowMo = _options.Browser.SlowMoMs > 0
                         ? _options.Browser.SlowMoMs
                         : null,

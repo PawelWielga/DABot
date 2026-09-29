@@ -46,10 +46,24 @@ A durable resume always acquires a new `IBrowserSession`.
 
 Persistent profiles restore browser-managed state such as cookies and local storage, but they do not guarantee that the browser reopens on the exact page required by the next workflow step. Scenarios should still establish required navigation/wait state explicitly.
 
+## Interactive setup and profile health
+
+Use a headed setup session when a profile needs manual login, consent, MFA, or other one-time browser interaction:
+
+```bash
+dotnet run --project src/DesktopAutomationBot.Runner -- profile setup --profile work-account --url https://example.com/login
+```
+
+The runner forces headed mode for that session even if normal automation is configured as headless. Complete the setup in the browser, then press Enter in the terminal to close the browser cleanly and persist browser-managed state.
+
+Use the health command to verify that a profile directory can be leased and launched:
+
+```bash
+dotnet run --project src/DesktopAutomationBot.Runner -- profile test --profile work-account
+```
+
+The health check opens the named profile headlessly and disposes it immediately after successful startup. A profile already leased by another process fails the test rather than bypassing the exclusive lock.
+
 ## Remaining profile work
 
-The session boundary now supports ephemeral and persistent named profiles with exclusive leases. Remaining management work includes:
-
-- headed interactive profile setup,
-- profile health/test operations,
-- explicit profile management in the future web UI.
+Sprint 3 session/runtime foundations are complete. Full profile list/create/rename/delete/clear management remains planned for the web-management layer.
