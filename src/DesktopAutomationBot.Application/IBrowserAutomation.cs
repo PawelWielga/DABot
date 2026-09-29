@@ -24,5 +24,9 @@ public interface IBrowserAutomation : IAsyncDisposable
 
     Task<string> TakeScreenshotAsync(string filePath, CancellationToken cancellationToken = default);
 
-    Task<string> SaveHtmlSnapshotAsync(string filePath, CancellationToken cancellationToken = default);
+    Task<string> SaveHtmlSnapshotAsync(
+        string filePath,
+        CancellationToken cancellationToken = default) =>
+        Task.FromException<string>(
+            new NotSupportedException("HTML snapshots are not supported by this browser automation implementation."));
 }
