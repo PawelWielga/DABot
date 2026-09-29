@@ -58,9 +58,9 @@ Status legend:
 
 ### Logging and diagnostics
 
-- [ ] Add structured logging.
+- [x] Add structured logging. Scenario execution emits structured lifecycle/step events through `Microsoft.Extensions.Logging`.
 - [ ] Add file logging.
-- [~] Add per-run log correlation. Run reports and diagnostic artifacts carry the same `RunId`; structured/file logging still needs the same scope.
+- [~] Add per-run log correlation. Scenario logs, run reports, and diagnostic artifacts share the same `RunId`; file logging still needs the same scope.
 - [x] Capture screenshot on failure.
 - [x] Capture HTML snapshot on failure.
 - [x] Write machine-readable run/error report.
