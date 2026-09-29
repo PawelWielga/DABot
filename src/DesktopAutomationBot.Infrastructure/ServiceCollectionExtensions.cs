@@ -16,6 +16,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IRetryRunStore>(
             static provider => provider.GetRequiredService<SqliteRunStore>());
         services.AddSingleton<IHttpAutomationClient, HttpAutomationClient>();
+        services.AddSingleton<ISecretProvider, EnvironmentSecretProvider>();
         services.AddSingleton<IBrowserAutomation, PlaywrightBrowserAutomation>();
         return services;
     }
