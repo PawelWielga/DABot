@@ -89,6 +89,40 @@ public sealed class ScenarioCompilerTests
             .Contain("scenario.steps[0].value must be a non-negative integer or a variable reference for Loop.");
     }
 
+
+    [Fact]
+    public void Compile_ActionLocator_RoundTripsWithoutFallingBackToSelector()
+    {
+        var scenario = new ScenarioDefinition
+        {
+            Name = "Locator compilation",
+            Steps =
+            [
+                new ScenarioStep
+                {
+                    Type = StepType.Click,
+                    Locator = new ScenarioLocator
+                    {
+                        Kind = ScenarioLocatorKind.TestId,
+                        Value = "save-button",
+                    },
+                },
+            ],
+        };
+
+        var compiled = ScenarioCompiler.Compile(scenario);
+        var action = compiled.Steps[0]
+            .Should().BeOfType<CompiledActionStep>().Subject;
+
+        action.Selector.Should().BeNull();
+        action.Locator.Should().NotBeNull();
+        action.Locator!.Kind.Should().Be(ScenarioLocatorKind.TestId);
+
+        var materialized = ScenarioCompiler.Materialize(compiled);
+        materialized.Steps[0].Selector.Should().BeNull();
+        materialized.Steps[0].Locator!.Value.Should().Be("save-button");
+    }
+
     [Fact]
     public void Materialize_RoundTripsCompiledScenarioWithoutLosingParameters()
     {
