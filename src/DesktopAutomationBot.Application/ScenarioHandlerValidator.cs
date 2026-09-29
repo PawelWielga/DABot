@@ -46,7 +46,8 @@ public static class ScenarioHandlerValidator
             var step = steps[index];
             var stepPath = $"{path}[{index}]";
 
-            if (!supported.Contains(step.Type))
+            if (step.Type is not StepType.If and not StepType.Loop &&
+                !supported.Contains(step.Type))
             {
                 errors.Add(
                     $"{stepPath}.type '{step.Type}' has no registered handler.");

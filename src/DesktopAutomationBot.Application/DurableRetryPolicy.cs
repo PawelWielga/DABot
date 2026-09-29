@@ -33,13 +33,16 @@ internal static class DurableRetryPolicy
             attempts,
             step.Id);
 
+        var currentOccurrenceAttemptCount =
+            GetCurrentOccurrenceAttemptCount(attempts, step.Id);
+
         if (!StepRetryPolicy.HasRemainingAttempt(
                 step,
-                highestAttemptNumber))
+                currentOccurrenceAttemptCount))
         {
             throw new InvalidOperationException(
                 $"Step '{step.Id}' exhausted its retry budget after " +
-                $"{highestAttemptNumber} attempt(s).");
+                $"{currentOccurrenceAttemptCount} attempt(s) in the current execution.");
         }
 
         return checked(highestAttemptNumber + 1);
@@ -54,9 +57,33 @@ internal static class DurableRetryPolicy
 
         return StepRetryPolicy.HasRemainingAttempt(
             step,
-            GetHighestAttemptNumber(
+            GetCurrentOccurrenceAttemptCount(
                 attempts,
                 step.Id));
+    }
+
+    private static int GetCurrentOccurrenceAttemptCount(
+        IEnumerable<StepAttempt> attempts,
+        string stepId)
+    {
+        var matching = attempts
+            .Where(attempt => string.Equals(
+                attempt.StepId,
+                stepId,
+                StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        var lastCompletedAttemptNumber = matching
+            .Where(attempt => attempt.Status == StepAttemptStatus.Completed)
+            .Select(attempt => attempt.AttemptNumber)
+            .DefaultIfEmpty(0)
+            .Max();
+
+        return matching
+            .Where(attempt => attempt.AttemptNumber > lastCompletedAttemptNumber)
+            .Select(attempt => attempt.AttemptNumber)
+            .Distinct()
+            .Count();
     }
 
     public static DateTimeOffset GetRetryNotBefore(

@@ -336,6 +336,153 @@ public sealed class DurableScenarioExecutorTests : IDisposable
         events.Should().NotContain("browser:open");
     }
 
+
+    [Fact]
+    public async Task ExecuteAsync_WithNestedLoopAndIf_PersistsCursorAndCompletesAllIterations()
+    {
+        var events = new List<string>();
+        var runStore = new RecordingRunStore(events);
+        var attemptStore = new RecordingStepAttemptStore(events);
+        var browser = new RecordingBrowserAutomation(events);
+        var handler = new RecordingStepHandler(
+            StepType.Screenshot,
+            events,
+            (step, _, index, _) => Task.FromResult(
+                new StepExecutionResult
+                {
+                    Index = index,
+                    Type = step.Type,
+                    Success = true,
+                }));
+
+        var executor = CreateExecutor(
+            [handler],
+            browser,
+            runStore,
+            attemptStore);
+
+        var version = ScenarioVersion.Capture(
+            Guid.NewGuid(),
+            1,
+            new ScenarioDefinition
+            {
+                Name = "Nested control flow",
+                Steps =
+                [
+                    new ScenarioStep
+                    {
+                        Id = "loop",
+                        Type = StepType.Loop,
+                        Value = "2",
+                        Children =
+                        [
+                            new ScenarioStep
+                            {
+                                Id = "if",
+                                Type = StepType.If,
+                                Value = "true",
+                                Children =
+                                [
+                                    new ScenarioStep
+                                    {
+                                        Id = "capture",
+                                        Type = StepType.Screenshot,
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+            DateTimeOffset.Parse("2026-09-27T19:00:00+02:00"));
+
+        var result = await executor.ExecuteAsync(
+            new ScenarioRunRequest
+            {
+                ScenarioVersion = version,
+            });
+
+        result.ErrorMessage.Should().BeNull();
+        result.Outcome.Should().Be(DurableExecutionOutcome.Completed);
+        result.Run.Cursor.IsCompleted.Should().BeTrue();
+        result.Steps.Should().HaveCount(2);
+        attemptStore.Attempts
+            .Where(attempt => attempt.Status == StepAttemptStatus.Completed)
+            .Select(attempt => attempt.StepId)
+            .Should()
+            .Equal("capture", "capture");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenIfIsFalse_SkipsChildrenAndContinues()
+    {
+        var events = new List<string>();
+        var runStore = new RecordingRunStore(events);
+        var attemptStore = new RecordingStepAttemptStore(events);
+        var browser = new RecordingBrowserAutomation(events);
+        var handler = new RecordingStepHandler(
+            StepType.Screenshot,
+            events,
+            (step, _, index, _) => Task.FromResult(
+                new StepExecutionResult
+                {
+                    Index = index,
+                    Type = step.Type,
+                    Success = true,
+                }));
+
+        var executor = CreateExecutor(
+            [handler],
+            browser,
+            runStore,
+            attemptStore);
+
+        var version = ScenarioVersion.Capture(
+            Guid.NewGuid(),
+            1,
+            new ScenarioDefinition
+            {
+                Name = "Conditional skip",
+                Steps =
+                [
+                    new ScenarioStep
+                    {
+                        Id = "if",
+                        Type = StepType.If,
+                        Value = "false",
+                        Children =
+                        [
+                            new ScenarioStep
+                            {
+                                Id = "skipped",
+                                Type = StepType.Screenshot,
+                            },
+                        ],
+                    },
+                    new ScenarioStep
+                    {
+                        Id = "after",
+                        Type = StepType.Screenshot,
+                    },
+                ],
+            },
+            DateTimeOffset.Parse("2026-09-27T19:00:00+02:00"));
+
+        var result = await executor.ExecuteAsync(
+            new ScenarioRunRequest
+            {
+                ScenarioVersion = version,
+            });
+
+        result.Outcome.Should().Be(DurableExecutionOutcome.Completed);
+        result.Steps.Should().ContainSingle();
+        attemptStore.Attempts
+            .Where(attempt => attempt.Status == StepAttemptStatus.Completed)
+            .Select(attempt => attempt.StepId)
+            .Should()
+            .Equal("after");
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_tempDirectory))
