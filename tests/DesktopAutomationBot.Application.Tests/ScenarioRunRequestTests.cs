@@ -21,6 +21,10 @@ public sealed class ScenarioRunRequestTests
             {
                 ["input"] = "value",
             },
+            StructuredVariables =
+            {
+                ["count"] = ScenarioVariableValue.FromNumber(4),
+            },
         };
 
         var createdAt = DateTimeOffset.Parse("2026-09-27T12:30:00+02:00");
@@ -30,6 +34,7 @@ public sealed class ScenarioRunRequestTests
         run.ScenarioVersionId.Should().Be(version.VersionId);
         run.Cursor.Should().BeEquivalentTo(cursor);
         run.Variables["input"].ToInterpolationString().Should().Be("value");
+        run.Variables["count"].ToJsonElement().GetInt32().Should().Be(4);
         run.CreatedAt.Should().Be(createdAt);
     }
 
