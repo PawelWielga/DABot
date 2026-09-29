@@ -159,6 +159,23 @@ public sealed class ScenarioDefinitionValidator
             errors.Add($"{path}.children must contain at least one step for {step.Type}.");
         }
 
+        if (step.Type == StepType.If &&
+            (string.IsNullOrWhiteSpace(step.Value) ||
+             (!ScenarioVariableInterpolator.IsExactVariableReference(step.Value) &&
+              !bool.TryParse(step.Value, out _))))
+        {
+            errors.Add($"{path}.value must be 'true', 'false', or a variable reference for If.");
+        }
+
+        if (step.Type == StepType.Loop &&
+            (string.IsNullOrWhiteSpace(step.Value) ||
+             (!ScenarioVariableInterpolator.IsExactVariableReference(step.Value) &&
+              (!int.TryParse(step.Value, NumberStyles.None, CultureInfo.InvariantCulture, out var loopCount) ||
+               loopCount < 0))))
+        {
+            errors.Add($"{path}.value must be a non-negative integer or a variable reference for Loop.");
+        }
+
         if (step.RetryCount is < 0)
         {
             errors.Add($"{path}.retryCount must be zero or greater.");
