@@ -19,6 +19,31 @@ public sealed class ScenarioDefinitionValidatorTests
         result.Errors.Should().Contain("scenario.steps must contain at least one step.");
     }
 
+
+    [Fact]
+    public void Validate_WhenScenarioTimeoutIsNotPositive_ReturnsValidationError()
+    {
+        var validator = new ScenarioDefinitionValidator();
+
+        var result = validator.Validate(new ScenarioDefinition
+        {
+            Name = "Invalid timeout",
+            TimeoutMs = 0,
+            Steps =
+            [
+                new ScenarioStep
+                {
+                    Type = StepType.OpenUrl,
+                    Url = "https://example.com",
+                },
+            ],
+        });
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(
+            "scenario.timeoutMs must be greater than zero when specified.");
+    }
+
     [Fact]
     public void Validate_WhenOpenUrlIsMissingUrl_ReturnsValidationError()
     {
