@@ -196,8 +196,10 @@ public sealed class DurableScenarioExecutor :
         }
 
         var scenario = scenarioVersion.MaterializeDefinition();
-        var variables = new Dictionary<string, string>(
-            run.Variables,
+        var variables = run.Variables.ToDictionary(
+            pair => pair.Key,
+            pair => ScenarioVariableValue.FromJsonElement(
+                pair.Value.ToJsonElement()),
             StringComparer.OrdinalIgnoreCase);
         var stepResults = new List<StepExecutionResult>();
         var context = new ScenarioExecutionContext(
@@ -448,7 +450,7 @@ public sealed class DurableScenarioExecutor :
         AutomationRun run,
         ScenarioVersion scenarioVersion,
         ScenarioStep step,
-        IReadOnlyDictionary<string, string> variables,
+        IReadOnlyDictionary<string, ScenarioVariableValue> variables,
         IReadOnlyList<StepExecutionResult> stepResults,
         string errorMessage)
     {
@@ -528,7 +530,7 @@ public sealed class DurableScenarioExecutor :
     private async Task<AutomationRun> WaitAsync(
         AutomationRun run,
         ScenarioVersion scenarioVersion,
-        IReadOnlyDictionary<string, string> variables,
+        IReadOnlyDictionary<string, ScenarioVariableValue> variables,
         RunWaitReason reason,
         ScenarioStep? retryStep = null)
     {
@@ -559,7 +561,7 @@ public sealed class DurableScenarioExecutor :
     private async Task<AutomationRun> FailAsync(
         AutomationRun run,
         ScenarioVersion scenarioVersion,
-        IReadOnlyDictionary<string, string> variables)
+        IReadOnlyDictionary<string, ScenarioVariableValue> variables)
     {
         var failed = RestoreSnapshot(
             run,
@@ -580,7 +582,7 @@ public sealed class DurableScenarioExecutor :
     private async Task<AutomationRun> CancelAsync(
         AutomationRun run,
         ScenarioVersion scenarioVersion,
-        IReadOnlyDictionary<string, string> variables)
+        IReadOnlyDictionary<string, ScenarioVariableValue> variables)
     {
         if (run.State.IsTerminal)
         {
@@ -617,10 +619,10 @@ public sealed class DurableScenarioExecutor :
         ScenarioVersion scenarioVersion,
         RunState state,
         ExecutionCursor cursor,
-        IReadOnlyDictionary<string, string> variables,
+        IReadOnlyDictionary<string, ScenarioVariableValue> variables,
         DateTimeOffset updatedAt,
         DateTimeOffset? retryNotBefore = null) =>
-        AutomationRun.Restore(
+        AutomationRun.RestoreStructured(
             run.RunId,
             scenarioVersion,
             state,
@@ -631,16 +633,25 @@ public sealed class DurableScenarioExecutor :
             retryNotBefore);
 
     private static void CaptureOutputVariable(
-        IDictionary<string, string> variables,
+        IDictionary<string, ScenarioVariableValue> variables,
         StepExecutionResult result)
     {
-        if (string.IsNullOrWhiteSpace(result.OutputName) ||
-            result.OutputValue is null)
+        if (string.IsNullOrWhiteSpace(result.OutputName))
         {
             return;
         }
 
-        variables[result.OutputName] = result.OutputValue;
+        if (result.OutputVariableValue is not null)
+        {
+            variables[result.OutputName] = result.OutputVariableValue;
+            return;
+        }
+
+        if (result.OutputValue is not null)
+        {
+            variables[result.OutputName] =
+                ScenarioVariableValue.FromString(result.OutputValue);
+        }
     }
 
     private static DurableScenarioExecutionResult CreateResult(
