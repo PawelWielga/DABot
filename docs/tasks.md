@@ -64,7 +64,7 @@ Status legend:
 - [x] Capture screenshot on failure.
 - [x] Capture HTML snapshot on failure.
 - [x] Write machine-readable run/error report.
-- [ ] Mask configured sensitive values.
+- [x] Mask configured sensitive values in persisted file logs. Values are sourced from named environment variables and replaced with `***` in messages, exceptions, and structured string properties.
 
 ### Scenario engine
 
