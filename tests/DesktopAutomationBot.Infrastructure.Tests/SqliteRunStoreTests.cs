@@ -1,3 +1,4 @@
+using System.Text.Json;
 using DesktopAutomationBot.Application;
 using DesktopAutomationBot.Core;
 using DesktopAutomationBot.Infrastructure;
