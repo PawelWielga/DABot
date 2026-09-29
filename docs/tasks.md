@@ -72,8 +72,8 @@ Status legend:
 - [x] Implement `Delay`.
 - [x] Implement `If`. Boolean literals and exact variable references control nested child execution in synchronous and durable runners.
 - [x] Implement `Loop`. Non-negative literal or variable-resolved iteration counts execute nested children with persisted durable cursor frames.
-- [~] Implement step retry. Durable failure/recovery now persists retry timing and can suspend to `Waiting / Retry`; automatic scheduling and legacy synchronous retry remain.
-- [~] Use `RetryCount` from the scenario model. Durable execution and recovery enforce it as the number of additional attempts; legacy synchronous execution remains.
+- [x] Implement step retry. The synchronous executor retries in-process with `retryDelayMs`; durable execution persists retry timing and suspends to `Waiting / Retry` for scheduled retry.
+- [x] Use `RetryCount` from the scenario model as the number of additional attempts in both synchronous and durable execution.
 - [x] Validate that every declared step type has a registered handler.
 - [x] Add cancellation support through the full execution stack. Cancellation propagates through runner, scenario executors, step handlers, and Playwright operations; one-shot Ctrl+C exits with code 130.
 - [x] Add scenario-level timeout. Optional `scenario.timeoutMs` cancels the execution token and records a timeout failure when the whole run exceeds its configured duration.
