@@ -110,7 +110,7 @@ public sealed class ScenarioVersionTests
             CreateScenario(),
             DateTimeOffset.UtcNow);
 
-        version.DefinitionJson.Should().NotContain(""locator"");
+        version.DefinitionJson.Should().NotContain("locator");
     }
 
     [Fact]
@@ -140,7 +140,7 @@ public sealed class ScenarioVersionTests
             scenario,
             DateTimeOffset.UtcNow);
 
-        version.DefinitionJson.Should().Contain(""locator"");
+        version.DefinitionJson.Should().Contain("locator");
         var locator = version.MaterializeDefinition().Steps[0].Locator;
         locator.Should().NotBeNull();
         locator!.Kind.Should().Be(ScenarioLocatorKind.Text);
