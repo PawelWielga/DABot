@@ -85,9 +85,13 @@ Currently interpolated fields are:
 - string-valued entries in `parameters`,
 - the same fields inside nested child steps.
 
-Variables are resolved immediately before a step handler executes. Resolution uses the run's case-insensitive variable bag, so values produced by an earlier `ReadText` step are available to later steps. Durable runs may also start with variables supplied through `ScenarioRunRequest`.
+Variables are resolved immediately before a step handler executes. The case-insensitive runtime variable bag stores JSON-compatible structured values rather than strings only. Values produced by an earlier step are therefore available to later steps without losing number/boolean/object/array types.
 
-Every execution exposes its stable `runId` as a built-in variable. An undefined variable is an execution error; DABot does not silently leave a recognized placeholder unresolved.
+Embedded interpolation such as `items={{count}}` converts the value to compact text. When a string-valued entry in `parameters` is exactly `{{name}}`, DABot preserves the underlying JSON type. Durable runs may also start with legacy string variables or structured variables supplied through `ScenarioRunRequest`.
+
+Every execution exposes its stable `runId` as a built-in string variable. An undefined variable is an execution error; DABot does not silently leave a recognized placeholder unresolved.
+
+Secrets are deliberately not runtime variables. Secret-bearing integrations resolve named references through `ISecretProvider`; see [Runtime variables and secrets](secrets-and-variables.md).
 
 Interpolation creates an execution-time copy of the step. It does not mutate the immutable scenario definition or change the scenario-version hash.
 
