@@ -40,7 +40,8 @@ public sealed class DurableScenarioExecutor :
         ArgumentNullException.ThrowIfNull(request.ScenarioVersion);
 
         var scenarioVersion = request.ScenarioVersion;
-        var scenario = scenarioVersion.MaterializeDefinition();
+        var scenario = ScenarioCompiler.Materialize(
+            scenarioVersion.Compile());
         _validationService.ValidateOrThrow(scenario);
         ScenarioHandlerValidator.ValidateOrThrow(
             scenario,
