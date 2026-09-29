@@ -371,6 +371,37 @@ public sealed class DurableScenarioExecutor :
                         scenario,
                         run.Cursor);
 
+                if (step.Type == StepType.Suspend)
+                {
+                    var waitReason =
+                        SuspendStepEvaluator.GetWaitReason(step);
+                    var suspendCursor =
+                        DurableExecutionCursorNavigator.AdvanceCursor(
+                            scenario,
+                            run.Cursor,
+                            index,
+                            context.Variables);
+
+                    var updatedAt = NextTimestamp(run.UpdatedAt);
+                    run = RestoreSnapshot(
+                        run,
+                        scenarioVersion,
+                        run.State.Wait(waitReason),
+                        suspendCursor,
+                        variables,
+                        updatedAt);
+
+                    await _runStore.SaveAsync(
+                        run,
+                        scenarioVersion,
+                        CancellationToken.None);
+
+                    return CreateResult(
+                        run,
+                        DurableExecutionOutcome.Suspended,
+                        stepResults);
+                }
+
                 if (step.Type is StepType.If or StepType.Loop)
                 {
                     ExecutionCursor controlCursor;

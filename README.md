@@ -203,7 +203,7 @@ Start -> Step -> Suspend
                  Step...
 ```
 
-Short browser waits remain active Playwright waits. Long waits are planned as durable suspension rather than keeping a process blocked.
+Short browser waits remain active Playwright waits. Durable scenarios can use `Suspend` to persist the next execution position and enter `Waiting` without keeping a process blocked; the persisted run can later be resumed by ID.
 
 See [durable workflow architecture](docs/durable-workflows.md).
 

@@ -46,7 +46,7 @@ public static class ScenarioHandlerValidator
             var step = steps[index];
             var stepPath = $"{path}[{index}]";
 
-            if (step.Type is not StepType.If and not StepType.Loop &&
+            if (step.Type is not StepType.If and not StepType.Loop and not StepType.Suspend &&
                 !supported.Contains(step.Type))
             {
                 errors.Add(

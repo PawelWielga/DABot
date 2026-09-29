@@ -214,11 +214,11 @@ Acceptance criteria:
 
 Goal: allow a workflow to stop without blocking a process and continue later.
 
-- [ ] Add `Suspend` step type.
-- [ ] Add `SuspendStepHandler`.
+- [x] Add `Suspend` step type.
+- [x] Implement `Suspend` as a durable executor control-flow primitive instead of a regular handler.
 - [ ] Persist expected event/correlation data.
-- [ ] Save deterministic resume position.
-- [ ] Return `Suspended` instead of treating suspension as failure.
+- [x] Save deterministic resume position. `Suspend` advances and persists the cursor before entering Waiting.
+- [x] Return `Suspended` instead of treating suspension as failure.
 - [x] Add application-level `ResumeRun` use case for `Waiting / Retry` runs.
 - [x] Add CLI `resume` command. Manual resume continues non-retry waiting runs by stable `RunId`; retry waits remain on the guarded retry path.
 - [x] Add CLI `cancel` command. Queued/waiting durable runs can be cancelled idempotently; active `Running` runs are rejected until worker lease/CAS coordination exists.

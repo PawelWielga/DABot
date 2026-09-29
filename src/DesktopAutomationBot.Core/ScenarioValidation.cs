@@ -211,6 +211,24 @@ public sealed class ScenarioDefinitionValidator
             errors.Add($"{path}.value must be a non-negative integer or a variable reference for Loop.");
         }
 
+        if (step.Type == StepType.Suspend &&
+            step.Parameters is not null &&
+            step.Parameters.TryGetValue("reason", out var suspendReason) &&
+            (suspendReason.ValueKind != System.Text.Json.JsonValueKind.String ||
+             !Enum.TryParse<RunWaitReason>(
+                 suspendReason.GetString(),
+                 ignoreCase: true,
+                 out var parsedSuspendReason) ||
+             parsedSuspendReason == RunWaitReason.Retry))
+        {
+            errors.Add($"{path}.parameters.reason must be Human, Event, or Schedule for Suspend.");
+        }
+
+        if (step.Type == StepType.Suspend && step.Children.Count > 0)
+        {
+            errors.Add($"{path}.children must be empty for Suspend.");
+        }
+
         if (step.RetryCount is < 0)
         {
             errors.Add($"{path}.retryCount must be zero or greater.");

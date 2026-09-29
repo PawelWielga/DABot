@@ -93,6 +93,10 @@
             {
               "const": "Loop",
               "description": "Available: execute children a fixed number of times. Value accepts a non-negative integer or an exact variable reference."
+            },
+            {
+              "const": "Suspend",
+              "description": "Available in durable execution: persist the next execution cursor and return Suspended. Optional parameters.reason is Human (default), Event, or Schedule."
             }
           ]
         },
@@ -547,6 +551,39 @@
             ]
           },
           "description": "A step must not define both legacy selector and locator."
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "Suspend"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "children": {
+                "maxItems": 0
+              },
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "enum": [
+                      "Human",
+                      "Event",
+                      "Schedule"
+                    ],
+                    "default": "Human"
+                  }
+                }
+              }
+            }
+          }
         }
       ]
     }

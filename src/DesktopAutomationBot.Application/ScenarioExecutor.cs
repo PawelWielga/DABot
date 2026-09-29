@@ -257,6 +257,12 @@ public sealed class ScenarioExecutor : IScenarioExecutor
             cancellationToken.ThrowIfCancellationRequested();
             var step = steps[index];
 
+            if (step.Type == StepType.Suspend)
+            {
+                throw new NotSupportedException(
+                    "Suspend requires durable execution. Use the durable run path and resume the persisted run later.");
+            }
+
             if (step.Type == StepType.If)
             {
                 if (ControlFlowStepEvaluator.EvaluateIf(step, context.Variables))
