@@ -8,7 +8,7 @@ public sealed class FillTextStepHandler : IStepHandler
 
     public async Task<StepExecutionResult> ExecuteAsync(ScenarioStep step, ScenarioExecutionContext context, int index, CancellationToken cancellationToken)
     {
-        await context.BrowserAutomation.FillTextAsync(step.Selector!, step.Value ?? string.Empty, step.TimeoutMs, cancellationToken);
+        await context.BrowserAutomation.FillTextAsync(ScenarioStepLocator.Resolve(step), step.Value ?? string.Empty, step.TimeoutMs, cancellationToken);
 
         return new StepExecutionResult
         {
