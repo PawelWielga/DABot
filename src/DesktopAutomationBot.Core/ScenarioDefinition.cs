@@ -89,6 +89,8 @@ public sealed record ScenarioExecutionResult
 
     public string? FailureScreenshotPath { get; set; }
 
+    public string? FailureHtmlPath { get; set; }
+
     public string? ReportPath { get; set; }
 
     public List<StepExecutionResult> Steps { get; init; } = [];
