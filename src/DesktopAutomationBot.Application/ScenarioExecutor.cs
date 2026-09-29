@@ -81,6 +81,21 @@ public sealed class ScenarioExecutor : IScenarioExecutor
 
             try
             {
+                var htmlPath = Path.Combine(
+                    context.ArtifactDirectory,
+                    "failure.html");
+                result.FailureHtmlPath =
+                    await _browserAutomation.SaveHtmlSnapshotAsync(
+                        htmlPath,
+                        CancellationToken.None);
+            }
+            catch
+            {
+                // Diagnostics must never hide the original execution error.
+            }
+
+            try
+            {
                 var screenshotPath = Path.Combine(
                     context.ArtifactDirectory,
                     "failure.png");
