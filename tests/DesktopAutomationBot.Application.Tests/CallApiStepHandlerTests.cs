@@ -29,8 +29,44 @@ public sealed class CallApiStepHandlerTests
 
         result.OutputName.Should().Be("itemId");
         result.OutputValue.Should().Be("42");
+        result.OutputVariableValue.Should().NotBeNull();
+        result.OutputVariableValue!.Kind.Should().Be(JsonValueKind.Number);
         client.Request!.Method.Should().Be(HttpMethod.Post);
         client.Request.Body.Should().Be("""{"name":"test"}""");
+    }
+
+
+    [Fact]
+    public async Task ExecuteAsync_WithNamedSecret_ResolvesBearerTokenWithoutUsingRunVariables()
+    {
+        var client = new FakeHttpClient(
+            new HttpAutomationResponse(200, "{}"));
+        var secrets = new FakeSecretProvider(
+            "api-token",
+            "super-secret");
+        var handler = new CallApiStepHandler(
+            client,
+            secrets);
+
+        var step = new ScenarioStep
+        {
+            Type = StepType.CallApi,
+            Url = "https://example.test/private",
+            Parameters = new Dictionary<string, JsonElement>
+            {
+                ["bearerTokenSecret"] =
+                    JsonSerializer.SerializeToElement("api-token"),
+            },
+        };
+
+        await handler.ExecuteAsync(
+            step,
+            CreateContext(),
+            0,
+            CancellationToken.None);
+
+        client.Request!.BearerToken.Should().Be("super-secret");
+        secrets.RequestedName.Should().Be("api-token");
     }
 
     [Fact]
@@ -53,6 +89,23 @@ public sealed class CallApiStepHandlerTests
             new ScenarioDefinition { Name = "api", Steps = [new ScenarioStep { Type = StepType.CallApi }] },
             new FakeBrowserAutomation(),
             new BotOptions());
+
+
+    private sealed class FakeSecretProvider(
+        string expectedName,
+        string value) : ISecretProvider
+    {
+        public string? RequestedName { get; private set; }
+
+        public ValueTask<string?> GetSecretAsync(
+            string name,
+            CancellationToken cancellationToken = default)
+        {
+            RequestedName = name;
+            name.Should().Be(expectedName);
+            return ValueTask.FromResult<string?>(value);
+        }
+    }
 
     private sealed class FakeHttpClient(HttpAutomationResponse response) : IHttpAutomationClient
     {
