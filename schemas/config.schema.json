@@ -5,7 +5,9 @@
   "description": "Machine-readable contract for the repository-root DABot config.json file.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["bot"],
+  "required": [
+    "bot"
+  ],
   "properties": {
     "$schema": {
       "type": "string",
@@ -89,6 +91,27 @@
               "type": "integer",
               "minimum": 1,
               "default": 100
+            }
+          }
+        }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "default": "logs/dabot.jsonl"
             }
           }
         }
