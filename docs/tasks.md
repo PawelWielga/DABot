@@ -220,8 +220,8 @@ Goal: allow a workflow to stop without blocking a process and continue later.
 - [ ] Save deterministic resume position.
 - [ ] Return `Suspended` instead of treating suspension as failure.
 - [x] Add application-level `ResumeRun` use case for `Waiting / Retry` runs.
-- [ ] Add CLI `resume` command.
-- [ ] Add CLI `cancel` command.
+- [x] Add CLI `resume` command. Manual resume continues non-retry waiting runs by stable `RunId`; retry waits remain on the guarded retry path.
+- [x] Add CLI `cancel` command. Queued/waiting durable runs can be cancelled idempotently; active `Running` runs are rejected until worker lease/CAS coordination exists.
 - [x] Add `Waiting` / `Human` transition for unsafe automatic recovery.
 - [x] Add max-attempt guardrails from `RetryCount` before unattended retry scheduling.
 - [x] Persist retry due time with per-step `retryDelayMs` / run `RetryNotBefore`.
