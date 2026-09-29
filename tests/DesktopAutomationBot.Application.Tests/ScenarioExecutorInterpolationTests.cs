@@ -59,6 +59,61 @@ public sealed class ScenarioExecutorInterpolationTests : IDisposable
         browser.NavigatedUrl.Should().EndWith("-interpolation-test");
     }
 
+    [Fact]
+    public async Task ExecuteAsync_WhenStepFails_CapturesFailureScreenshotAndWritesRunReport()
+    {
+        var browser = new RecordingBrowserAutomation();
+        var options = new BotOptions
+        {
+            Storage = new StorageOptions
+            {
+                ScreenshotsDirectory = Path.Combine(_tempDirectory, "screenshots"),
+                ArtifactsDirectory = Path.Combine(_tempDirectory, "artifacts"),
+            },
+        };
+        var executor = new ScenarioExecutor(
+            options,
+            new ScenarioValidationService(),
+            [new ThrowingOpenUrlStepHandler()],
+            browser);
+
+        var result = await executor.ExecuteAsync(
+            new ScenarioDefinition
+            {
+                Name = "failure-diagnostics",
+                Steps =
+                [
+                    new ScenarioStep
+                    {
+                        Type = StepType.OpenUrl,
+                        Url = "https://example.com",
+                    },
+                ],
+            });
+
+        result.Success.Should().BeFalse();
+        result.ErrorMessage.Should().Be("Expected failure.");
+        result.RunId.Should().NotBeNullOrWhiteSpace();
+        result.FailureScreenshotPath.Should().Be(browser.ScreenshotPath);
+        File.Exists(result.ReportPath).Should().BeTrue();
+
+        var report = await File.ReadAllTextAsync(result.ReportPath!);
+        report.Should().Contain(result.RunId!);
+        report.Should().Contain("Expected failure.");
+    }
+
+    private sealed class ThrowingOpenUrlStepHandler : IStepHandler
+    {
+        public StepType StepType => StepType.OpenUrl;
+
+        public Task<StepExecutionResult> ExecuteAsync(
+            ScenarioStep step,
+            ScenarioExecutionContext context,
+            int index,
+            CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("Expected failure.");
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_tempDirectory))
@@ -99,6 +154,8 @@ public sealed class ScenarioExecutorInterpolationTests : IDisposable
         public string ReadTextValue { get; init; } = string.Empty;
 
         public string? NavigatedUrl { get; private set; }
+
+        public string? ScreenshotPath { get; private set; }
 
         public Task OpenAsync(CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
@@ -164,8 +221,13 @@ public sealed class ScenarioExecutorInterpolationTests : IDisposable
 
         public Task<string> TakeScreenshotAsync(
             string filePath,
-            CancellationToken cancellationToken = default) =>
-            Task.FromResult(filePath);
+            CancellationToken cancellationToken = default)
+        {
+            ScreenshotPath = filePath;
+            Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
+            File.WriteAllText(filePath, "fake screenshot");
+            return Task.FromResult(filePath);
+        }
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
