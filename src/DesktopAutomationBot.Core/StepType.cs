@@ -13,4 +13,5 @@ public enum StepType
     Delay,
     If,
     Loop,
+    Suspend,
 }
