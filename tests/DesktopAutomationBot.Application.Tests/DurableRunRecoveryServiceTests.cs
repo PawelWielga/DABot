@@ -420,7 +420,7 @@ public sealed class DurableRunRecoveryServiceTests
             version,
             createdAt);
 
-        return AutomationRun.Restore(
+        return AutomationRun.RestoreStructured(
             queued.RunId,
             version,
             queued.State.Start(),
