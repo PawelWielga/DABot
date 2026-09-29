@@ -173,8 +173,8 @@ Goal: remove the assumption that browser automation is one global singleton and 
 - [x] Support persistent sessions with named profiles. Optional `scenario.browserProfile` selects a Playwright persistent context.
 - [x] Store persistent profile directories outside version control. Profiles default to `data/browser-profiles`, covered by the existing runtime-data ignore rule.
 - [x] Add profile-level locking/lease. A cross-process file lease prevents concurrent use of the same named profile.
-- [ ] Add headed interactive profile setup.
-- [ ] Add profile health/test operation.
+- [x] Add headed interactive profile setup. `profile setup --profile <name> [--url <url>]` opens the named persistent profile in headed mode until the operator closes it from the CLI.
+- [x] Add profile health/test operation. `profile test --profile <name>` opens the persistent profile headlessly and reports whether it can be acquired and launched.
 - [x] Make session ownership explicit in execution context. `ScenarioExecutionContext` exposes the owned `IBrowserSession` while retaining the compatibility `BrowserAutomation` view.
 - [x] Remove browser lifetime assumptions from `ScenarioExecutor`. Synchronous and durable executors acquire and dispose one session per execution/resume.
 - [x] Add tests for independent concurrent sessions.
