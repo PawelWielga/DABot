@@ -25,6 +25,11 @@
       "items": {
         "$ref": "#/$defs/step"
       }
+    },
+    "timeoutMs": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Optional maximum duration for the whole scenario in milliseconds. When exceeded, execution stops and the run result reports a timeout failure."
     }
   },
   "$defs": {

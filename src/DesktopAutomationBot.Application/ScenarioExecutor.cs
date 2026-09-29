@@ -50,6 +50,16 @@ public sealed class ScenarioExecutor : IScenarioExecutor
             scenario.Name,
             context.RunId);
 
+        using var timeoutCancellation = scenario.TimeoutMs.HasValue
+            ? new CancellationTokenSource(scenario.TimeoutMs.Value)
+            : null;
+        using var executionCancellation = timeoutCancellation is null
+            ? null
+            : CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken,
+                timeoutCancellation.Token);
+        var executionToken = executionCancellation?.Token ?? cancellationToken;
+
         var result = new ScenarioExecutionResult
         {
             ScenarioName = scenario.Name,
@@ -59,12 +69,12 @@ public sealed class ScenarioExecutor : IScenarioExecutor
 
         try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            await _browserAutomation.OpenAsync(cancellationToken);
+            executionToken.ThrowIfCancellationRequested();
+            await _browserAutomation.OpenAsync(executionToken);
 
             for (var index = 0; index < scenario.Steps.Count; index++)
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                executionToken.ThrowIfCancellationRequested();
                 var step = scenario.Steps[index];
                 if (!_handlers.TryGetValue(step.Type, out var handler))
                 {
@@ -83,7 +93,7 @@ public sealed class ScenarioExecutor : IScenarioExecutor
                     resolvedStep,
                     context,
                     index,
-                    cancellationToken);
+                    executionToken);
                 context.CaptureOutput(stepResult);
                 result.Steps.Add(stepResult);
                 _logger.LogInformation(
@@ -105,6 +115,19 @@ public sealed class ScenarioExecutor : IScenarioExecutor
                 "Scenario {ScenarioName} was cancelled",
                 scenario.Name);
             throw;
+        }
+        catch (OperationCanceledException)
+            when (timeoutCancellation?.IsCancellationRequested == true)
+        {
+            var exception = new TimeoutException(
+                $"Scenario '{scenario.Name}' exceeded its timeout of {scenario.TimeoutMs} ms.");
+            result.ErrorMessage = exception.Message;
+            _logger.LogError(
+                exception,
+                "Scenario {ScenarioName} timed out after {TimeoutMs} ms",
+                scenario.Name,
+                scenario.TimeoutMs);
+            return result;
         }
         catch (Exception exception)
         {

@@ -42,6 +42,11 @@ public sealed class ScenarioDefinitionValidator
             errors.Add("scenario.name is required.");
         }
 
+        if (scenario.TimeoutMs is <= 0)
+        {
+            errors.Add("scenario.timeoutMs must be greater than zero when specified.");
+        }
+
         if (scenario.Steps.Count == 0)
         {
             errors.Add("scenario.steps must contain at least one step.");
