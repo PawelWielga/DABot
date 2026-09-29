@@ -10,7 +10,7 @@ public sealed class ScenarioExecutionContext
         IBrowserAutomation browserAutomation,
         BotOptions options,
         Guid? durableRunId = null,
-        IReadOnlyDictionary<string, string>? initialVariables = null)
+        IReadOnlyDictionary<string, ScenarioVariableValue>? initialVariables = null)
     {
         Scenario = scenario;
         BrowserAutomation = browserAutomation;
@@ -46,13 +46,21 @@ public sealed class ScenarioExecutionContext
     {
         ArgumentNullException.ThrowIfNull(result);
 
-        if (string.IsNullOrWhiteSpace(result.OutputName) ||
-            result.OutputValue is null)
+        if (string.IsNullOrWhiteSpace(result.OutputName))
         {
             return;
         }
 
-        Variables.Set(result.OutputName, result.OutputValue);
+        if (result.OutputVariableValue is not null)
+        {
+            Variables.Set(result.OutputName, result.OutputVariableValue);
+            return;
+        }
+
+        if (result.OutputValue is not null)
+        {
+            Variables.Set(result.OutputName, result.OutputValue);
+        }
     }
 
     private static string CreateRunId(string scenarioName)
