@@ -56,7 +56,10 @@ public sealed class ScenarioVariableValue : IEquatable<ScenarioVariableValue>
 
     public bool Equals(ScenarioVariableValue? other) =>
         other is not null &&
-        JsonElement.DeepEquals(_value, other._value);
+        string.Equals(
+            _value.GetRawText(),
+            other._value.GetRawText(),
+            StringComparison.Ordinal);
 
     public override bool Equals(object? obj) =>
         obj is ScenarioVariableValue other && Equals(other);
