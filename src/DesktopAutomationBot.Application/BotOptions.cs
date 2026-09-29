@@ -39,5 +39,8 @@ public sealed class StorageOptions
 
     public string ArtifactsDirectory { get; init; } = Path.Combine("artifacts");
 
+    public string BrowserProfilesDirectory { get; init; } =
+        Path.Combine("data", "browser-profiles");
+
     public string DatabasePath { get; init; } = Path.Combine("data", "dabot.db");
 }
