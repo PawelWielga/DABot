@@ -789,6 +789,7 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
     }
 
     public async Task<IReadOnlyList<ResumeWorkItem>> LoadPendingResumeWorkItemsAsync(
+        DateTimeOffset dueAt,
         int limit = 100,
         CancellationToken cancellationToken = default)
     {
@@ -812,16 +813,25 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
                 EventId,
                 Status,
                 CreatedAt,
+                AttemptCount,
+                NextAttemptAt,
                 FinishedAt,
                 ErrorMessage
             FROM ResumeWorkItems
             WHERE Status = $pendingStatus
-            ORDER BY CreatedAt, WorkItemId
+              AND (NextAttemptAt IS NULL OR NextAttemptAt <= $dueAt)
+            ORDER BY
+                COALESCE(NextAttemptAt, CreatedAt),
+                CreatedAt,
+                WorkItemId
             LIMIT $limit;
             """;
         command.Parameters.AddWithValue(
             "$pendingStatus",
             ResumeWorkItemStatus.Pending.ToString());
+        command.Parameters.AddWithValue(
+            "$dueAt",
+            FormatTimestamp(dueAt));
         command.Parameters.AddWithValue("$limit", limit);
 
         var items = new List<ResumeWorkItem>();
@@ -835,39 +845,10 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
         return items;
     }
 
-    public Task MarkResumeWorkItemCompletedAsync(
+    public async Task MarkResumeWorkItemCompletedAsync(
         Guid workItemId,
-        DateTimeOffset finishedAt,
-        CancellationToken cancellationToken = default) =>
-        FinalizeResumeWorkItemAsync(
-            workItemId,
-            ResumeWorkItemStatus.Completed,
-            errorMessage: null,
-            finishedAt,
-            cancellationToken);
-
-    public Task MarkResumeWorkItemFailedAsync(
-        Guid workItemId,
-        string errorMessage,
         DateTimeOffset finishedAt,
         CancellationToken cancellationToken = default)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(errorMessage);
-
-        return FinalizeResumeWorkItemAsync(
-            workItemId,
-            ResumeWorkItemStatus.Failed,
-            errorMessage,
-            finishedAt,
-            cancellationToken);
-    }
-
-    private async Task FinalizeResumeWorkItemAsync(
-        Guid workItemId,
-        ResumeWorkItemStatus status,
-        string? errorMessage,
-        DateTimeOffset finishedAt,
-        CancellationToken cancellationToken)
     {
         if (workItemId == Guid.Empty)
         {
@@ -885,18 +866,19 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
             UPDATE ResumeWorkItems
             SET
                 Status = $status,
+                AttemptCount = AttemptCount + 1,
+                NextAttemptAt = NULL,
                 FinishedAt = $finishedAt,
-                ErrorMessage = $errorMessage
+                ErrorMessage = NULL
             WHERE WorkItemId = $workItemId
               AND Status = $pendingStatus;
             """;
-        command.Parameters.AddWithValue("$status", status.ToString());
+        command.Parameters.AddWithValue(
+            "$status",
+            ResumeWorkItemStatus.Completed.ToString());
         command.Parameters.AddWithValue(
             "$finishedAt",
             FormatTimestamp(finishedAt));
-        command.Parameters.AddWithValue(
-            "$errorMessage",
-            errorMessage is null ? DBNull.Value : errorMessage);
         command.Parameters.AddWithValue(
             "$workItemId",
             workItemId.ToString("D"));
@@ -904,6 +886,118 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
             "$pendingStatus",
             ResumeWorkItemStatus.Pending.ToString());
 
+        await EnsureSingleWorkItemUpdateAsync(
+            command,
+            workItemId,
+            cancellationToken);
+    }
+
+    public async Task ScheduleResumeWorkItemRetryAsync(
+        Guid workItemId,
+        string errorMessage,
+        DateTimeOffset nextAttemptAt,
+        CancellationToken cancellationToken = default)
+    {
+        if (workItemId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Work item ID must not be empty.",
+                nameof(workItemId));
+        }
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(errorMessage);
+
+        await EnsureInitializedAsync(cancellationToken);
+
+        await using var connection = await OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            UPDATE ResumeWorkItems
+            SET
+                AttemptCount = AttemptCount + 1,
+                NextAttemptAt = $nextAttemptAt,
+                ErrorMessage = $errorMessage
+            WHERE WorkItemId = $workItemId
+              AND Status = $pendingStatus;
+            """;
+        command.Parameters.AddWithValue(
+            "$nextAttemptAt",
+            FormatTimestamp(nextAttemptAt));
+        command.Parameters.AddWithValue(
+            "$errorMessage",
+            errorMessage);
+        command.Parameters.AddWithValue(
+            "$workItemId",
+            workItemId.ToString("D"));
+        command.Parameters.AddWithValue(
+            "$pendingStatus",
+            ResumeWorkItemStatus.Pending.ToString());
+
+        await EnsureSingleWorkItemUpdateAsync(
+            command,
+            workItemId,
+            cancellationToken);
+    }
+
+    public async Task DeadLetterResumeWorkItemAsync(
+        Guid workItemId,
+        string errorMessage,
+        DateTimeOffset finishedAt,
+        CancellationToken cancellationToken = default)
+    {
+        if (workItemId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Work item ID must not be empty.",
+                nameof(workItemId));
+        }
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(errorMessage);
+
+        await EnsureInitializedAsync(cancellationToken);
+
+        await using var connection = await OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            UPDATE ResumeWorkItems
+            SET
+                Status = $status,
+                AttemptCount = AttemptCount + 1,
+                NextAttemptAt = NULL,
+                FinishedAt = $finishedAt,
+                ErrorMessage = $errorMessage
+            WHERE WorkItemId = $workItemId
+              AND Status = $pendingStatus;
+            """;
+        command.Parameters.AddWithValue(
+            "$status",
+            ResumeWorkItemStatus.DeadLetter.ToString());
+        command.Parameters.AddWithValue(
+            "$finishedAt",
+            FormatTimestamp(finishedAt));
+        command.Parameters.AddWithValue(
+            "$errorMessage",
+            errorMessage);
+        command.Parameters.AddWithValue(
+            "$workItemId",
+            workItemId.ToString("D"));
+        command.Parameters.AddWithValue(
+            "$pendingStatus",
+            ResumeWorkItemStatus.Pending.ToString());
+
+        await EnsureSingleWorkItemUpdateAsync(
+            command,
+            workItemId,
+            cancellationToken);
+    }
+
+    private static async Task EnsureSingleWorkItemUpdateAsync(
+        SqliteCommand command,
+        Guid workItemId,
+        CancellationToken cancellationToken)
+    {
         var changed = await command.ExecuteNonQueryAsync(cancellationToken);
         if (changed != 1)
         {
@@ -931,14 +1025,20 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
             CreatedAt = ParseTimestamp(
                 reader.GetString(4),
                 "ResumeWorkItem.CreatedAt"),
-            FinishedAt = reader.IsDBNull(5)
+            AttemptCount = reader.GetInt32(5),
+            NextAttemptAt = reader.IsDBNull(6)
                 ? null
                 : ParseTimestamp(
-                    reader.GetString(5),
-                    "ResumeWorkItem.FinishedAt"),
-            ErrorMessage = reader.IsDBNull(6)
+                    reader.GetString(6),
+                    "ResumeWorkItem.NextAttemptAt"),
+            FinishedAt = reader.IsDBNull(7)
                 ? null
-                : reader.GetString(6),
+                : ParseTimestamp(
+                    reader.GetString(7),
+                    "ResumeWorkItem.FinishedAt"),
+            ErrorMessage = reader.IsDBNull(8)
+                ? null
+                : reader.GetString(8),
         };
 
     private async Task EnsureInitializedAsync(CancellationToken cancellationToken)
