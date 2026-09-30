@@ -1,0 +1,21 @@
+@inherits LayoutComponentBase
+
+<div class="app-shell">
+    <aside class="sidebar">
+        <NavMenu />
+    </aside>
+
+    <main class="content">
+        <header class="topbar">
+            <div>
+                <strong>DABot</strong>
+                <span>Management</span>
+            </div>
+            <span class="runtime-badge">Local runtime</span>
+        </header>
+
+        <div class="page-body">
+            @Body
+        </div>
+    </main>
+</div>
