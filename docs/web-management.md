@@ -90,6 +90,12 @@ Each scenario can be opened in the shared raw JSON editor. The editor supports:
 
 The UI uses `IScenarioCatalogQueryService` for listing and `IScenarioManagementService` for document operations. The filesystem implementation accepts only simple `.json` file names, rejects directory traversal, writes through a temporary file, and keeps all file IO in Infrastructure.
 
+### Browser profiles
+
+The profiles page lists persistent browser profile directories through the Application-level `IBrowserProfileCatalog` contract. The Infrastructure adapter reads only names beneath `bot.storage.browserProfilesDirectory`, ignores internal dot-prefixed directories such as `.locks`, and does not launch Chromium or acquire a profile lease while listing.
+
+The static demo uses representative profile names. Create/rename/delete, interactive setup, clear, and profile test actions remain separate follow-up work.
+
 ## Architecture
 
 The dependency direction is:
@@ -125,9 +131,9 @@ No login/identity provider is enabled yet, so current routes remain anonymous un
 
 ## Current scope
 
-The dashboard remains read-only. Run details support guarded manual resume/retry/cancel actions, the run list supports filtering, and scenario JSON management supports create/edit/delete and validation.
+The dashboard remains read-only. Run details support guarded manual resume/retry/cancel actions, the run list supports filtering, scenario JSON management supports create/edit/delete and validation, and persistent browser profiles can be listed.
 
-Visual scenario editing, synchronized visual/JSON representations, import/export, scenario test runs, clone-run actions, browser-profile management, configuration editing, and authentication UX remain later Sprint 8/9 work.
+Visual scenario editing, synchronized visual/JSON representations, import/export, scenario test runs, clone-run actions, browser-profile mutations/testing, configuration editing, and authentication UX remain later Sprint 8/9 work.
 
 
 ## Static GitHub Pages demo
