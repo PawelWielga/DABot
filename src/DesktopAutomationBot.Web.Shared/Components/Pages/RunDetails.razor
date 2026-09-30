@@ -128,6 +128,59 @@ else
     <section class="panel">
         <div class="panel-heading">
             <div>
+                <h2>Event history</h2>
+                <p>Events that matched this run and their durable resume work.</p>
+            </div>
+            <span class="muted">@_run.Events.Count event(s)</span>
+        </div>
+
+        @if (_run.Events.Count == 0)
+        {
+            <p class="muted">No matched events have been persisted for this run.</p>
+        }
+        else
+        {
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Event</th>
+                            <th>Type</th>
+                            <th>Correlation</th>
+                            <th>Occurred</th>
+                            <th>Received</th>
+                            <th>Resume status</th>
+                            <th>Attempts</th>
+                            <th>Next attempt</th>
+                            <th>Error</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in _run.Events)
+                        {
+                            <tr>
+                                <td><code>@ShortId(item.EventId)</code></td>
+                                <td>@item.Type</td>
+                                <td><code>@item.CorrelationId</code></td>
+                                <td>@FormatTime(item.OccurredAt)</td>
+                                <td>@FormatTime(item.ReceivedAt)</td>
+                                <td><span class="status @item.WorkItemStatus.ToString().ToLowerInvariant()">@item.WorkItemStatus</span></td>
+                                <td>@item.AttemptCount</td>
+                                <td>@(item.NextAttemptAt is null ? "—" : FormatTime(item.NextAttemptAt.Value))</td>
+                                <td class="error-cell">@(item.ErrorMessage ?? "—")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        <p class="muted privacy-note">Event payloads are intentionally not exposed by the web read model.</p>
+    </section>
+
+    <section class="panel">
+        <div class="panel-heading">
+            <div>
                 <h2>Variables</h2>
                 <p>Structured persisted run variables.</p>
             </div>
