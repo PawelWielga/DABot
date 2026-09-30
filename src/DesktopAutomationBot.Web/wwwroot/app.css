@@ -260,6 +260,18 @@ th {
     border-color: #fecaca;
 }
 
+.scenario-errors {
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #fff7ed;
+    color: #9a3412;
+    white-space: normal;
+}
+
+.scenario-errors > div + div {
+    margin-top: 6px;
+}
+
 pre {
     white-space: pre-wrap;
     overflow-wrap: anywhere;
