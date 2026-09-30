@@ -20,6 +20,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IPageObserverStore>(
             static provider => provider.GetRequiredService<SqliteRunStore>());
         services.AddSingleton<IRunQueryService, SqliteRunQueryService>();
+        services.AddSingleton<IRunArtifactService, FileSystemRunArtifactService>();
         services.AddSingleton<IScenarioCatalogQueryService, FileSystemScenarioCatalogQueryService>();
         services.AddSingleton<IScenarioManagementService, FileSystemScenarioManagementService>();
         services.AddSingleton<IHttpAutomationClient, HttpAutomationClient>();
