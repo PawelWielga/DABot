@@ -143,7 +143,9 @@ public sealed class FileSystemRunArtifactService(
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
 
-        if (!string.Equals(
+        if (fileName.Contains('/') ||
+            fileName.Contains('\\') ||
+            !string.Equals(
                 Path.GetFileName(fileName),
                 fileName,
                 StringComparison.Ordinal) ||
