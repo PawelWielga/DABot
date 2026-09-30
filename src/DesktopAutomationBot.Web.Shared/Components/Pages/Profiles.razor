@@ -133,6 +133,23 @@
                                         </button>
                                     </div>
                                 }
+                                else if (_clearProfile == profile.Name)
+                                {
+                                    <div class="profile-row-actions">
+                                        <button class="button danger"
+                                                type="button"
+                                                @onclick="ClearProfileAsync"
+                                                disabled="@IsBusy">
+                                            @(_mutationBusy && _activeAction == "clear" ? "Clearing…" : "Confirm clear")
+                                        </button>
+                                        <button class="button secondary"
+                                                type="button"
+                                                @onclick="CancelClear"
+                                                disabled="@IsBusy">
+                                            Keep data
+                                        </button>
+                                    </div>
+                                }
                                 else if (_deleteProfile == profile.Name)
                                 {
                                     <div class="profile-row-actions">
@@ -159,6 +176,12 @@
                                                 disabled="@(UiEnvironment.IsDemo || IsBusy)">
                                             Rename
                                         </button>
+                                        <button class="button secondary"
+                                                type="button"
+                                                @onclick="() => RequestClear(profile.Name)"
+                                                disabled="@(UiEnvironment.IsDemo || IsBusy)">
+                                            Clear
+                                        </button>
                                         <button class="button danger"
                                                 type="button"
                                                 @onclick="() => RequestDelete(profile.Name)"
@@ -181,7 +204,7 @@
     }
     else
     {
-        <p class="muted privacy-note">Profile mutations and health tests acquire the same exclusive profile lock used by browser sessions. Delete is confirmed explicitly and refuses to modify symlink/reparse-point profiles.</p>
+        <p class="muted privacy-note">Profile mutations and health tests acquire the same exclusive profile lock used by browser sessions. Clear removes browser-managed profile data while keeping the named profile available; clear and delete both require explicit confirmation and refuse symlink/reparse-point profiles.</p>
     }
 </section>
 
@@ -191,6 +214,7 @@
     private string? _testingProfile;
     private string? _activeAction;
     private string? _renamingProfile;
+    private string? _clearProfile;
     private string? _deleteProfile;
     private string _newProfileName = string.Empty;
     private string _renameProfileName = string.Empty;
@@ -267,6 +291,7 @@
         }
 
         ClearActionState();
+        _clearProfile = null;
         _deleteProfile = null;
         _renamingProfile = profileName;
         _renameProfileName = profileName;
@@ -316,6 +341,55 @@
         }
     }
 
+    private void RequestClear(string profileName)
+    {
+        if (UiEnvironment.IsDemo || IsBusy)
+        {
+            return;
+        }
+
+        ClearActionState();
+        _renamingProfile = null;
+        _renameProfileName = string.Empty;
+        _deleteProfile = null;
+        _clearProfile = profileName;
+    }
+
+    private void CancelClear()
+    {
+        if (!IsBusy)
+        {
+            _clearProfile = null;
+        }
+    }
+
+    private async Task ClearProfileAsync()
+    {
+        if (UiEnvironment.IsDemo || IsBusy || string.IsNullOrWhiteSpace(_clearProfile))
+        {
+            return;
+        }
+
+        var profileName = _clearProfile;
+        BeginMutation("clear");
+
+        try
+        {
+            await ProfileManagement.ClearAsync(profileName);
+            _testResults.Remove(profileName);
+            _clearProfile = null;
+            _actionMessage = $"Browser profile '{profileName}' was cleared. The profile remains available for new browser state.";
+        }
+        catch (Exception exception)
+        {
+            HandleMutationError(exception, "Clear profile");
+        }
+        finally
+        {
+            EndMutation();
+        }
+    }
+
     private void RequestDelete(string profileName)
     {
         if (UiEnvironment.IsDemo || IsBusy)
@@ -326,6 +400,7 @@
         ClearActionState();
         _renamingProfile = null;
         _renameProfileName = string.Empty;
+        _clearProfile = null;
         _deleteProfile = profileName;
     }
 
