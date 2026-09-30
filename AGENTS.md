@@ -2,7 +2,7 @@
 
 Guidelines for agents working in this repository.
 
-DABot is a general-purpose .NET browser automation engine built around declarative scenarios and Playwright. The current implementation supports one-shot scenarios, durable runs, suspend/resume, persistent browser profiles, durable events, page observers, and a read-only Blazor management foundation. MCP integration and the dynamic Tool registry remain roadmap work unless the code and README explicitly state otherwise.
+DABot is a general-purpose .NET browser automation engine built around declarative scenarios and Playwright. The current implementation supports one-shot scenarios, durable runs, suspend/resume, persistent browser profiles, durable events, page observers, and a Blazor management panel with run controls, scenario JSON management, and browser-profile management. MCP integration and the dynamic Tool registry remain roadmap work unless the code and README explicitly state otherwise.
 
 ## Product direction
 
@@ -100,11 +100,11 @@ These rules describe the durable execution architecture. Durable execution, susp
 
 ## Web panel rules
 
-The web panel currently provides a read-only dashboard, run list, and scenario list. Continue toward:
+The web panel currently provides a dashboard, run list/details and guarded run actions, scenario list/JSON management, and browser-profile list/create/rename/delete/test operations. Continue toward:
 
-- visual + JSON scenario editor,
-- run details and actions,
-- browser profiles,
+- visual scenario editing synchronized with JSON,
+- scenario import/export and test runs,
+- interactive browser-profile sessions and clear operations,
 - configuration.
 
 Later features may include:
