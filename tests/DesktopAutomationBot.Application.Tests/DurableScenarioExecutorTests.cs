@@ -814,6 +814,12 @@ public sealed class DurableScenarioExecutorTests : IDisposable
             throw new NotSupportedException();
 
         public Task<IReadOnlyList<ResumeWorkItem>> LoadPendingResumeWorkItemsAsync(
+            DateTimeOffset dueAt,
+            int limit = 100,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<ResumeWorkItem>>([]);
+
+        public Task<IReadOnlyList<ResumeWorkItem>> LoadDeadLetterResumeWorkItemsAsync(
             int limit = 100,
             CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<ResumeWorkItem>>([]);
@@ -824,7 +830,14 @@ public sealed class DurableScenarioExecutorTests : IDisposable
             CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
 
-        public Task MarkResumeWorkItemFailedAsync(
+        public Task ScheduleResumeWorkItemRetryAsync(
+            Guid workItemId,
+            string errorMessage,
+            DateTimeOffset nextAttemptAt,
+            CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
+        public Task DeadLetterResumeWorkItemAsync(
             Guid workItemId,
             string errorMessage,
             DateTimeOffset finishedAt,

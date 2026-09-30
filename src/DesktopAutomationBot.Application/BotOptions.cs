@@ -18,6 +18,12 @@ public sealed class EventWorkerOptions
     public int PollIntervalMs { get; init; } = 1000;
 
     public int BatchSize { get; init; } = 100;
+
+    public int MaxAttempts { get; init; } = 5;
+
+    public int BaseRetryDelayMs { get; init; } = 1000;
+
+    public int MaxRetryDelayMs { get; init; } = 60_000;
 }
 
 public sealed class RetryWorkerOptions

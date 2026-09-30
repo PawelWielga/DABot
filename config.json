@@ -31,7 +31,10 @@
     },
     "eventWorker": {
       "pollIntervalMs": 1000,
-      "batchSize": 100
+      "batchSize": 100,
+      "maxAttempts": 5,
+      "baseRetryDelayMs": 1000,
+      "maxRetryDelayMs": 60000
     }
   }
 }

@@ -56,6 +56,7 @@ public enum ResumeWorkItemStatus
     Pending,
     Completed,
     Failed,
+    DeadLetter,
 }
 
 public sealed record ResumeWorkItem
@@ -69,6 +70,10 @@ public sealed record ResumeWorkItem
     public required ResumeWorkItemStatus Status { get; init; }
 
     public required DateTimeOffset CreatedAt { get; init; }
+
+    public int AttemptCount { get; init; }
+
+    public DateTimeOffset? NextAttemptAt { get; init; }
 
     public DateTimeOffset? FinishedAt { get; init; }
 
