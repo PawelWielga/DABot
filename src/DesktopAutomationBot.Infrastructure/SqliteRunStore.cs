@@ -1091,6 +1091,358 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
                 : reader.GetString(8),
         };
 
+
+    public async Task SaveAsync(
+        PageObserverDefinition definition,
+        CancellationToken cancellationToken = default)
+    {
+        var validated = PageObserverDefinition.Validate(definition);
+
+        await EnsureInitializedAsync(cancellationToken);
+
+        await using var connection = await OpenConnectionAsync(cancellationToken);
+        await using var transaction =
+            (SqliteTransaction)await connection.BeginTransactionAsync(
+                cancellationToken);
+
+        await using (var command = connection.CreateCommand())
+        {
+            command.Transaction = transaction;
+            command.CommandText =
+                """
+                INSERT INTO PageObservers (
+                    ObserverId,
+                    Name,
+                    Url,
+                    BrowserProfile,
+                    Condition,
+                    LocatorJson,
+                    ExpectedValue,
+                    EventType,
+                    CorrelationId,
+                    PollIntervalMs,
+                    Enabled)
+                VALUES (
+                    $observerId,
+                    $name,
+                    $url,
+                    $browserProfile,
+                    $condition,
+                    $locatorJson,
+                    $expectedValue,
+                    $eventType,
+                    $correlationId,
+                    $pollIntervalMs,
+                    $enabled)
+                ON CONFLICT(ObserverId) DO UPDATE SET
+                    Name = excluded.Name,
+                    Url = excluded.Url,
+                    BrowserProfile = excluded.BrowserProfile,
+                    Condition = excluded.Condition,
+                    LocatorJson = excluded.LocatorJson,
+                    ExpectedValue = excluded.ExpectedValue,
+                    EventType = excluded.EventType,
+                    CorrelationId = excluded.CorrelationId,
+                    PollIntervalMs = excluded.PollIntervalMs,
+                    Enabled = excluded.Enabled;
+                """;
+
+            command.Parameters.AddWithValue(
+                "$observerId",
+                validated.ObserverId.ToString("D"));
+            command.Parameters.AddWithValue("$name", validated.Name);
+            command.Parameters.AddWithValue("$url", validated.Url);
+            command.Parameters.AddWithValue(
+                "$browserProfile",
+                string.IsNullOrWhiteSpace(validated.BrowserProfile)
+                    ? DBNull.Value
+                    : validated.BrowserProfile);
+            command.Parameters.AddWithValue(
+                "$condition",
+                validated.Condition.ToString());
+            command.Parameters.AddWithValue(
+                "$locatorJson",
+                validated.Locator is null
+                    ? DBNull.Value
+                    : JsonSerializer.Serialize(validated.Locator));
+            command.Parameters.AddWithValue(
+                "$expectedValue",
+                validated.ExpectedValue is null
+                    ? DBNull.Value
+                    : validated.ExpectedValue);
+            command.Parameters.AddWithValue(
+                "$eventType",
+                validated.EventType);
+            command.Parameters.AddWithValue(
+                "$correlationId",
+                validated.CorrelationId);
+            command.Parameters.AddWithValue(
+                "$pollIntervalMs",
+                validated.PollIntervalMs);
+            command.Parameters.AddWithValue(
+                "$enabled",
+                validated.Enabled ? 1 : 0);
+
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        await using (var ensureSnapshot = connection.CreateCommand())
+        {
+            ensureSnapshot.Transaction = transaction;
+            ensureSnapshot.CommandText =
+                """
+                INSERT OR IGNORE INTO PageObserverSnapshots (
+                    ObserverId,
+                    LastObservation,
+                    LastMatched,
+                    LastCheckedAt,
+                    NextCheckAt,
+                    LastEventAt,
+                    FailureCount,
+                    LastError)
+                VALUES (
+                    $observerId,
+                    NULL,
+                    NULL,
+                    NULL,
+                    NULL,
+                    NULL,
+                    0,
+                    NULL);
+                """;
+            ensureSnapshot.Parameters.AddWithValue(
+                "$observerId",
+                validated.ObserverId.ToString("D"));
+
+            await ensureSnapshot.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<StoredPageObserver>> LoadDueAsync(
+        DateTimeOffset dueAt,
+        int limit = 100,
+        CancellationToken cancellationToken = default)
+    {
+        if (limit <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(limit),
+                limit,
+                "Limit must be greater than zero.");
+        }
+
+        await EnsureInitializedAsync(cancellationToken);
+
+        await using var connection = await OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT
+                o.ObserverId,
+                o.Name,
+                o.Url,
+                o.BrowserProfile,
+                o.Condition,
+                o.LocatorJson,
+                o.ExpectedValue,
+                o.EventType,
+                o.CorrelationId,
+                o.PollIntervalMs,
+                o.Enabled,
+                s.LastObservation,
+                s.LastMatched,
+                s.LastCheckedAt,
+                s.NextCheckAt,
+                s.LastEventAt,
+                s.FailureCount,
+                s.LastError
+            FROM PageObservers o
+            INNER JOIN PageObserverSnapshots s
+                ON s.ObserverId = o.ObserverId
+            WHERE o.Enabled = 1
+              AND (
+                    s.NextCheckAt IS NULL
+                    OR julianday(s.NextCheckAt) <= julianday($dueAt)
+                  )
+            ORDER BY
+                julianday(COALESCE(s.NextCheckAt, '0001-01-01T00:00:00.0000000+00:00')),
+                o.ObserverId
+            LIMIT $limit;
+            """;
+        command.Parameters.AddWithValue(
+            "$dueAt",
+            FormatTimestamp(dueAt));
+        command.Parameters.AddWithValue("$limit", limit);
+
+        var observers = new List<StoredPageObserver>();
+
+        await using var reader =
+            await command.ExecuteReaderAsync(cancellationToken);
+
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            var observerId = ParseGuid(
+                reader.GetString(0),
+                "PageObserver.ObserverId");
+
+            ScenarioLocator? locator = null;
+            if (!reader.IsDBNull(5))
+            {
+                locator = JsonSerializer.Deserialize<ScenarioLocator>(
+                    reader.GetString(5))
+                    ?? throw new InvalidOperationException(
+                        $"Stored observer '{observerId}' contains an invalid locator.");
+            }
+
+            var definition = PageObserverDefinition.Validate(
+                new PageObserverDefinition
+                {
+                    ObserverId = observerId,
+                    Name = reader.GetString(1),
+                    Url = reader.GetString(2),
+                    BrowserProfile = reader.IsDBNull(3)
+                        ? null
+                        : reader.GetString(3),
+                    Condition = ParseEnum<PageObserverConditionKind>(
+                        reader.GetString(4),
+                        "PageObserver.Condition"),
+                    Locator = locator,
+                    ExpectedValue = reader.IsDBNull(6)
+                        ? null
+                        : reader.GetString(6),
+                    EventType = reader.GetString(7),
+                    CorrelationId = reader.GetString(8),
+                    PollIntervalMs = reader.GetInt32(9),
+                    Enabled = reader.GetInt32(10) != 0,
+                });
+
+            var snapshot = new PageObserverSnapshot
+            {
+                ObserverId = observerId,
+                LastObservation = reader.IsDBNull(11)
+                    ? null
+                    : reader.GetString(11),
+                LastMatched = reader.IsDBNull(12)
+                    ? null
+                    : reader.GetInt32(12) != 0,
+                LastCheckedAt = reader.IsDBNull(13)
+                    ? null
+                    : ParseTimestamp(
+                        reader.GetString(13),
+                        "PageObserverSnapshot.LastCheckedAt"),
+                NextCheckAt = reader.IsDBNull(14)
+                    ? null
+                    : ParseTimestamp(
+                        reader.GetString(14),
+                        "PageObserverSnapshot.NextCheckAt"),
+                LastEventAt = reader.IsDBNull(15)
+                    ? null
+                    : ParseTimestamp(
+                        reader.GetString(15),
+                        "PageObserverSnapshot.LastEventAt"),
+                FailureCount = reader.GetInt32(16),
+                LastError = reader.IsDBNull(17)
+                    ? null
+                    : reader.GetString(17),
+            };
+
+            observers.Add(
+                new StoredPageObserver
+                {
+                    Definition = definition,
+                    Snapshot = snapshot,
+                });
+        }
+
+        return observers;
+    }
+
+    public async Task SaveSnapshotAsync(
+        PageObserverSnapshot snapshot,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+
+        if (snapshot.ObserverId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Observer ID must not be empty.",
+                nameof(snapshot));
+        }
+
+        if (snapshot.FailureCount < 0)
+        {
+            throw new ArgumentException(
+                "Observer failure count must not be negative.",
+                nameof(snapshot));
+        }
+
+        await EnsureInitializedAsync(cancellationToken);
+
+        await using var connection = await OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            UPDATE PageObserverSnapshots
+            SET
+                LastObservation = $lastObservation,
+                LastMatched = $lastMatched,
+                LastCheckedAt = $lastCheckedAt,
+                NextCheckAt = $nextCheckAt,
+                LastEventAt = $lastEventAt,
+                FailureCount = $failureCount,
+                LastError = $lastError
+            WHERE ObserverId = $observerId;
+            """;
+        command.Parameters.AddWithValue(
+            "$lastObservation",
+            snapshot.LastObservation is null
+                ? DBNull.Value
+                : snapshot.LastObservation);
+        command.Parameters.AddWithValue(
+            "$lastMatched",
+            snapshot.LastMatched is null
+                ? DBNull.Value
+                : snapshot.LastMatched.Value ? 1 : 0);
+        command.Parameters.AddWithValue(
+            "$lastCheckedAt",
+            snapshot.LastCheckedAt is null
+                ? DBNull.Value
+                : FormatTimestamp(snapshot.LastCheckedAt.Value));
+        command.Parameters.AddWithValue(
+            "$nextCheckAt",
+            snapshot.NextCheckAt is null
+                ? DBNull.Value
+                : FormatTimestamp(snapshot.NextCheckAt.Value));
+        command.Parameters.AddWithValue(
+            "$lastEventAt",
+            snapshot.LastEventAt is null
+                ? DBNull.Value
+                : FormatTimestamp(snapshot.LastEventAt.Value));
+        command.Parameters.AddWithValue(
+            "$failureCount",
+            snapshot.FailureCount);
+        command.Parameters.AddWithValue(
+            "$lastError",
+            snapshot.LastError is null
+                ? DBNull.Value
+                : snapshot.LastError);
+        command.Parameters.AddWithValue(
+            "$observerId",
+            snapshot.ObserverId.ToString("D"));
+
+        var changed =
+            await command.ExecuteNonQueryAsync(cancellationToken);
+
+        if (changed != 1)
+        {
+            throw new InvalidOperationException(
+                $"Page observer '{snapshot.ObserverId}' does not exist.");
+        }
+    }
+
     private async Task EnsureInitializedAsync(CancellationToken cancellationToken)
     {
         if (_initialized)
