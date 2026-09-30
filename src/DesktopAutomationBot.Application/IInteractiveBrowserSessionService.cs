@@ -31,7 +31,8 @@ public interface IInteractiveBrowserSessionService
 public sealed class InteractiveBrowserSessionService(
     IBrowserProfileService profileService,
     TimeProvider timeProvider,
-    BotOptions options) :
+    BotOptions options,
+    IInteractiveBrowserSessionAuditSink auditSink) :
     IInteractiveBrowserSessionService,
     IAsyncDisposable
 {
@@ -92,6 +93,24 @@ public sealed class InteractiveBrowserSessionService(
                 StartedAt = startedAt,
                 ExpiresAt = startedAt.Add(maxDuration),
             };
+            try
+            {
+                await auditSink.WriteAsync(
+                    new InteractiveBrowserSessionAuditEvent
+                    {
+                        EventType = InteractiveBrowserSessionAuditEventType.Started,
+                        SessionId = info.SessionId,
+                        ProfileName = info.ProfileName,
+                        OccurredAt = startedAt,
+                    },
+                    cancellationToken);
+            }
+            catch
+            {
+                await session.DisposeAsync();
+                throw;
+            }
+
             var expirationCancellation = new CancellationTokenSource();
 
             _sessions.Add(
@@ -134,6 +153,9 @@ public sealed class InteractiveBrowserSessionService(
 
         CancelExpiration(activeSession);
         await activeSession.Session.DisposeAsync();
+        await WriteEndAuditBestEffortAsync(
+            activeSession.Info,
+            InteractiveBrowserSessionEndReason.Manual);
         return true;
     }
 
@@ -157,6 +179,9 @@ public sealed class InteractiveBrowserSessionService(
         {
             CancelExpiration(activeSession);
             await TryDisposeAsync(activeSession.Session);
+            await WriteEndAuditBestEffortAsync(
+                activeSession.Info,
+                InteractiveBrowserSessionEndReason.HostShutdown);
         }
     }
 
@@ -200,6 +225,9 @@ public sealed class InteractiveBrowserSessionService(
 
         CancelExpiration(activeSession);
         await TryDisposeAsync(activeSession.Session);
+        await WriteEndAuditBestEffortAsync(
+            activeSession.Info,
+            InteractiveBrowserSessionEndReason.BrowserClosed);
     }
 
     private async Task ExpireAsync(
@@ -232,6 +260,9 @@ public sealed class InteractiveBrowserSessionService(
 
         CancelExpiration(activeSession);
         await TryDisposeAsync(activeSession.Session);
+        await WriteEndAuditBestEffortAsync(
+            activeSession.Info,
+            InteractiveBrowserSessionEndReason.Expired);
     }
 
     private async Task<ActiveSession?> RemoveActiveSessionAsync(
@@ -268,6 +299,29 @@ public sealed class InteractiveBrowserSessionService(
     {
         activeSession.ExpirationCancellation.Cancel();
         activeSession.ExpirationCancellation.Dispose();
+    }
+
+    private async Task WriteEndAuditBestEffortAsync(
+        InteractiveBrowserSessionInfo info,
+        InteractiveBrowserSessionEndReason endReason)
+    {
+        try
+        {
+            await auditSink.WriteAsync(
+                new InteractiveBrowserSessionAuditEvent
+                {
+                    EventType = InteractiveBrowserSessionAuditEventType.Ended,
+                    SessionId = info.SessionId,
+                    ProfileName = info.ProfileName,
+                    OccurredAt = timeProvider.GetUtcNow(),
+                    EndReason = endReason,
+                });
+        }
+        catch
+        {
+            // Session cleanup must not be rolled back if the audit adapter
+            // itself is unavailable. The default logging adapter is non-throwing.
+        }
     }
 
     private static async Task TryDisposeAsync(
