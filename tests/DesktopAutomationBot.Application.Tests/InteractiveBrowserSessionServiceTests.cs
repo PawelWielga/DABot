@@ -65,6 +65,26 @@ public sealed class InteractiveBrowserSessionServiceTests
     }
 
     [Fact]
+    public async Task StartAsync_WhenAuditStartFails_ClosesBrowserAndDoesNotRegisterSession()
+    {
+        var profiles = new RecordingProfileService();
+        await using var service = new InteractiveBrowserSessionService(
+            profiles,
+            TimeProvider.System,
+            new BotOptions(),
+            new ThrowingAuditSink());
+
+        Func<Task> start = async () =>
+            await service.StartAsync("work-profile");
+
+        await start.Should().ThrowAsync<InvalidOperationException>();
+
+        profiles.Sessions.Should().ContainSingle();
+        profiles.Sessions[0].DisposeCount.Should().Be(1);
+        (await service.ListAsync()).Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task StartAsync_WhenProfileAlreadyInteractive_RejectsDuplicateSession()
     {
         var profiles = new RecordingProfileService();
@@ -187,6 +207,15 @@ public sealed class InteractiveBrowserSessionServiceTests
         }
 
         throw new TimeoutException("Condition was not reached before the test timeout.");
+    }
+
+    private sealed class ThrowingAuditSink : IInteractiveBrowserSessionAuditSink
+    {
+        public Task WriteAsync(
+            InteractiveBrowserSessionAuditEvent auditEvent,
+            CancellationToken cancellationToken = default) =>
+            Task.FromException(
+                new InvalidOperationException("Audit unavailable."));
     }
 
     private sealed class RecordingAuditSink : IInteractiveBrowserSessionAuditSink
