@@ -18,6 +18,7 @@ This directory contains design and implementation documentation. Use this page a
 | Understand durable execution design | [Durable workflows](durable-workflows.md) |
 | Understand runtime variables and secret handling | [Runtime variables and secrets](secrets-and-variables.md) |
 | Understand browser session ownership and lifetime | [Browser sessions](browser-sessions.md) |
+| Understand durable events, correlation, and idempotency | [Durable events](events.md) |
 | Understand MCP and dynamic tools direction | [MCP and dynamic tools](mcp-and-dynamic-tools.md) |
 | Compare DABot with raw Playwright | [Comparison](comparison.md) |
 

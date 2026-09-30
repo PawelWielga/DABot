@@ -229,6 +229,30 @@ public sealed class ScenarioDefinitionValidator
             errors.Add($"{path}.children must be empty for Suspend.");
         }
 
+        if (step.Type == StepType.Suspend &&
+            step.Parameters is not null &&
+            step.Parameters.TryGetValue("reason", out var eventReason) &&
+            eventReason.ValueKind == System.Text.Json.JsonValueKind.String &&
+            string.Equals(
+                eventReason.GetString(),
+                RunWaitReason.Event.ToString(),
+                StringComparison.OrdinalIgnoreCase))
+        {
+            if (!step.Parameters.TryGetValue("correlationId", out var correlationId) ||
+                correlationId.ValueKind != System.Text.Json.JsonValueKind.String ||
+                string.IsNullOrWhiteSpace(correlationId.GetString()))
+            {
+                errors.Add($"{path}.parameters.correlationId is required for Suspend reason Event.");
+            }
+
+            if (step.Parameters.TryGetValue("eventType", out var eventType) &&
+                (eventType.ValueKind != System.Text.Json.JsonValueKind.String ||
+                 string.IsNullOrWhiteSpace(eventType.GetString())))
+            {
+                errors.Add($"{path}.parameters.eventType must be a non-empty string when specified.");
+            }
+        }
+
         if (step.RetryCount is < 0)
         {
             errors.Add($"{path}.retryCount must be zero or greater.");

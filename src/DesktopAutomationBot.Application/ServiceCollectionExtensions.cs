@@ -21,6 +21,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IDurableRunRecoveryService, DurableRunRecoveryService>();
         services.AddSingleton<IDurableRetryScheduler, DurableRetryScheduler>();
         services.AddSingleton<IDurableRetryWorker, DurableRetryWorker>();
+        services.AddSingleton<IEventPublisher, EventPublisher>();
+        services.AddSingleton<IEventResumeWorker, EventResumeWorker>();
         services.AddSingleton<IStepHandler, OpenUrlStepHandler>();
         services.AddSingleton<IStepHandler, ClickStepHandler>();
         services.AddSingleton<IStepHandler, FillTextStepHandler>();

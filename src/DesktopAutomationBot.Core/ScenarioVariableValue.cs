@@ -22,6 +22,9 @@ public sealed class ScenarioVariableValue : IEquatable<ScenarioVariableValue>
             JsonSerializer.SerializeToElement(value));
     }
 
+    public static ScenarioVariableValue FromNull() =>
+        ParseJson("null");
+
     public static ScenarioVariableValue FromBoolean(bool value) =>
         new(JsonSerializer.SerializeToElement(value));
 

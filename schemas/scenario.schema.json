@@ -579,8 +579,51 @@
                       "Schedule"
                     ],
                     "default": "Human"
+                  },
+                  "correlationId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Required when reason is Event. Identifies the waiting run for external event delivery."
+                  },
+                  "eventType": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Optional event type filter for an Event suspension."
                   }
                 }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "Suspend"
+              },
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "const": "Event"
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            },
+            "required": [
+              "type",
+              "parameters"
+            ]
+          },
+          "then": {
+            "properties": {
+              "parameters": {
+                "required": [
+                  "correlationId"
+                ]
               }
             }
           }
