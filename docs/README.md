@@ -15,6 +15,7 @@ This directory contains design and implementation documentation. Use this page a
 | Understand product requirements | [Product requirements](prd.md) |
 | Understand product positioning and differentiation | [Product positioning](product-positioning.md) |
 | See implementation status and order | [Implementation backlog](tasks.md) |
+| Review first public release scope | [v0.1.0 release notes](releases/v0.1.0.md) |
 | Publish and smoke-test DABot on Linux | [Linux publish and smoke test](linux-publish.md) |
 | Understand durable execution design | [Durable workflows](durable-workflows.md) |
 | Understand runtime variables and secret handling | [Runtime variables and secrets](secrets-and-variables.md) |

@@ -22,7 +22,8 @@ DABot can currently:
 - interpolate `{{variableName}}` references in string step inputs, including built-in `runId`,
 - wait for selectors, text, URLs, and page load states,
 - pause execution for a fixed delay,
-- capture screenshots,\n- call HTTP APIs with GET/POST/PUT and map response values into scenario outputs,
+- capture screenshots,
+- call HTTP APIs with GET/POST/PUT and map response values into scenario outputs,
 - execute scenarios through the .NET runner,
 - cancel an active one-shot run with Ctrl+C,
 - validate scenario definitions before execution.
@@ -189,13 +190,15 @@ It reads durable run state through Application services and does not directly ow
 
 ## Execution model
 
-The current engine executes a scenario synchronously:
+DABot supports both the original one-shot execution path and durable persisted runs.
+
+One-shot scenarios execute synchronously and remain the simplest option for short automations:
 
 ```text
 Start -> Step -> Step -> Step -> Completed
 ```
 
-The planned durable execution model extends the same engine so a run can persist its state, stop the process, and resume later:
+Durable runs persist their scenario version, execution cursor, variables, step attempts, wait state, and event correlation data in SQLite. A durable workflow can suspend, let the process exit, and continue later:
 
 ```text
 Start -> Step -> Suspend
@@ -211,7 +214,7 @@ Start -> Step -> Suspend
                  Step...
 ```
 
-Short browser waits remain active Playwright waits. Durable scenarios can use `Suspend` to persist the next execution position and enter `Waiting` without keeping a process blocked; the persisted run can later be resumed by ID.
+Short browser waits remain active Playwright waits. `Suspend` is for long-lived waits that must survive process termination. Durable runs can also be resumed manually by `RunId`, retried by the retry worker, or resumed from idempotent external events.
 
 See [durable workflow architecture](docs/durable-workflows.md).
 
@@ -266,6 +269,7 @@ Durable retries can be processed continuously with:
 
 ```bash
 dotnet run --project src/DesktopAutomationBot.Runner -- retry-worker
+```
 
 Manual durable-run control uses the persisted run ID:
 
@@ -287,7 +291,6 @@ dotnet run --project src/DesktopAutomationBot.Runner -- observer-worker
 ```
 
 Event delivery is idempotent by `EventId`; the worker resumes matching persisted `Suspend(reason: Event)` runs from durable work items. Failed resume work items use persisted exponential backoff and move to a durable dead-letter queue after the configured maximum attempts.
-```
 
 The retry worker polls SQLite using `bot.retryWorker.pollIntervalMs` and processes at most `bot.retryWorker.batchSize` due runs per sweep. Ctrl+C requests a graceful stop: an active durable retry is allowed to finish, then the worker stops before starting the next run.
 
@@ -323,6 +326,7 @@ Treat non-zero codes as failures. Code `3` is intended for problems that can be 
 - [Scenario schema and migration policy](docs/scenario-schema.md)
 - [Architecture review and improvement plan](docs/architecture-review-2026-09-27.md)
 - [DABot compared with raw Playwright](docs/comparison.md)
+- [v0.1.0 release notes](docs/releases/v0.1.0.md)
 - [Agent guidelines](AGENTS.md)
 - [Runnable examples](examples/README.md)
 
