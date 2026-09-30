@@ -17,6 +17,7 @@ builder.Services.AddSingleton<DemoDataService>();
 builder.Services.AddSingleton<IBrowserProfileCatalog, DemoBrowserProfileCatalog>();
 builder.Services.AddSingleton<IBrowserProfileManagementService, DemoBrowserProfileManagementService>();
 builder.Services.AddSingleton<IBrowserProfileService, DemoBrowserProfileService>();
+builder.Services.AddSingleton<IInteractiveBrowserSessionService, DemoInteractiveBrowserSessionService>();
 builder.Services.AddSingleton<IDurableRunControlService, DemoRunControlService>();
 builder.Services.AddSingleton<IRunArtifactService, DemoRunArtifactService>();
 builder.Services.AddSingleton<IRunQueryService>(
