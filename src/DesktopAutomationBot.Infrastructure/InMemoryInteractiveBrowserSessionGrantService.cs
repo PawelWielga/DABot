@@ -21,14 +21,32 @@ public sealed class InMemoryInteractiveBrowserSessionGrantService(
         CancellationToken cancellationToken = default)
     {
         var lifetime = GetGrantLifetime();
-        await EnsureSessionIsActiveAsync(
+        var activeSession = await GetActiveSessionAsync(
             sessionId,
             cancellationToken);
 
+        if (activeSession is null)
+        {
+            throw new InvalidOperationException(
+                $"Interactive browser session '{sessionId}' is not active.");
+        }
+
         var now = timeProvider.GetUtcNow();
+        var expiresAt = now.Add(lifetime);
+
+        if (activeSession.ExpiresAt < expiresAt)
+        {
+            expiresAt = activeSession.ExpiresAt;
+        }
+
+        if (expiresAt <= now)
+        {
+            throw new InvalidOperationException(
+                $"Interactive browser session '{sessionId}' is already expiring.");
+        }
+
         var token = CreateToken();
         var tokenHash = HashToken(token);
-        var expiresAt = now.Add(lifetime);
 
         await _gate.WaitAsync(cancellationToken);
 
@@ -62,7 +80,8 @@ public sealed class InMemoryInteractiveBrowserSessionGrantService(
         string accessToken,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(accessToken))
+        if (string.IsNullOrWhiteSpace(accessToken) ||
+            accessToken.Length > 128)
         {
             return false;
         }
@@ -121,27 +140,21 @@ public sealed class InMemoryInteractiveBrowserSessionGrantService(
         return TimeSpan.FromSeconds(lifetimeSeconds);
     }
 
-    private async Task EnsureSessionIsActiveAsync(
-        Guid sessionId,
-        CancellationToken cancellationToken)
-    {
-        if (!await IsSessionActiveAsync(
-                sessionId,
-                cancellationToken))
-        {
-            throw new InvalidOperationException(
-                $"Interactive browser session '{sessionId}' is not active.");
-        }
-    }
-
     private async Task<bool> IsSessionActiveAsync(
+        Guid sessionId,
+        CancellationToken cancellationToken) =>
+        await GetActiveSessionAsync(
+            sessionId,
+            cancellationToken) is not null;
+
+    private async Task<InteractiveBrowserSessionInfo?> GetActiveSessionAsync(
         Guid sessionId,
         CancellationToken cancellationToken)
     {
         var activeSessions = await sessions.ListAsync(
             cancellationToken);
 
-        return activeSessions.Any(session =>
+        return activeSessions.FirstOrDefault(session =>
             session.SessionId == sessionId);
     }
 
