@@ -11,6 +11,17 @@ public sealed class BotOptions
     public RetryWorkerOptions RetryWorker { get; init; } = new();
 
     public EventWorkerOptions EventWorker { get; init; } = new();
+
+    public ObserverWorkerOptions ObserverWorker { get; init; } = new();
+}
+
+public sealed class ObserverWorkerOptions
+{
+    public int PollIntervalMs { get; init; } = 1000;
+
+    public int BatchSize { get; init; } = 50;
+
+    public int MaxErrorBackoffMs { get; init; } = 60_000;
 }
 
 public sealed class EventWorkerOptions
