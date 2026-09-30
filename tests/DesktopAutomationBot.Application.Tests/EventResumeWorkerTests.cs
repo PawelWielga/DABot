@@ -260,6 +260,11 @@ public sealed class EventResumeWorkerTests
                 });
         }
 
+        public Task<DurableScenarioExecutionResult> RetryNowAsync(
+            Guid runId,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
         public Task<AutomationRun> CancelAsync(
             Guid runId,
             CancellationToken cancellationToken = default) =>
