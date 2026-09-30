@@ -174,7 +174,7 @@ Agents should use the README and implementation backlog to distinguish current f
 | Suspend and resume | Available |
 | External event model | Available |
 | Generic page observers | Available |
-| Web management panel | Foundation available |
+| Web management panel | Dashboard, runs, and scenario JSON management available |
 | MCP server/client integration | Planned |
 | Dynamic reusable tool registry | Planned |
 
