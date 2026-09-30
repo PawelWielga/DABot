@@ -274,7 +274,7 @@ Durable events can be injected and processed without an external transport adapt
 dotnet run --project src/DesktopAutomationBot.Runner -- event publish --id <guid> --type order.approved --correlation order-123 --payload '{"approved":true}'
 dotnet run --project src/DesktopAutomationBot.Runner -- event-worker
 
-dotnet run --project src/DesktopAutomationBot.Runner -- observer import --file examples/page-observer.json
+dotnet run --project src/DesktopAutomationBot.Runner -- observer import --file examples/observers/page-observer.json
 dotnet run --project src/DesktopAutomationBot.Runner -- observer-worker
 ```
 
