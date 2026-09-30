@@ -55,7 +55,7 @@ public sealed record PageObserverDefinition
                 definition.Url,
                 UriKind.Absolute,
                 out var uri) ||
-            uri.Scheme is not ("http" or "https"))
+            uri.Scheme is not "http" and not "https")
         {
             throw new ArgumentException(
                 "Observer URL must be an absolute HTTP or HTTPS URL.",
