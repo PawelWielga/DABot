@@ -18,5 +18,7 @@ builder.Services.AddSingleton<IRunQueryService>(
     static provider => provider.GetRequiredService<DemoDataService>());
 builder.Services.AddSingleton<IScenarioCatalogQueryService>(
     static provider => provider.GetRequiredService<DemoDataService>());
+builder.Services.AddSingleton<IScenarioManagementService>(
+    static provider => provider.GetRequiredService<DemoDataService>());
 
 await builder.Build().RunAsync();
