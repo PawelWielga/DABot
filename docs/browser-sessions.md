@@ -62,6 +62,8 @@ The web management profile page can also start a headed setup session on the run
 
 Interactive browser sessions also have a configurable absolute lifetime through `bot.interactiveBrowser.maxDurationSeconds` (default 1800 seconds). The Application lifecycle service schedules expiry independently of the UI; when the deadline is reached it removes the active session, closes Chromium, and releases the profile lease.
 
+Lifecycle transitions are also emitted through `IInteractiveBrowserSessionAuditSink`. The default logging adapter records session ID, profile name, timestamp, and the end reason (`Manual`, `BrowserClosed`, `Expired`, or `HostShutdown`). The audit model intentionally has no URL, page-content, credential, or MFA fields.
+
 Use the health command to verify that a profile directory can be leased and launched:
 
 ```bash
@@ -72,4 +74,4 @@ The health check opens the named profile headlessly and disposes it immediately 
 
 ## Remaining profile work
 
-Sprint 3 session/runtime foundations are complete. The web-management layer now supports profile list/create/rename/clear/delete, health testing, and local headed interactive-session lifecycle. Remote display/input streaming, authorization/session grants, inactivity cleanup, and audit remain planned. Maximum-duration cleanup is implemented.
+Sprint 3 session/runtime foundations are complete. The web-management layer now supports profile list/create/rename/clear/delete, health testing, and local headed interactive-session lifecycle. Remote display/input streaming, authorization/session grants, inactivity cleanup, and durable/queryable audit persistence remain planned. Maximum-duration cleanup and structured non-sensitive lifecycle audit events are implemented.
