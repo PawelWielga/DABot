@@ -87,7 +87,7 @@ public sealed class SqliteRunQueryService(
                 UpdatedAt
             FROM Runs
             WHERE ($status IS NULL OR Status = $status)
-            ORDER BY UpdatedAt DESC, RunId DESC
+            ORDER BY julianday(UpdatedAt) DESC, RunId DESC
             LIMIT $limit;
             """;
 
