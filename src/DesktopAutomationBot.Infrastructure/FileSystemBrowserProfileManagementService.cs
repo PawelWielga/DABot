@@ -55,7 +55,9 @@ public sealed class FileSystemBrowserProfileManagementService(
         using var secondLease = AcquireLease(source.Locks, lockNames[1]);
 
         EnsureProfileExists(source.Profile, profileName);
-        EnsureNotReparsePoint(source.Profile, profileName);
+        BrowserProfileDirectoryGuard.EnsureNotReparsePoint(
+            source.Profile,
+            profileName);
 
         if (Directory.Exists(target.Profile))
         {
@@ -81,7 +83,9 @@ public sealed class FileSystemBrowserProfileManagementService(
         using var lease = AcquireLease(paths.Locks, profileName);
 
         EnsureProfileExists(paths.Profile, profileName);
-        EnsureNotReparsePoint(paths.Profile, profileName);
+        BrowserProfileDirectoryGuard.EnsureNotReparsePoint(
+            paths.Profile,
+            profileName);
 
         Directory.Delete(paths.Profile, recursive: true);
         return Task.CompletedTask;
@@ -113,19 +117,6 @@ public sealed class FileSystemBrowserProfileManagementService(
         {
             throw new InvalidOperationException(
                 $"Browser profile '{profileName}' does not exist.");
-        }
-    }
-
-    private static void EnsureNotReparsePoint(
-        string profileDirectory,
-        string profileName)
-    {
-        var attributes = File.GetAttributes(profileDirectory);
-
-        if ((attributes & FileAttributes.ReparsePoint) != 0)
-        {
-            throw new InvalidOperationException(
-                $"Browser profile '{profileName}' points to a symbolic link or reparse point and cannot be modified.");
         }
     }
 
