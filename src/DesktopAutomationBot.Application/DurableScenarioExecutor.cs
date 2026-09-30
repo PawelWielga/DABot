@@ -391,10 +391,33 @@ public sealed class DurableScenarioExecutor :
                         variables,
                         updatedAt);
 
-                    await _runStore.SaveAsync(
-                        run,
-                        scenarioVersion,
-                        CancellationToken.None);
+                    if (waitReason == RunWaitReason.Event)
+                    {
+                        if (_runStore is not IEventInboxStore eventInbox)
+                        {
+                            throw new InvalidOperationException(
+                                "Event-based Suspend requires an event-capable durable run store.");
+                        }
+
+                        var eventWait =
+                            SuspendStepEvaluator.CreateEventWait(
+                                step,
+                                run.RunId,
+                                updatedAt);
+
+                        await eventInbox.ArmEventWaitAsync(
+                            run,
+                            scenarioVersion,
+                            eventWait,
+                            CancellationToken.None);
+                    }
+                    else
+                    {
+                        await _runStore.SaveAsync(
+                            run,
+                            scenarioVersion,
+                            CancellationToken.None);
+                    }
 
                     return CreateResult(
                         run,
