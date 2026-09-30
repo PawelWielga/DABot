@@ -66,7 +66,8 @@ Run artifact access is provided by `IRunArtifactService` with a filesystem imple
 
 Run details also expose guarded manual controls through the existing `IDurableRunControlService`:
 
-- Resume is available for waiting runs except retry waits. Retry waits stay on the dedicated retry path.
+- Resume is available for waiting runs except retry waits.
+- Retry now is available only for `Waiting / Retry` runs. It bypasses the scheduled `RetryNotBefore` time while preserving persisted retry limits and recovery checks.
 - Cancel is available for queued and waiting runs and requires an explicit confirmation step in the UI.
 - Active running executions are not cancelled from the panel because safe cross-process cancellation requires worker lease/CAS coordination.
 - The GitHub Pages demo renders the controls as unavailable and never executes runtime actions.
@@ -124,9 +125,9 @@ No login/identity provider is enabled yet, so current routes remain anonymous un
 
 ## Current scope
 
-The dashboard remains read-only. Run details support guarded manual resume/cancel actions, the run list supports filtering, and scenario JSON management supports create/edit/delete and validation.
+The dashboard remains read-only. Run details support guarded manual resume/retry/cancel actions, the run list supports filtering, and scenario JSON management supports create/edit/delete and validation.
 
-Visual scenario editing, synchronized visual/JSON representations, import/export, scenario test runs, retry/clone run actions, browser-profile management, configuration editing, and authentication UX remain later Sprint 8/9 work.
+Visual scenario editing, synchronized visual/JSON representations, import/export, scenario test runs, clone-run actions, browser-profile management, configuration editing, and authentication UX remain later Sprint 8/9 work.
 
 
 ## Static GitHub Pages demo
