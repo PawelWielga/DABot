@@ -188,7 +188,7 @@
                                                 @(_interactiveBusyProfile == profile.Name ? "Closing…" : "Close browser")
                                             </button>
                                             <span class="profile-session-state">
-                                                Headed browser open since @FormatTime(interactiveSession.StartedAt)
+                                                Open since @FormatTime(interactiveSession.StartedAt) · auto-closes @FormatTime(interactiveSession.ExpiresAt)
                                             </span>
                                         }
                                         else
