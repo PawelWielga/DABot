@@ -62,6 +62,14 @@ public sealed record PageObserverDefinition
                 nameof(definition));
         }
 
+        if (!string.IsNullOrWhiteSpace(definition.BrowserProfile) &&
+            !IsSafeProfileName(definition.BrowserProfile))
+        {
+            throw new ArgumentException(
+                "Observer browser profile must start with an alphanumeric character and contain only alphanumeric characters, '.', '_' or '-' (maximum 64 characters).",
+                nameof(definition));
+        }
+
         if (definition.PollIntervalMs <= 0)
         {
             throw new ArgumentException(
@@ -97,6 +105,19 @@ public sealed record PageObserverDefinition
         }
 
         return definition;
+    }
+
+    private static bool IsSafeProfileName(string value)
+    {
+        if (value.Length is < 1 or > 64 ||
+            !char.IsLetterOrDigit(value[0]))
+        {
+            return false;
+        }
+
+        return value.All(character =>
+            char.IsLetterOrDigit(character) ||
+            character is '.' or '_' or '-');
     }
 }
 
