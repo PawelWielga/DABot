@@ -8,7 +8,7 @@ namespace DesktopAutomationBot.Infrastructure;
 
 public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStore, IEventInboxStore
 {
-    private const int StoreSchemaVersion = 4;
+    private const int StoreSchemaVersion = 5;
 
     private readonly string _connectionString;
     private readonly SemaphoreSlim _initializationLock = new(1, 1);
@@ -1100,6 +1100,8 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
                 EventId TEXT NOT NULL,
                 Status TEXT NOT NULL,
                 CreatedAt TEXT NOT NULL,
+                AttemptCount INTEGER NOT NULL DEFAULT 0,
+                NextAttemptAt TEXT NULL,
                 FinishedAt TEXT NULL,
                 ErrorMessage TEXT NULL,
                 UNIQUE (EventId),
@@ -1111,10 +1113,10 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
                     ON DELETE CASCADE
             );
 
-            CREATE INDEX IX_ResumeWorkItems_Status_CreatedAt
-                ON ResumeWorkItems(Status, CreatedAt);
+            CREATE INDEX IX_ResumeWorkItems_Status_NextAttemptAt
+                ON ResumeWorkItems(Status, NextAttemptAt, CreatedAt);
 
-            PRAGMA user_version = 4;
+            PRAGMA user_version = 5;
             """;
 
         await command.ExecuteNonQueryAsync(cancellationToken);
@@ -1145,6 +1147,11 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
                 case 3:
                     await MigrateV3ToV4Async(connection, cancellationToken);
                     version = 4;
+                    break;
+
+                case 4:
+                    await MigrateV4ToV5Async(connection, cancellationToken);
+                    version = 5;
                     break;
 
                 default:
@@ -1263,6 +1270,8 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
                 EventId TEXT NOT NULL,
                 Status TEXT NOT NULL,
                 CreatedAt TEXT NOT NULL,
+                AttemptCount INTEGER NOT NULL DEFAULT 0,
+                NextAttemptAt TEXT NULL,
                 FinishedAt TEXT NULL,
                 ErrorMessage TEXT NULL,
                 UNIQUE (EventId),
@@ -1274,10 +1283,39 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
                     ON DELETE CASCADE
             );
 
-            CREATE INDEX IX_ResumeWorkItems_Status_CreatedAt
-                ON ResumeWorkItems(Status, CreatedAt);
+            CREATE INDEX IX_ResumeWorkItems_Status_NextAttemptAt
+                ON ResumeWorkItems(Status, NextAttemptAt, CreatedAt);
 
-            PRAGMA user_version = 4;
+            PRAGMA user_version = 5;
+            """;
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    private static async Task MigrateV4ToV5Async(
+        SqliteConnection connection,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction =
+            (SqliteTransaction)await connection.BeginTransactionAsync(
+                cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText =
+            """
+            ALTER TABLE ResumeWorkItems
+                ADD COLUMN AttemptCount INTEGER NOT NULL DEFAULT 0;
+
+            ALTER TABLE ResumeWorkItems
+                ADD COLUMN NextAttemptAt TEXT NULL;
+
+            DROP INDEX IX_ResumeWorkItems_Status_CreatedAt;
+
+            CREATE INDEX IX_ResumeWorkItems_Status_NextAttemptAt
+                ON ResumeWorkItems(Status, NextAttemptAt, CreatedAt);
+
+            PRAGMA user_version = 5;
             """;
 
         await command.ExecuteNonQueryAsync(cancellationToken);
