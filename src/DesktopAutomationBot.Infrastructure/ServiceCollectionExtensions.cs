@@ -21,6 +21,7 @@ public static class ServiceCollectionExtensions
             static provider => provider.GetRequiredService<SqliteRunStore>());
         services.AddSingleton<IRunQueryService, SqliteRunQueryService>();
         services.AddSingleton<IScenarioCatalogQueryService, FileSystemScenarioCatalogQueryService>();
+        services.AddSingleton<IScenarioManagementService, FileSystemScenarioManagementService>();
         services.AddSingleton<IHttpAutomationClient, HttpAutomationClient>();
         services.AddSingleton<ISecretProvider, EnvironmentSecretProvider>();
         services.AddSingleton<IBrowserSessionFactory, PlaywrightBrowserSessionFactory>();
