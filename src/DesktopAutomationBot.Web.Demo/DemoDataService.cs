@@ -140,6 +140,7 @@ public sealed class DemoDataService :
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        ScenarioFileName.Validate(fileName);
 
         return Task.FromResult(
             _scenarioDocuments.TryGetValue(fileName, out var json)
@@ -154,6 +155,7 @@ public sealed class DemoDataService :
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        ScenarioFileName.Validate(fileName);
 
         var validation = ScenarioJsonValidation.Validate(json);
         if (!validation.IsValid)
@@ -179,6 +181,7 @@ public sealed class DemoDataService :
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        ScenarioFileName.Validate(fileName);
         return Task.FromResult(_scenarioDocuments.Remove(fileName));
     }
 
