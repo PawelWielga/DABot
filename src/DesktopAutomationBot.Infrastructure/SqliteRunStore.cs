@@ -1270,8 +1270,6 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
                 EventId TEXT NOT NULL,
                 Status TEXT NOT NULL,
                 CreatedAt TEXT NOT NULL,
-                AttemptCount INTEGER NOT NULL DEFAULT 0,
-                NextAttemptAt TEXT NULL,
                 FinishedAt TEXT NULL,
                 ErrorMessage TEXT NULL,
                 UNIQUE (EventId),
@@ -1283,10 +1281,10 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
                     ON DELETE CASCADE
             );
 
-            CREATE INDEX IX_ResumeWorkItems_Status_NextAttemptAt
-                ON ResumeWorkItems(Status, NextAttemptAt, CreatedAt);
+            CREATE INDEX IX_ResumeWorkItems_Status_CreatedAt
+                ON ResumeWorkItems(Status, CreatedAt);
 
-            PRAGMA user_version = 5;
+            PRAGMA user_version = 4;
             """;
 
         await command.ExecuteNonQueryAsync(cancellationToken);
