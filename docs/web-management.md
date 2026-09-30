@@ -45,9 +45,18 @@ The first dashboard is read-only and shows:
 
 ### Runs
 
-The runs page shows up to the latest 100 durable executions from the SQLite runtime database.
+The runs page shows up to the latest 100 durable executions from the SQLite runtime database and supports filtering by status and run ID.
 
-The Application contract is `IRunQueryService`; the Blazor components do not issue SQLite queries directly.
+Each run links to a detail page showing:
+
+- run/scenario/version identity,
+- current status and wait reason,
+- created/updated/retry timing,
+- persisted step-attempt history,
+- attempt retry-safety classification and errors,
+- persisted structured variables and their JSON value kinds.
+
+The Application contract is `IRunQueryService`; the Blazor components do not issue SQLite queries directly. `SqliteRunQueryService` joins the existing durable `Runs`, `ScenarioVersions`, and `StepAttempts` tables without introducing a second persistence model.
 
 ### Scenarios
 
@@ -100,9 +109,9 @@ No login/identity provider is enabled yet, so current routes remain anonymous un
 
 ## Current scope
 
-The dashboard and run views remain read-only. Scenario JSON management now supports create/edit/delete and validation.
+The dashboard and run detail views remain read-only. The run list supports filtering, and scenario JSON management supports create/edit/delete and validation.
 
-Visual scenario editing, synchronized visual/JSON representations, import/export, scenario test runs, run detail/actions, browser-profile management, configuration editing, event history, and authentication UX remain later Sprint 8/9 work.
+Visual scenario editing, synchronized visual/JSON representations, import/export, scenario test runs, run actions, artifact previews, event history, browser-profile management, configuration editing, and authentication UX remain later Sprint 8/9 work.
 
 
 ## Static GitHub Pages demo

@@ -78,6 +78,80 @@ public sealed class SqliteRunQueryServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task GetRunAsync_ReturnsScenarioVariablesAndStepAttempts()
+    {
+        var options = CreateOptions();
+        var store = new SqliteRunStore(options);
+        var query = new SqliteRunQueryService(options);
+        var version = CreateScenarioVersion();
+        var now = DateTimeOffset.Parse(
+            "2026-09-30T12:20:00+02:00");
+
+        var created = AutomationRun.CreateStructured(
+            version,
+            now,
+            variables: new Dictionary<string, ScenarioVariableValue>
+            {
+                ["customer"] = ScenarioVariableValue.FromString("CUST-42"),
+                ["count"] = ScenarioVariableValue.FromNumber(3),
+                ["approved"] = ScenarioVariableValue.FromBoolean(true),
+            });
+
+        var running = Restore(
+            created,
+            version,
+            RunState.Restore(RunStatus.Running),
+            now.AddSeconds(1));
+
+        await store.SaveAsync(running, version);
+
+        var startedAttempt = StepAttempt.Start(
+            running.RunId,
+            version.MaterializeDefinition().Steps[0],
+            attemptNumber: 1,
+            startedAt: now.AddSeconds(2));
+
+        await store.SaveStepAttemptAsync(startedAttempt);
+
+        var completedAttempt =
+            startedAttempt.MarkCompleted(
+                now.AddSeconds(3));
+
+        await store.SaveStepAttemptAsync(completedAttempt);
+
+        var detail = await query.GetRunAsync(running.RunId);
+
+        detail.Should().NotBeNull();
+        detail!.ScenarioName.Should().Be("query model");
+        detail.ScenarioVersionNumber.Should().Be(1);
+        detail.Status.Should().Be(RunStatus.Running);
+
+        detail.Variables.Should().Contain(
+            item =>
+                item.Name == "customer" &&
+                item.Kind == "String" &&
+                item.Value == "CUST-42");
+        detail.Variables.Should().Contain(
+            item =>
+                item.Name == "count" &&
+                item.Kind == "Number" &&
+                item.Value == "3");
+        detail.Variables.Should().Contain(
+            item =>
+                item.Name == "approved" &&
+                item.Kind == "True" &&
+                item.Value == "true");
+
+        detail.StepAttempts.Should().ContainSingle();
+        var attempt = detail.StepAttempts[0];
+        attempt.StepId.Should().Be("open");
+        attempt.StepType.Should().Be(StepType.OpenUrl);
+        attempt.AttemptNumber.Should().Be(1);
+        attempt.Status.Should().Be(StepAttemptStatus.Completed);
+        attempt.FinishedAt.Should().Be(now.AddSeconds(3));
+    }
+
+    [Fact]
     public async Task Queries_WhenDatabaseHasNoRuntimeSchema_ReturnEmptyReadModel()
     {
         var query = new SqliteRunQueryService(
@@ -87,9 +161,12 @@ public sealed class SqliteRunQueryServiceTests : IDisposable
             await query.GetDashboardSummaryAsync();
         var runs =
             await query.ListRecentRunsAsync();
+        var detail =
+            await query.GetRunAsync(Guid.NewGuid());
 
         summary.TotalRuns.Should().Be(0);
         runs.Should().BeEmpty();
+        detail.Should().BeNull();
     }
 
     private BotOptions CreateOptions() =>
