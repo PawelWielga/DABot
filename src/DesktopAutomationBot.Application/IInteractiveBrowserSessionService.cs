@@ -6,8 +6,6 @@ public sealed record InteractiveBrowserSessionInfo
 
     public required string ProfileName { get; init; }
 
-    public string? InitialUrl { get; init; }
-
     public required DateTimeOffset StartedAt { get; init; }
 
     public required DateTimeOffset ExpiresAt { get; init; }
@@ -89,7 +87,6 @@ public sealed class InteractiveBrowserSessionService(
             {
                 SessionId = Guid.NewGuid(),
                 ProfileName = profileName,
-                InitialUrl = string.IsNullOrWhiteSpace(url) ? null : url,
                 StartedAt = startedAt,
                 ExpiresAt = startedAt.Add(maxDuration),
             };
