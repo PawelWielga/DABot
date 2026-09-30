@@ -407,7 +407,7 @@ public sealed class SqliteRunStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task ExistingVersion1Database_IsMigratedToVersion5()
+    public async Task ExistingVersion1Database_IsMigratedToVersion6()
     {
         var databasePath = Path.Combine(_tempDirectory, "schema-v1.db");
         await CreateVersion1DatabaseAsync(databasePath);
@@ -439,11 +439,11 @@ public sealed class SqliteRunStoreTests : IDisposable
         command.CommandText = "PRAGMA user_version;";
         var rawVersion = await command.ExecuteScalarAsync();
 
-        Convert.ToInt32(rawVersion).Should().Be(5);
+        Convert.ToInt32(rawVersion).Should().Be(6);
     }
 
     [Fact]
-    public async Task ExistingVersion2RetryWait_IsMigratedAndBackfilledToVersion5()
+    public async Task ExistingVersion2RetryWait_IsMigratedAndBackfilledToVersion6()
     {
         var databasePath = Path.Combine(_tempDirectory, "schema-v2.db");
         var version = CreateScenarioVersion();
@@ -479,7 +479,7 @@ public sealed class SqliteRunStoreTests : IDisposable
         command.CommandText = "PRAGMA user_version;";
         var rawVersion = await command.ExecuteScalarAsync();
 
-        Convert.ToInt32(rawVersion).Should().Be(5);
+        Convert.ToInt32(rawVersion).Should().Be(6);
     }
 
     [Fact]
@@ -827,6 +827,103 @@ public sealed class SqliteRunStoreTests : IDisposable
             ResumeWorkItemStatus.DeadLetter.ToString());
         reader.GetInt32(1).Should().Be(2);
         reader.GetString(2).Should().Be("permanent failure");
+    }
+
+
+    [Fact]
+    public async Task PageObserver_AcrossStoreInstances_PreservesSnapshotAndDueSchedule()
+    {
+        var databasePath = Path.Combine(
+            _tempDirectory,
+            "page-observers.db");
+        var options = CreateOptions(databasePath);
+        var observerId = Guid.NewGuid();
+        var observer = PageObserverDefinition.Validate(
+            new PageObserverDefinition
+            {
+                ObserverId = observerId,
+                Name = "status observer",
+                Url = "https://example.com/status",
+                BrowserProfile = "work-profile",
+                Condition = PageObserverConditionKind.TextContains,
+                Locator = ScenarioLocator.FromSelector("#status"),
+                ExpectedValue = "ready",
+                EventType = "status.ready",
+                CorrelationId = "status-123",
+                PollIntervalMs = 5000,
+            });
+        var now = DateTimeOffset.Parse(
+            "2026-09-30T11:30:00+02:00");
+
+        var firstStore = new SqliteRunStore(options);
+        await firstStore.SaveAsync(observer);
+
+        var initiallyDue = await firstStore.LoadDueAsync(
+            now,
+            limit: 10);
+
+        initiallyDue.Should().ContainSingle();
+        initiallyDue[0].Definition.Should().BeEquivalentTo(observer);
+        initiallyDue[0].Snapshot.ObserverId.Should().Be(observerId);
+
+        await firstStore.SaveSnapshotAsync(
+            new PageObserverSnapshot
+            {
+                ObserverId = observerId,
+                LastObservation = "not ready",
+                LastMatched = false,
+                LastCheckedAt = now,
+                NextCheckAt = now.AddSeconds(5),
+                FailureCount = 0,
+            });
+
+        var restartedStore = new SqliteRunStore(options);
+
+        var beforeDue = await restartedStore.LoadDueAsync(
+            now.AddSeconds(4),
+            limit: 10);
+        var atDue = await restartedStore.LoadDueAsync(
+            now.AddSeconds(5),
+            limit: 10);
+
+        beforeDue.Should().BeEmpty();
+        atDue.Should().ContainSingle();
+        atDue[0].Definition.BrowserProfile.Should().Be("work-profile");
+        atDue[0].Definition.Condition.Should().Be(
+            PageObserverConditionKind.TextContains);
+        atDue[0].Snapshot.LastObservation.Should().Be("not ready");
+        atDue[0].Snapshot.LastMatched.Should().BeFalse();
+        atDue[0].Snapshot.NextCheckAt.Should().Be(now.AddSeconds(5));
+    }
+
+    [Fact]
+    public async Task PageObserver_DisabledDefinition_IsNotLoadedAsDue()
+    {
+        var databasePath = Path.Combine(
+            _tempDirectory,
+            "disabled-observer.db");
+        var store = new SqliteRunStore(
+            CreateOptions(databasePath));
+        var observer = PageObserverDefinition.Validate(
+            new PageObserverDefinition
+            {
+                ObserverId = Guid.NewGuid(),
+                Name = "disabled",
+                Url = "https://example.com",
+                Condition = PageObserverConditionKind.UrlMatches,
+                ExpectedValue = "example",
+                EventType = "ignored",
+                CorrelationId = "disabled-correlation",
+                Enabled = false,
+            });
+
+        await store.SaveAsync(observer);
+
+        var due = await store.LoadDueAsync(
+            DateTimeOffset.MaxValue,
+            limit: 10);
+
+        due.Should().BeEmpty();
     }
 
     public void Dispose()

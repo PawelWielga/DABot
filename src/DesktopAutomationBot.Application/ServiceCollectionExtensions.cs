@@ -23,6 +23,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IDurableRetryWorker, DurableRetryWorker>();
         services.AddSingleton<IEventPublisher, EventPublisher>();
         services.AddSingleton<IEventResumeWorker, EventResumeWorker>();
+        services.AddSingleton<IPageObserverWorker, PageObserverWorker>();
         services.AddSingleton<IStepHandler, OpenUrlStepHandler>();
         services.AddSingleton<IStepHandler, ClickStepHandler>();
         services.AddSingleton<IStepHandler, FillTextStepHandler>();

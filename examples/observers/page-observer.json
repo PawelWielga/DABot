@@ -1,0 +1,15 @@
+{
+  "$schema": "../schemas/page-observer.schema.json",
+  "observerId": "11111111-1111-1111-1111-111111111111",
+  "name": "Example status text change",
+  "url": "https://example.com",
+  "condition": "TextChanged",
+  "locator": {
+    "kind": "Selector",
+    "value": "h1"
+  },
+  "eventType": "page.text.changed",
+  "correlationId": "example-home-heading",
+  "pollIntervalMs": 5000,
+  "enabled": true
+}

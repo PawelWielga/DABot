@@ -11,6 +11,7 @@ This directory contains design and implementation documentation. Use this page a
 | Instructions for coding/AI agents | [AGENTS](../AGENTS.md) |
 | Generate or validate scenario JSON | [Scenario JSON Schema](../schemas/scenario.schema.json) |
 | Generate or validate runtime configuration | [Configuration JSON Schema](../schemas/config.schema.json) |
+| Generate or validate page observer JSON | [Page observer JSON Schema](../schemas/page-observer.schema.json) |
 | Understand product requirements | [Product requirements](prd.md) |
 | Understand product positioning and differentiation | [Product positioning](product-positioning.md) |
 | See implementation status and order | [Implementation backlog](tasks.md) |
@@ -19,6 +20,7 @@ This directory contains design and implementation documentation. Use this page a
 | Understand runtime variables and secret handling | [Runtime variables and secrets](secrets-and-variables.md) |
 | Understand browser session ownership and lifetime | [Browser sessions](browser-sessions.md) |
 | Understand durable events, correlation, and idempotency | [Durable events](events.md) |
+| Configure generic page observers | [Page observers](page-observers.md) |
 | Understand MCP and dynamic tools direction | [MCP and dynamic tools](mcp-and-dynamic-tools.md) |
 | Compare DABot with raw Playwright | [Comparison](comparison.md) |
 
