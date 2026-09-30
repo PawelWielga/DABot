@@ -99,6 +99,22 @@
               "default": 100
             }
           }
+        },
+        "eventWorker": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "pollIntervalMs": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1000
+            },
+            "batchSize": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 100
+            }
+          }
         }
       }
     },
