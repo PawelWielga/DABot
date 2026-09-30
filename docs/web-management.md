@@ -62,7 +62,7 @@ The Application contract is `IRunQueryService`; the Blazor components do not iss
 
 Raw event payloads are intentionally excluded from the web read model. The current panel does not yet have production authentication or a dedicated secret-redaction policy for arbitrary event payloads, so event history exposes operational metadata only.
 
-Run artifact access is provided by `IRunArtifactService` with a filesystem implementation in Infrastructure. Only direct files below the configured `screenshots/<runId>` and `artifacts/<runId>` directories can be opened; path segments and traversal are rejected. Common raster images can be previewed inline. Captured HTML is always returned as a download rather than rendered under the management-panel origin, preventing captured page scripts from executing as panel content.
+Run artifact access is provided by `IRunArtifactService` with a filesystem implementation in Infrastructure. Only direct regular files below the configured `screenshots/<runId>` and `artifacts/<runId>` directories can be opened; path segments, traversal, symlinks, and reparse points are rejected. Common raster images can be previewed inline. Captured HTML is always returned as a download rather than rendered under the management-panel origin, preventing captured page scripts from executing as panel content.
 
 ### Scenarios
 
