@@ -139,10 +139,10 @@ Goal: define deterministic execution and recovery semantics before durable persi
 
 ### Events and durable work
 
-- [ ] Define event inbox semantics.
-- [ ] Define resume work-item/outbox semantics.
-- [ ] Ensure event acceptance, run transition, and future work scheduling can be committed atomically where possible.
-- [ ] Define uniqueness constraints for processed `EventId` values.
+- [x] Define event inbox semantics. SQLite persists accepted events independently from run execution and matches active `Waiting / Event` registrations by correlation ID and optional event type.
+- [x] Define resume work-item/outbox semantics. Matching accepted events enqueue durable `ResumeWorkItem` rows; the event resume worker processes and finalizes them.
+- [~] Ensure event acceptance, run transition, and future work scheduling can be committed atomically where possible. Event acceptance, payload attachment, wait consumption, and resume-work scheduling are one SQLite transaction; the run transitions from Waiting when the durable work item is processed.
+- [x] Define uniqueness constraints for processed `EventId` values. `AutomationEvents.EventId` is the primary key and `ResumeWorkItems.EventId` is unique.
 
 ### Engineering foundation
 
@@ -216,7 +216,7 @@ Goal: allow a workflow to stop without blocking a process and continue later.
 
 - [x] Add `Suspend` step type.
 - [x] Implement `Suspend` as a durable executor control-flow primitive instead of a regular handler.
-- [ ] Persist expected event/correlation data.
+- [x] Persist expected event/correlation data. Event `Suspend` registers a path-safe durable correlation and optional event-type filter atomically with the waiting run.
 - [x] Save deterministic resume position. `Suspend` advances and persists the cursor before entering Waiting.
 - [x] Return `Suspended` instead of treating suspension as failure.
 - [x] Add application-level `ResumeRun` use case for `Waiting / Retry` runs.
@@ -234,19 +234,19 @@ Acceptance criteria:
 
 ## Sprint 6 - Event model and idempotency
 
-- [ ] Add `AutomationEvent`.
-- [ ] Add stable `EventId`.
-- [ ] Add `CorrelationId`.
-- [ ] Add event payload data.
-- [ ] Add `IEventPublisher`.
+- [x] Add `AutomationEvent`.
+- [x] Add stable `EventId`.
+- [x] Add `CorrelationId`.
+- [x] Add event payload data. Payloads are structured JSON values persisted in the inbox and exposed to resumed runs through reserved `event.*` variables.
+- [x] Add `IEventPublisher`.
 - [ ] Add `IEventConsumer`.
-- [ ] Persist event history.
-- [ ] Persist processed event IDs.
-- [ ] Resume matching runs from events.
-- [ ] Ignore duplicate event delivery safely.
+- [x] Persist event history.
+- [x] Persist processed event IDs.
+- [x] Resume matching runs from events through durable resume work items and `IEventResumeWorker`.
+- [x] Ignore duplicate event delivery safely. Re-delivery of the same `EventId` returns the original acceptance result without scheduling a second continuation.
 - [ ] Add event retry policy.
 - [ ] Add dead-letter/failure handling.
-- [ ] Add integration tests for duplicate events.
+- [x] Add integration tests for duplicate events.
 
 Transport implementations remain infrastructure details.
 
