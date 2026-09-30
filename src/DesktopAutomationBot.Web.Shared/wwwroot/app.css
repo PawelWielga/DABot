@@ -573,3 +573,17 @@ select {
         padding: 0;
     }
 }
+
+
+.status.pending {
+    background: #fef3c7;
+}
+
+.status.deadletter {
+    background: #fee2e2;
+}
+
+.privacy-note {
+    margin: 14px 0 0;
+    font-size: .82rem;
+}
