@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text.Json;
 using DesktopAutomationBot.Application;
 using DesktopAutomationBot.Core;
 using Microsoft.Data.Sqlite;
@@ -12,8 +14,9 @@ public sealed class SqliteRunQueryService(
     {
         await using var connection =
             await OpenConnectionAsync(cancellationToken);
-        if (!await RunsTableExistsAsync(
+        if (!await TableExistsAsync(
                 connection,
+                "Runs",
                 cancellationToken))
         {
             return new RunDashboardSummary();
@@ -66,8 +69,9 @@ public sealed class SqliteRunQueryService(
 
         await using var connection =
             await OpenConnectionAsync(cancellationToken);
-        if (!await RunsTableExistsAsync(
+        if (!await TableExistsAsync(
                 connection,
+                "Runs",
                 cancellationToken))
         {
             return [];
@@ -119,20 +123,244 @@ public sealed class SqliteRunQueryService(
                         : Enum.Parse<RunWaitReason>(
                             reader.GetString(4),
                             ignoreCase: false),
-                    CreatedAt = DateTimeOffset.Parse(
-                        reader.GetString(5),
-                        System.Globalization.CultureInfo.InvariantCulture),
-                    UpdatedAt = DateTimeOffset.Parse(
-                        reader.GetString(6),
-                        System.Globalization.CultureInfo.InvariantCulture),
+                    CreatedAt = ParseTimestamp(reader.GetString(5)),
+                    UpdatedAt = ParseTimestamp(reader.GetString(6)),
                 });
         }
 
         return items;
     }
 
-    private static async Task<bool> RunsTableExistsAsync(
+    public async Task<RunDetail?> GetRunAsync(
+        Guid runId,
+        CancellationToken cancellationToken = default)
+    {
+        if (runId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Run ID must not be empty.",
+                nameof(runId));
+        }
+
+        await using var connection =
+            await OpenConnectionAsync(cancellationToken);
+
+        if (!await TableExistsAsync(
+                connection,
+                "Runs",
+                cancellationToken) ||
+            !await TableExistsAsync(
+                connection,
+                "ScenarioVersions",
+                cancellationToken))
+        {
+            return null;
+        }
+
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT
+                r.RunId,
+                r.ScenarioId,
+                r.ScenarioVersionId,
+                r.Status,
+                r.WaitReason,
+                r.RetryNotBefore,
+                r.VariablesJson,
+                r.CreatedAt,
+                r.UpdatedAt,
+                sv.VersionNumber,
+                sv.DefinitionJson
+            FROM Runs r
+            INNER JOIN ScenarioVersions sv
+                ON sv.VersionId = r.ScenarioVersionId
+            WHERE r.RunId = $runId
+            LIMIT 1;
+            """;
+        command.Parameters.AddWithValue(
+            "$runId",
+            runId.ToString("D"));
+
+        RunDetail? detail;
+
+        await using (var reader =
+            await command.ExecuteReaderAsync(cancellationToken))
+        {
+            if (!await reader.ReadAsync(cancellationToken))
+            {
+                return null;
+            }
+
+            detail = new RunDetail
+            {
+                RunId = Guid.Parse(reader.GetString(0)),
+                ScenarioId = Guid.Parse(reader.GetString(1)),
+                ScenarioVersionId = Guid.Parse(reader.GetString(2)),
+                Status = Enum.Parse<RunStatus>(
+                    reader.GetString(3),
+                    ignoreCase: false),
+                WaitReason = reader.IsDBNull(4)
+                    ? null
+                    : Enum.Parse<RunWaitReason>(
+                        reader.GetString(4),
+                        ignoreCase: false),
+                RetryNotBefore = reader.IsDBNull(5)
+                    ? null
+                    : ParseTimestamp(reader.GetString(5)),
+                Variables = ReadVariables(reader.GetString(6)),
+                CreatedAt = ParseTimestamp(reader.GetString(7)),
+                UpdatedAt = ParseTimestamp(reader.GetString(8)),
+                ScenarioVersionNumber = reader.GetInt32(9),
+                ScenarioName = ReadScenarioName(reader.GetString(10)),
+            };
+        }
+
+        if (await TableExistsAsync(
+                connection,
+                "StepAttempts",
+                cancellationToken))
+        {
+            detail = detail with
+            {
+                StepAttempts = await LoadStepAttemptsAsync(
+                    connection,
+                    runId,
+                    cancellationToken),
+            };
+        }
+
+        return detail;
+    }
+
+    private static async Task<IReadOnlyList<RunStepAttemptItem>> LoadStepAttemptsAsync(
         SqliteConnection connection,
+        Guid runId,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT
+                AttemptId,
+                StepId,
+                StepType,
+                AttemptNumber,
+                RetrySafety,
+                Status,
+                StartedAt,
+                UpdatedAt,
+                FinishedAt,
+                ErrorMessage
+            FROM StepAttempts
+            WHERE RunId = $runId
+            ORDER BY julianday(StartedAt), AttemptNumber, AttemptId;
+            """;
+        command.Parameters.AddWithValue(
+            "$runId",
+            runId.ToString("D"));
+
+        var items = new List<RunStepAttemptItem>();
+
+        await using var reader =
+            await command.ExecuteReaderAsync(cancellationToken);
+
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            items.Add(
+                new RunStepAttemptItem
+                {
+                    AttemptId = Guid.Parse(reader.GetString(0)),
+                    StepId = reader.GetString(1),
+                    StepType = Enum.Parse<StepType>(
+                        reader.GetString(2),
+                        ignoreCase: false),
+                    AttemptNumber = reader.GetInt32(3),
+                    RetrySafety = Enum.Parse<StepRetrySafety>(
+                        reader.GetString(4),
+                        ignoreCase: false),
+                    Status = Enum.Parse<StepAttemptStatus>(
+                        reader.GetString(5),
+                        ignoreCase: false),
+                    StartedAt = ParseTimestamp(reader.GetString(6)),
+                    UpdatedAt = ParseTimestamp(reader.GetString(7)),
+                    FinishedAt = reader.IsDBNull(8)
+                        ? null
+                        : ParseTimestamp(reader.GetString(8)),
+                    ErrorMessage = reader.IsDBNull(9)
+                        ? null
+                        : reader.GetString(9),
+                });
+        }
+
+        return items;
+    }
+
+    private static IReadOnlyList<RunVariableItem> ReadVariables(
+        string variablesJson)
+    {
+        var variables =
+            JsonSerializer.Deserialize<
+                Dictionary<string, ScenarioVariableValue>>(
+                variablesJson) ??
+            new Dictionary<string, ScenarioVariableValue>(
+                StringComparer.OrdinalIgnoreCase);
+
+        return variables
+            .OrderBy(
+                pair => pair.Key,
+                StringComparer.OrdinalIgnoreCase)
+            .Select(
+                pair =>
+                    new RunVariableItem(
+                        pair.Key,
+                        pair.Value.Kind.ToString(),
+                        FormatVariableValue(pair.Value)))
+            .ToArray();
+    }
+
+    private static string FormatVariableValue(
+        ScenarioVariableValue value)
+    {
+        var element = value.ToJsonElement();
+
+        return element.ValueKind == JsonValueKind.String
+            ? element.GetString() ?? string.Empty
+            : element.GetRawText();
+    }
+
+    private static string ReadScenarioName(
+        string definitionJson)
+    {
+        try
+        {
+            using var document =
+                JsonDocument.Parse(definitionJson);
+
+            if (document.RootElement.TryGetProperty(
+                    "name",
+                    out var name) &&
+                name.ValueKind == JsonValueKind.String &&
+                !string.IsNullOrWhiteSpace(name.GetString()))
+            {
+                return name.GetString()!;
+            }
+        }
+        catch (JsonException)
+        {
+        }
+
+        return "Scenario";
+    }
+
+    private static DateTimeOffset ParseTimestamp(string value) =>
+        DateTimeOffset.Parse(
+            value,
+            CultureInfo.InvariantCulture);
+
+    private static async Task<bool> TableExistsAsync(
+        SqliteConnection connection,
+        string tableName,
         CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
@@ -141,9 +369,12 @@ public sealed class SqliteRunQueryService(
             SELECT 1
             FROM sqlite_master
             WHERE type = 'table'
-              AND name = 'Runs'
+              AND name = $tableName
             LIMIT 1;
             """;
+        command.Parameters.AddWithValue(
+            "$tableName",
+            tableName);
 
         return await command.ExecuteScalarAsync(
             cancellationToken) is not null;
