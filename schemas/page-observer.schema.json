@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/PawelWielga/DABot/main/schemas/page-observer.schema.json",
+  "title": "DABot page observer",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "observerId",
+    "name",
+    "url",
+    "condition",
+    "eventType",
+    "correlationId"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "observerId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "url": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https?://"
+    },
+    "browserProfile": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+    },
+    "condition": {
+      "type": "string",
+      "enum": [
+        "SelectorVisible",
+        "SelectorHidden",
+        "TextEquals",
+        "TextContains",
+        "TextChanged",
+        "UrlMatches"
+      ]
+    },
+    "locator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "value"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "Selector",
+            "Text",
+            "TestId"
+          ]
+        },
+        "value": {
+          "type": "string",
+          "minLength": 1
+        },
+        "exact": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "expectedValue": {
+      "type": "string",
+      "minLength": 1
+    },
+    "eventType": {
+      "type": "string",
+      "minLength": 1
+    },
+    "correlationId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "pollIntervalMs": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 5000
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "condition": {
+            "enum": [
+              "SelectorVisible",
+              "SelectorHidden",
+              "TextEquals",
+              "TextContains",
+              "TextChanged"
+            ]
+          }
+        },
+        "required": [
+          "condition"
+        ]
+      },
+      "then": {
+        "required": [
+          "locator"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "condition": {
+            "enum": [
+              "TextEquals",
+              "TextContains",
+              "UrlMatches"
+            ]
+          }
+        },
+        "required": [
+          "condition"
+        ]
+      },
+      "then": {
+        "required": [
+          "expectedValue"
+        ]
+      }
+    }
+  ]
+}
