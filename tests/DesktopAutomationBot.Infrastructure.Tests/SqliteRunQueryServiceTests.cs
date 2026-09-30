@@ -152,6 +152,72 @@ public sealed class SqliteRunQueryServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task GetRunAsync_ReturnsMatchedEventResumeHistoryWithoutPayload()
+    {
+        var options = CreateOptions();
+        var store = new SqliteRunStore(options);
+        var query = new SqliteRunQueryService(options);
+        var version = CreateScenarioVersion();
+        var createdAt = DateTimeOffset.Parse(
+            "2026-09-30T12:40:00+02:00");
+
+        var created = AutomationRun.Create(
+            version,
+            createdAt);
+        var waiting = Restore(
+            created,
+            version,
+            RunState.Restore(
+                RunStatus.Waiting,
+                RunWaitReason.Event),
+            createdAt.AddSeconds(1));
+
+        await store.ArmEventWaitAsync(
+            waiting,
+            version,
+            new EventWaitRegistration
+            {
+                RunId = waiting.RunId,
+                CorrelationId = "order-42",
+                EventType = "order.approved",
+                CreatedAt = waiting.UpdatedAt,
+            });
+
+        var automationEvent = AutomationEvent.Create(
+            Guid.NewGuid(),
+            "order.approved",
+            "order-42",
+            ScenarioVariableValue.ParseJson(
+                """{"secret":"must-not-be-in-web-read-model"}"""),
+            createdAt.AddSeconds(2));
+
+        var acceptance = await store.AcceptAsync(
+            automationEvent);
+
+        acceptance.MatchedWaitingRun.Should().BeTrue();
+
+        var detail = await query.GetRunAsync(
+            waiting.RunId);
+
+        detail.Should().NotBeNull();
+        detail!.Events.Should().ContainSingle();
+
+        var item = detail.Events[0];
+        item.EventId.Should().Be(automationEvent.EventId);
+        item.Type.Should().Be("order.approved");
+        item.CorrelationId.Should().Be("order-42");
+        item.WorkItemId.Should()
+            .Be(acceptance.ResumeWorkItemId);
+        item.WorkItemStatus.Should()
+            .Be(ResumeWorkItemStatus.Pending);
+        item.AttemptCount.Should().Be(0);
+        item.OccurredAt.Should()
+            .Be(automationEvent.OccurredAt);
+        item.ReceivedAt.Should()
+            .BeOnOrAfter(automationEvent.OccurredAt);
+    }
+
+    [Fact]
     public async Task Queries_WhenDatabaseHasNoRuntimeSchema_ReturnEmptyReadModel()
     {
         var query = new SqliteRunQueryService(
