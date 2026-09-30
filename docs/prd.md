@@ -205,6 +205,12 @@ System wspiera:
 - zachowuja cookies i local storage,
 - moga byc nazwane, np. `default`, `portal-prod`, `test`,
 - moga zostac otwarte w trybie headed do recznego logowania lub diagnostyki,
+- panel administracyjny moze zestawic zdalna sesje interaktywna do rzeczywistej przegladarki uruchomionej z wybranym profilem,
+- operator wpisuje login, haslo, MFA lub rozwiazuje CAPTCHA bezposrednio w tej przegladarce; DABot nie wymaga przechowywania tych danych jako sekretow aplikacyjnych,
+- zamkniecie sesji interaktywnej zachowuje stan profilu tak, aby kolejne uruchomienia headless mogly korzystac z zalogowanej sesji,
+- cookies, local storage i inne dane profilu sa traktowane jako wrazliwe dane uwierzytelniajace,
+- sesja interaktywna musi miec krotko zyjace uprawnienie, timeout i audit,
+- w trybie rozproszonym sesja jest uruchamiana na node, ktory jest wlascicielem profilu, bez przenoszenia aktywnego katalogu user-data przez siec,
 - musza byc chronione przed jednoczesnym uzyciem tego samego profilu przez konfliktujace procesy.
 
 ### 4.9 Artefakty i diagnostyka
@@ -301,10 +307,16 @@ Docelowe akcje operatorskie:
 Panel pozwala:
 
 - tworzyc i nazywac profile,
-- sprawdzac ich stan,
-- uruchamiac sesje interaktywna,
+- sprawdzac ich stan i node, na ktorym sa przechowywane,
+- uruchamiac sesje interaktywna w rzeczywistej przegladarce korzystajacej z danego profilu,
+- wykonac reczne logowanie, MFA, CAPTCHA lub naprawic wygasla sesje bez przekazywania DABotowi hasla jako danych konfiguracyjnych,
+- zakonczyc lub wymusic zakonczenie sesji interaktywnej,
 - czyscic profil,
 - diagnozowac problem z sesja.
+
+Sesja interaktywna nie powinna polegac na osadzeniu docelowej strony przez `iframe`. Panel wyswietla zdalnie przegladarke uruchomiona przez runtime, a transport obrazu i wejscia jest detalem Infrastructure. W trybie rozproszonym control plane zestawia autoryzowany, krotko zyjacy dostep do node bedacego wlascicielem profilu. Standardowa topologia nie wymaga publicznego portu VNC/noVNC na node.
+
+Docelowo panel moze udostepnic akcje **Take control** dla aktywnej przegladarki w celu diagnostyki lub obslugi kroku wymagajacego czlowieka. Przed przejeciem sterowania runtime musi jawnie przekazac wlasnosc komend przegladarki operatorowi; Playwright i czlowiek nie moga sterowac ta sama sesja rownoczesnie.
 
 ### 5.5 Obserwatory
 
@@ -530,6 +542,10 @@ Przyklad trwalego scenariusza:
 - Hasla i tokeny nie sa przechowywane w scenariuszach.
 - Dane wrazliwe musza byc maskowane w logach.
 - Profile przegladarki nie sa commitowane.
+- Cookies, local storage i pozostale dane aktywnego profilu sa traktowane jak wrazliwe materialy uwierzytelniajace.
+- Zdalne sesje interaktywne wymagaja uprawnien administracyjnych, krotko zyjacego tokenu/grantu, limitu czasu i audytu.
+- Standardowe wdrozenie nie udostepnia publicznie portow VNC/noVNC ani stalych danych logowania do zdalnego pulpitu.
+- Dane wpisywane przez operatora w zdalnej przegladarce, w tym hasla i MFA, nie sa przechwytywane do logow, scenariuszy ani konfiguracji DABot.
 - Panel webowy wymaga autoryzacji przed udostepnieniem poza zaufana siec.
 - Operacje administracyjne, takie jak reczny resume/cancel/event, powinny byc audytowalne.
 - Integracje zewnetrzne powinny otrzymywac minimalny wymagany zakres uprawnien.
