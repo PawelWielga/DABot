@@ -94,7 +94,7 @@ The UI uses `IScenarioCatalogQueryService` for listing and `IScenarioManagementS
 
 The profiles page lists persistent browser profile directories through the Application-level `IBrowserProfileCatalog` contract. The Infrastructure adapter reads only names beneath `bot.storage.browserProfilesDirectory`, ignores internal dot-prefixed directories such as `.locks`, and does not launch Chromium or acquire a profile lease while listing.
 
-The static demo uses representative profile names. Create/rename/delete, interactive setup, clear, and profile test actions remain separate follow-up work.
+The static demo uses representative profile names. The connected runtime can test a profile from the page through the existing `IBrowserProfileService`: the health check acquires the normal exclusive profile lease, starts the persistent profile headlessly, and disposes it immediately after successful launch. The static demo renders the action as unavailable and never starts Chromium. Create/rename/delete, interactive setup, and clear actions remain separate follow-up work.
 
 #### Planned interactive browser sessions
 
@@ -161,9 +161,9 @@ No login/identity provider is enabled yet, so current routes remain anonymous un
 
 ## Current scope
 
-The dashboard remains read-only. Run details support guarded manual resume/retry/cancel actions, the run list supports filtering, scenario JSON management supports create/edit/delete and validation, and persistent browser profiles can be listed.
+The dashboard remains read-only. Run details support guarded manual resume/retry/cancel actions, the run list supports filtering, scenario JSON management supports create/edit/delete and validation, and persistent browser profiles can be listed and health-tested.
 
-Visual scenario editing, synchronized visual/JSON representations, import/export, scenario test runs, clone-run actions, browser-profile mutations/testing, configuration editing, and authentication UX remain later Sprint 8/9 work.
+Visual scenario editing, synchronized visual/JSON representations, import/export, scenario test runs, clone-run actions, browser-profile mutations/interactive sessions, configuration editing, and authentication UX remain later Sprint 8/9 work.
 
 
 ## Static GitHub Pages demo

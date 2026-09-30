@@ -689,3 +689,28 @@ select {
 .action-error {
     color: #b91c1c;
 }
+
+
+.profile-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.profile-actions .button {
+    min-height: 34px;
+    padding: 6px 12px;
+}
+
+.profile-test-result {
+    font-size: .82rem;
+    white-space: normal;
+}
+
+.profile-test-result.success {
+    color: #166534;
+}
+
+.profile-test-result.failure {
+    color: #b91c1c;
+}
