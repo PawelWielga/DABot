@@ -61,6 +61,60 @@ public sealed class RepositoryScenarioFilesTests
             "repository scenarios and examples must stay compatible with runtime parsing and validation");
     }
 
+
+    [Fact]
+    public async Task Repository_observer_examples_should_match_runtime_validation()
+    {
+        var repositoryRoot = FindRepositoryRoot();
+        var observerDirectory = Path.Combine(
+            repositoryRoot,
+            "examples",
+            "observers");
+        var files = Directory
+            .EnumerateFiles(
+                observerDirectory,
+                "*.json",
+                SearchOption.TopDirectoryOnly)
+            .OrderBy(path => path, StringComparer.Ordinal)
+            .ToArray();
+
+        files.Should().NotBeEmpty();
+
+        var failures = new List<string>();
+
+        foreach (var file in files)
+        {
+            try
+            {
+                var json = await File.ReadAllTextAsync(file);
+                var observer =
+                    JsonSerializer.Deserialize<PageObserverDefinition>(
+                        json,
+                        SerializerOptions);
+
+                if (observer is null)
+                {
+                    failures.Add(
+                        $"{Path.GetRelativePath(repositoryRoot, file)}: deserialized to null.");
+                    continue;
+                }
+
+                PageObserverDefinition.Validate(observer);
+            }
+            catch (Exception exception)
+                when (exception is JsonException or
+                    NotSupportedException or
+                    ArgumentException)
+            {
+                failures.Add(
+                    $"{Path.GetRelativePath(repositoryRoot, file)}: {exception.Message}");
+            }
+        }
+
+        failures.Should().BeEmpty(
+            "repository observer examples must stay compatible with runtime parsing and validation");
+    }
+
     [Fact]
     public async Task Repository_schemas_should_be_valid_json()
     {
