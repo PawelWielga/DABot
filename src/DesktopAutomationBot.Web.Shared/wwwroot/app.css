@@ -714,3 +714,31 @@ select {
 .profile-test-result.failure {
     color: #b91c1c;
 }
+
+
+.profile-create-row {
+    display: grid;
+    grid-template-columns: minmax(220px, 420px) auto;
+    gap: 10px;
+    align-items: center;
+}
+
+.profile-row-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.profile-rename-input {
+    min-width: 190px;
+}
+
+@media (max-width: 760px) {
+    .profile-create-row {
+        grid-template-columns: 1fr;
+    }
+
+    .profile-create-row .button {
+        width: 100%;
+    }
+}
