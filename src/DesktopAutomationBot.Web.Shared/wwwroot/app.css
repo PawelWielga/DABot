@@ -447,3 +447,129 @@ input:disabled {
         width: 100%;
     }
 }
+
+
+.filters {
+    display: grid;
+    grid-template-columns: minmax(180px, 240px) minmax(260px, 1fr) auto;
+    gap: 12px;
+    align-items: end;
+    margin-bottom: 18px;
+}
+
+.filters label {
+    display: grid;
+    gap: 7px;
+    color: #374151;
+    font-size: .85rem;
+    font-weight: 600;
+}
+
+select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: #ffffff;
+    font: inherit;
+}
+
+.filter-count {
+    padding: 10px 0;
+    color: #6b7280;
+    white-space: nowrap;
+}
+
+.detail-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(150px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.detail-card {
+    padding: 16px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+}
+
+.detail-card > span {
+    display: block;
+    margin-bottom: 8px;
+    color: #6b7280;
+    font-size: .8rem;
+}
+
+.detail-card > strong {
+    display: block;
+    font-size: .95rem;
+}
+
+.metadata-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(220px, 1fr));
+    gap: 18px;
+    margin: 18px 0 0;
+}
+
+.metadata-grid > div {
+    min-width: 0;
+}
+
+.metadata-grid dt {
+    margin-bottom: 5px;
+    color: #6b7280;
+    font-size: .78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+.metadata-grid dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.error-cell,
+.value-cell {
+    max-width: 520px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.status.started {
+    background: #dbeafe;
+}
+
+.status.unknown {
+    background: #f3f4f6;
+}
+
+.status.cancelled {
+    background: #f3f4f6;
+}
+
+.status.queued {
+    background: #ede9fe;
+}
+
+@media (max-width: 1100px) {
+    .detail-grid,
+    .metadata-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 760px) {
+    .filters,
+    .detail-grid,
+    .metadata-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .filter-count {
+        padding: 0;
+    }
+}
