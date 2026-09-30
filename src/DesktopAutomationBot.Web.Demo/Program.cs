@@ -14,6 +14,7 @@ builder.Services.AddSingleton(
         RuntimeLabel: "Demo data",
         IsDemo: true));
 builder.Services.AddSingleton<DemoDataService>();
+builder.Services.AddSingleton<IRunArtifactService, DemoRunArtifactService>();
 builder.Services.AddSingleton<IRunQueryService>(
     static provider => provider.GetRequiredService<DemoDataService>());
 builder.Services.AddSingleton<IScenarioCatalogQueryService>(
