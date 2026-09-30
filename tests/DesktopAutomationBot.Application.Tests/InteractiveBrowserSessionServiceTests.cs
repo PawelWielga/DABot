@@ -48,6 +48,24 @@ public sealed class InteractiveBrowserSessionServiceTests
     }
 
     [Fact]
+    public async Task StartAsync_WhenMaxDurationIsInvalid_RejectsBeforeOpeningBrowser()
+    {
+        var profiles = new RecordingProfileService();
+        await using var service = CreateService(
+            profiles,
+            maxDurationSeconds: 0);
+
+        Func<Task> start = async () =>
+            await service.StartAsync("invalid-timeout-profile");
+
+        await start.Should()
+            .ThrowAsync<InvalidOperationException>()
+            .WithMessage("*maxDurationSeconds must be at least 1*");
+
+        profiles.Sessions.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task MaxDuration_ExpiresSessionAndDisposesHandle()
     {
         var profiles = new RecordingProfileService();
