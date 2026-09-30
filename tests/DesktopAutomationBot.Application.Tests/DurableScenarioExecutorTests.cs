@@ -553,6 +553,56 @@ public sealed class DurableScenarioExecutorTests : IDisposable
             .Equal("after");
     }
 
+
+    [Fact]
+    public async Task ExecuteAsync_WithEventSuspend_ArmsCorrelationInEventCapableRunStore()
+    {
+        var events = new List<string>();
+        var runStore = new RecordingRunStore(events);
+        var executor = CreateExecutor(
+            [],
+            new RecordingBrowserAutomation(events),
+            runStore,
+            new RecordingStepAttemptStore(events));
+
+        var version = ScenarioVersion.Capture(
+            Guid.NewGuid(),
+            1,
+            new ScenarioDefinition
+            {
+                Name = "Event wait",
+                Steps =
+                [
+                    new ScenarioStep
+                    {
+                        Id = "wait",
+                        Type = StepType.Suspend,
+                        Parameters = new Dictionary<string, System.Text.Json.JsonElement>
+                        {
+                            ["reason"] = System.Text.Json.JsonSerializer.SerializeToElement("Event"),
+                            ["correlationId"] = System.Text.Json.JsonSerializer.SerializeToElement("job-42"),
+                            ["eventType"] = System.Text.Json.JsonSerializer.SerializeToElement("job.finished"),
+                        },
+                    },
+                ],
+            },
+            DateTimeOffset.Parse("2026-09-30T08:00:00+02:00"));
+
+        var result = await executor.ExecuteAsync(
+            new ScenarioRunRequest
+            {
+                ScenarioVersion = version,
+            });
+
+        result.Outcome.Should().Be(DurableExecutionOutcome.Suspended);
+        result.Run.State.WaitReason.Should().Be(RunWaitReason.Event);
+        result.Run.Cursor.IsCompleted.Should().BeTrue();
+        runStore.ArmedWait.Should().NotBeNull();
+        runStore.ArmedWait!.RunId.Should().Be(result.Run.RunId);
+        runStore.ArmedWait.CorrelationId.Should().Be("job-42");
+        runStore.ArmedWait.EventType.Should().Be("job.finished");
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_tempDirectory))
@@ -704,7 +754,7 @@ public sealed class DurableScenarioExecutorTests : IDisposable
         }
     }
 
-    private sealed class RecordingRunStore : IRunStore
+    private sealed class RecordingRunStore : IRunStore, IEventInboxStore
     {
         private readonly List<string> _events;
         private readonly Dictionary<Guid, ScenarioVersion> _versions = [];
@@ -715,6 +765,8 @@ public sealed class DurableScenarioExecutorTests : IDisposable
         }
 
         public List<AutomationRun> Runs { get; } = [];
+
+        public EventWaitRegistration? ArmedWait { get; private set; }
 
         public Task SaveAsync(
             AutomationRun run,
@@ -742,6 +794,42 @@ public sealed class DurableScenarioExecutorTests : IDisposable
                     run,
                     _versions[runId]));
         }
+
+        public Task ArmEventWaitAsync(
+            AutomationRun run,
+            ScenarioVersion scenarioVersion,
+            EventWaitRegistration wait,
+            CancellationToken cancellationToken = default)
+        {
+            Runs.Add(run);
+            _versions[run.RunId] = scenarioVersion;
+            ArmedWait = wait;
+            _events.Add("event-wait:armed");
+            return Task.CompletedTask;
+        }
+
+        public Task<EventAcceptanceResult> AcceptAsync(
+            AutomationEvent automationEvent,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<ResumeWorkItem>> LoadPendingResumeWorkItemsAsync(
+            int limit = 100,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<ResumeWorkItem>>([]);
+
+        public Task MarkResumeWorkItemCompletedAsync(
+            Guid workItemId,
+            DateTimeOffset finishedAt,
+            CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
+        public Task MarkResumeWorkItemFailedAsync(
+            Guid workItemId,
+            string errorMessage,
+            DateTimeOffset finishedAt,
+            CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
     }
 
     private sealed class RecordingStepAttemptStore : IStepAttemptStore
