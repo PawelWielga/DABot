@@ -1,6 +1,7 @@
 using DesktopAutomationBot.Application;
 using DesktopAutomationBot.Infrastructure;
 using DesktopAutomationBot.Web.Components;
+using DesktopAutomationBot.Web.Shared;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.Extensions.Options;
 
@@ -25,6 +26,9 @@ builder.Services.Configure<BotOptions>(
 builder.Services.AddSingleton(
     static provider =>
         provider.GetRequiredService<IOptions<BotOptions>>().Value);
+builder.Services.AddSingleton(
+    new ManagementUiEnvironment(
+        RuntimeLabel: "Local runtime"));
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure();

@@ -30,6 +30,9 @@ jobs:
       - name: Restore
         run: dotnet restore DesktopAutomationBot.sln
 
+      - name: Restore web demo
+        run: dotnet restore src/DesktopAutomationBot.Web.Demo/DesktopAutomationBot.Web.Demo.csproj
+
       - name: Build
         run: dotnet build DesktopAutomationBot.sln --configuration Release --no-restore
 
@@ -67,6 +70,20 @@ jobs:
           --configuration Release
           --no-restore
           --output artifacts/publish/web
+
+      - name: Publish static web demo
+        run: >
+          dotnet publish src/DesktopAutomationBot.Web.Demo/DesktopAutomationBot.Web.Demo.csproj
+          --configuration Release
+          --no-restore
+          --output artifacts/publish/web-demo
+
+      - name: Verify static web demo output
+        shell: bash
+        run: |
+          test -f artifacts/publish/web-demo/wwwroot/index.html
+          test -f artifacts/publish/web-demo/wwwroot/_framework/blazor.webassembly.js
+          test -f artifacts/publish/web-demo/wwwroot/_content/DesktopAutomationBot.Web.Shared/app.css
 
       - name: Publish Linux runner
         run: >

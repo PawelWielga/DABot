@@ -295,6 +295,8 @@ The web panel is optional and uses Application services. It must not directly ow
 - [x] Add `DesktopAutomationBot.Web`.
 - [x] Add authentication-ready application shell. The Blazor host wires cookie authentication/authorization and uses `AuthorizeRouteView`; no login provider is enabled yet.
 - [x] Add navigation and error handling. The shell includes primary navigation, not-found handling, an error boundary, and production exception handling.
+- [x] Share management Razor components between the real host and a static demo host.
+- [x] Publish a sample-data Blazor WebAssembly demo to GitHub Pages and validate its static output in CI.
 - [~] Add SQLite/EF Core integration required by the panel. The first read-only dashboard uses `IRunQueryService` backed by SQLite; EF Core is intentionally deferred until panel-owned write models require it.
 
 ### Dashboard

@@ -45,7 +45,7 @@ else
                 <h2>Recent runs</h2>
                 <p>Latest persisted durable executions.</p>
             </div>
-            <a href="/runs">View all</a>
+            <a href="runs">View all</a>
         </div>
 
         <RunTable Runs="_recentRuns" EmptyMessage="No durable runs have been persisted yet." />
@@ -79,12 +79,8 @@ else
     {
         _summary = await RunQueries.GetDashboardSummaryAsync();
         _recentRuns = await RunQueries.ListRecentRunsAsync(limit: 10);
-        _recentFailures = await RunQueries.ListRecentRunsAsync(
-            limit: 5,
-            status: RunStatus.Failed);
-        _waitingRuns = await RunQueries.ListRecentRunsAsync(
-            limit: 5,
-            status: RunStatus.Waiting);
+        _recentFailures = await RunQueries.ListRecentRunsAsync(limit: 5, status: RunStatus.Failed);
+        _waitingRuns = await RunQueries.ListRecentRunsAsync(limit: 5, status: RunStatus.Waiting);
         _loading = false;
     }
 }

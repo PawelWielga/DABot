@@ -188,6 +188,8 @@ dotnet run --project src/DesktopAutomationBot.Web
 
 It reads durable run state through Application services and does not directly own Playwright. See [web management panel](docs/web-management.md).
 
+A static demo of the same management UI, backed only by sample data, is published on GitHub Pages: [DABot web demo](https://pawelwielga.github.io/DABot/). The demo does not execute automation or connect to a runtime.
+
 ## Execution model
 
 DABot supports both the original one-shot execution path and durable persisted runs.
@@ -226,7 +228,9 @@ The current solution is split into:
 - `DesktopAutomationBot.Application` - execution orchestration and step handlers,
 - `DesktopAutomationBot.Infrastructure` - Playwright and infrastructure adapters,
 - `DesktopAutomationBot.Runner` - executable composition root,
-- `DesktopAutomationBot.Web` - optional Blazor management client over Application services.
+- `DesktopAutomationBot.Web` - optional server-hosted Blazor management client over Application services,
+- `DesktopAutomationBot.Web.Shared` - shared Razor UI used by both the real web host and the static demo,
+- `DesktopAutomationBot.Web.Demo` - Blazor WebAssembly demo host with sample-only data for GitHub Pages.
 
 Planned clients and adapters include:
 

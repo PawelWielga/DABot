@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="8.0.31" />
+    <ProjectReference Include="..\DesktopAutomationBot.Core\DesktopAutomationBot.Core.csproj" />
+    <ProjectReference Include="..\DesktopAutomationBot.Application\DesktopAutomationBot.Application.csproj" />
+  </ItemGroup>
+
+</Project>

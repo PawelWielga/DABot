@@ -4,6 +4,8 @@
 
 It is deliberately not a second automation engine and does not directly own Playwright.
 
+The visible management UI lives in `DesktopAutomationBot.Web.Shared`. Both the real server-hosted panel and the static demo render those same Razor components, so the demo must not drift into a separate UI implementation.
+
 ## Run locally
 
 From the repository root:
@@ -93,3 +95,28 @@ No login/identity provider is enabled yet, so current routes remain anonymous un
 The foundation is intentionally read-only.
 
 Scenario editing, run detail/actions, browser-profile management, configuration editing, event history, and authentication UX remain later Sprint 8/9 work. The scenario catalog itself is now available read-only.
+
+
+## Static GitHub Pages demo
+
+`DesktopAutomationBot.Web.Demo` is a Blazor WebAssembly host for the shared management UI.
+
+Public demo:
+
+```text
+https://pawelwielga.github.io/DABot/
+```
+
+The demo registers in-memory implementations of `IRunQueryService` and `IScenarioCatalogQueryService`. It contains representative completed, running, waiting, failed, and cancelled runs plus valid and invalid scenario examples.
+
+The demo is intentionally presentation-only:
+
+- it does not execute Playwright,
+- it does not read SQLite,
+- it does not use browser profiles,
+- it does not contain real credentials or runtime data,
+- the top bar and banner explicitly identify demo mode.
+
+`.github/workflows/pages-demo.yml` publishes the WASM output after relevant changes reach `main`. The deployment rewrites the base path for the repository Pages URL, creates a `404.html` SPA fallback, and adds `.nojekyll`.
+
+Normal CI also publishes the demo on pull requests so shared-UI changes cannot merge if the static host stops compiling.
