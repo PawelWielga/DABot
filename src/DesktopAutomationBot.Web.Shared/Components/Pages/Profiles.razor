@@ -1,5 +1,6 @@
 @page "/profiles"
 @inject IBrowserProfileCatalog ProfileCatalog
+@inject IBrowserProfileService ProfileService
 @inject ManagementUiEnvironment UiEnvironment
 
 <PageTitle>DABot browser profiles</PageTitle>
@@ -38,6 +39,7 @@
                         <th>Name</th>
                         <th>Type</th>
                         <th>Usage</th>
+                        <th>Health</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -47,6 +49,23 @@
                             <td><code>@profile.Name</code></td>
                             <td>Persistent</td>
                             <td>Set <code>browserProfile</code> in a scenario to use this profile.</td>
+                            <td>
+                                <div class="profile-actions">
+                                    <button class="button secondary"
+                                            type="button"
+                                            @onclick="async () => await TestProfileAsync(profile.Name)"
+                                            disabled="@(UiEnvironment.IsDemo || _testingProfile is not null)">
+                                        @(_testingProfile == profile.Name ? "Testing…" : "Test")
+                                    </button>
+
+                                    @if (_testResults.TryGetValue(profile.Name, out var testResult))
+                                    {
+                                        <span class="profile-test-result @(testResult.Success ? "success" : "failure")">
+                                            @(testResult.Success ? "Healthy" : $"Failed: {testResult.ErrorMessage}")
+                                        </span>
+                                    }
+                                </div>
+                            </td>
                         </tr>
                     }
                 </tbody>
@@ -56,17 +75,44 @@
 
     @if (UiEnvironment.IsDemo)
     {
-        <p class="muted privacy-note">These are representative demo profiles. The connected runtime reads profile names from its configured browser profile directory.</p>
+        <p class="muted privacy-note">These are representative demo profiles. Runtime profile tests and browser actions are disabled in the static demo.</p>
+    }
+    else
+    {
+        <p class="muted privacy-note">Testing a profile acquires its normal exclusive lease, starts it headlessly, then closes it immediately. A profile already in use will fail the test instead of bypassing the lock.</p>
     }
 </section>
 
 @code {
     private bool _loading = true;
+    private string? _testingProfile;
     private IReadOnlyList<BrowserProfileListItem> _profiles = [];
+    private readonly Dictionary<string, BrowserProfileTestResult> _testResults =
+        new(StringComparer.OrdinalIgnoreCase);
 
     protected override async Task OnInitializedAsync()
     {
         _profiles = await ProfileCatalog.ListAsync();
         _loading = false;
+    }
+
+    private async Task TestProfileAsync(string profileName)
+    {
+        if (UiEnvironment.IsDemo || _testingProfile is not null)
+        {
+            return;
+        }
+
+        _testingProfile = profileName;
+        _testResults.Remove(profileName);
+
+        try
+        {
+            _testResults[profileName] = await ProfileService.TestAsync(profileName);
+        }
+        finally
+        {
+            _testingProfile = null;
+        }
     }
 }
