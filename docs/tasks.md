@@ -329,8 +329,8 @@ The web panel is optional and uses Application services. It must not directly ow
 - [x] Variables. Run details show persisted structured variables with JSON value kind and display value.
 - [x] Event history. Run details show matched durable events and resume work-item status/timing without exposing raw event payloads.
 - [x] Artifact links/previews. Run details list files from the configured screenshot/artifact directories, preview safe image artifacts, and expose diagnostic downloads through path-safe runtime endpoints. Captured HTML is download-only to avoid same-origin execution.
-- [ ] Resume action.
-- [ ] Cancel action.
+- [x] Resume action. Run details invoke the existing `IDurableRunControlService` for non-retry waiting runs and refresh persisted state after the action.
+- [x] Cancel action. Run details can cancel queued/waiting runs with an explicit confirmation step; active `Running` cancellation remains blocked until lease/CAS coordination exists.
 - [ ] Retry action.
 - [ ] Clone run.
 
