@@ -7,7 +7,7 @@ Page observers monitor browser-visible state independently of a scenario run and
 Import a JSON definition:
 
 ```bash
-dotnet run --project src/DesktopAutomationBot.Runner -- observer import --file examples/page-observer.json
+dotnet run --project src/DesktopAutomationBot.Runner -- observer import --file examples/observers/page-observer.json
 ```
 
 Run the polling worker:
