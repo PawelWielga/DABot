@@ -426,6 +426,460 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
         return interrupted;
     }
 
+
+    public async Task ArmEventWaitAsync(
+        AutomationRun run,
+        ScenarioVersion scenarioVersion,
+        EventWaitRegistration wait,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(run);
+        ArgumentNullException.ThrowIfNull(scenarioVersion);
+        ArgumentNullException.ThrowIfNull(wait);
+
+        if (run.RunId != wait.RunId)
+        {
+            throw new ArgumentException(
+                "Event wait run identity must match the supplied run.",
+                nameof(wait));
+        }
+
+        if (run.State.Status != RunStatus.Waiting ||
+            run.State.WaitReason != RunWaitReason.Event)
+        {
+            throw new ArgumentException(
+                "Event waits can only be armed for runs in Waiting / Event.",
+                nameof(run));
+        }
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(wait.CorrelationId);
+
+        await EnsureInitializedAsync(cancellationToken);
+
+        await using var connection = await OpenConnectionAsync(cancellationToken);
+        await using var transaction =
+            (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken);
+
+        await SaveScenarioVersionAsync(
+            connection,
+            transaction,
+            scenarioVersion,
+            cancellationToken);
+
+        await SaveRunAsync(
+            connection,
+            transaction,
+            run,
+            cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText =
+            """
+            INSERT INTO EventWaits (
+                RunId,
+                CorrelationId,
+                EventType,
+                CreatedAt)
+            VALUES (
+                $runId,
+                $correlationId,
+                $eventType,
+                $createdAt)
+            ON CONFLICT(RunId) DO UPDATE SET
+                CorrelationId = excluded.CorrelationId,
+                EventType = excluded.EventType,
+                CreatedAt = excluded.CreatedAt;
+            """;
+        command.Parameters.AddWithValue(
+            "$runId",
+            wait.RunId.ToString("D"));
+        command.Parameters.AddWithValue(
+            "$correlationId",
+            wait.CorrelationId.Trim());
+        command.Parameters.AddWithValue(
+            "$eventType",
+            string.IsNullOrWhiteSpace(wait.EventType)
+                ? DBNull.Value
+                : wait.EventType.Trim());
+        command.Parameters.AddWithValue(
+            "$createdAt",
+            FormatTimestamp(wait.CreatedAt));
+
+        try
+        {
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+        catch (SqliteException exception) when (exception.SqliteErrorCode == 19)
+        {
+            throw new InvalidOperationException(
+                $"Correlation ID '{wait.CorrelationId}' is already used by another active event wait.",
+                exception);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    public async Task<EventAcceptanceResult> AcceptAsync(
+        AutomationEvent automationEvent,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(automationEvent);
+
+        var validated = AutomationEvent.Create(
+            automationEvent.EventId,
+            automationEvent.Type,
+            automationEvent.CorrelationId,
+            automationEvent.Payload,
+            automationEvent.OccurredAt);
+
+        await EnsureInitializedAsync(cancellationToken);
+
+        await using var connection = await OpenConnectionAsync(cancellationToken);
+        await using var transaction =
+            (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken);
+
+        await using (var duplicateCheck = connection.CreateCommand())
+        {
+            duplicateCheck.Transaction = transaction;
+            duplicateCheck.CommandText =
+                """
+                SELECT
+                    rw.RunId,
+                    rw.WorkItemId
+                FROM AutomationEvents e
+                LEFT JOIN ResumeWorkItems rw
+                    ON rw.EventId = e.EventId
+                WHERE e.EventId = $eventId;
+                """;
+            duplicateCheck.Parameters.AddWithValue(
+                "$eventId",
+                validated.EventId.ToString("D"));
+
+            await using var reader =
+                await duplicateCheck.ExecuteReaderAsync(cancellationToken);
+
+            if (await reader.ReadAsync(cancellationToken))
+            {
+                var duplicateRunId = reader.IsDBNull(0)
+                    ? (Guid?)null
+                    : ParseGuid(reader.GetString(0), "ResumeWorkItem.RunId");
+                var duplicateWorkItemId = reader.IsDBNull(1)
+                    ? (Guid?)null
+                    : ParseGuid(reader.GetString(1), "ResumeWorkItem.WorkItemId");
+
+                await transaction.CommitAsync(cancellationToken);
+
+                return new EventAcceptanceResult
+                {
+                    IsDuplicate = true,
+                    MatchedWaitingRun = duplicateRunId is not null,
+                    RunId = duplicateRunId,
+                    ResumeWorkItemId = duplicateWorkItemId,
+                };
+            }
+        }
+
+        await using (var insertEvent = connection.CreateCommand())
+        {
+            insertEvent.Transaction = transaction;
+            insertEvent.CommandText =
+                """
+                INSERT INTO AutomationEvents (
+                    EventId,
+                    Type,
+                    CorrelationId,
+                    PayloadJson,
+                    OccurredAt,
+                    ReceivedAt)
+                VALUES (
+                    $eventId,
+                    $type,
+                    $correlationId,
+                    $payloadJson,
+                    $occurredAt,
+                    $receivedAt);
+                """;
+            insertEvent.Parameters.AddWithValue(
+                "$eventId",
+                validated.EventId.ToString("D"));
+            insertEvent.Parameters.AddWithValue("$type", validated.Type);
+            insertEvent.Parameters.AddWithValue(
+                "$correlationId",
+                validated.CorrelationId);
+            insertEvent.Parameters.AddWithValue(
+                "$payloadJson",
+                validated.Payload.ToJsonElement().GetRawText());
+            insertEvent.Parameters.AddWithValue(
+                "$occurredAt",
+                FormatTimestamp(validated.OccurredAt));
+            insertEvent.Parameters.AddWithValue(
+                "$receivedAt",
+                FormatTimestamp(DateTimeOffset.UtcNow));
+
+            await insertEvent.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        Guid? runId = null;
+
+        await using (var findWait = connection.CreateCommand())
+        {
+            findWait.Transaction = transaction;
+            findWait.CommandText =
+                """
+                SELECT ew.RunId
+                FROM EventWaits ew
+                INNER JOIN Runs r
+                    ON r.RunId = ew.RunId
+                WHERE ew.CorrelationId = $correlationId
+                  AND (ew.EventType IS NULL OR ew.EventType = $eventType)
+                  AND r.Status = $waitingStatus
+                  AND r.WaitReason = $eventReason
+                LIMIT 1;
+                """;
+            findWait.Parameters.AddWithValue(
+                "$correlationId",
+                validated.CorrelationId);
+            findWait.Parameters.AddWithValue(
+                "$eventType",
+                validated.Type);
+            findWait.Parameters.AddWithValue(
+                "$waitingStatus",
+                RunStatus.Waiting.ToString());
+            findWait.Parameters.AddWithValue(
+                "$eventReason",
+                RunWaitReason.Event.ToString());
+
+            var rawRunId = await findWait.ExecuteScalarAsync(cancellationToken);
+            if (rawRunId is string runIdText)
+            {
+                runId = ParseGuid(runIdText, "EventWait.RunId");
+            }
+        }
+
+        Guid? workItemId = null;
+        if (runId is { } matchedRunId)
+        {
+            workItemId = Guid.NewGuid();
+
+            await using (var insertWork = connection.CreateCommand())
+            {
+                insertWork.Transaction = transaction;
+                insertWork.CommandText =
+                    """
+                    INSERT INTO ResumeWorkItems (
+                        WorkItemId,
+                        RunId,
+                        EventId,
+                        Status,
+                        CreatedAt,
+                        FinishedAt,
+                        ErrorMessage)
+                    VALUES (
+                        $workItemId,
+                        $runId,
+                        $eventId,
+                        $status,
+                        $createdAt,
+                        NULL,
+                        NULL);
+                    """;
+                insertWork.Parameters.AddWithValue(
+                    "$workItemId",
+                    workItemId.Value.ToString("D"));
+                insertWork.Parameters.AddWithValue(
+                    "$runId",
+                    matchedRunId.ToString("D"));
+                insertWork.Parameters.AddWithValue(
+                    "$eventId",
+                    validated.EventId.ToString("D"));
+                insertWork.Parameters.AddWithValue(
+                    "$status",
+                    ResumeWorkItemStatus.Pending.ToString());
+                insertWork.Parameters.AddWithValue(
+                    "$createdAt",
+                    FormatTimestamp(DateTimeOffset.UtcNow));
+
+                await insertWork.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            await using var deleteWait = connection.CreateCommand();
+            deleteWait.Transaction = transaction;
+            deleteWait.CommandText =
+                """
+                DELETE FROM EventWaits
+                WHERE RunId = $runId;
+                """;
+            deleteWait.Parameters.AddWithValue(
+                "$runId",
+                matchedRunId.ToString("D"));
+            await deleteWait.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+
+        return new EventAcceptanceResult
+        {
+            IsDuplicate = false,
+            MatchedWaitingRun = runId is not null,
+            RunId = runId,
+            ResumeWorkItemId = workItemId,
+        };
+    }
+
+    public async Task<IReadOnlyList<ResumeWorkItem>> LoadPendingResumeWorkItemsAsync(
+        int limit = 100,
+        CancellationToken cancellationToken = default)
+    {
+        if (limit <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(limit),
+                limit,
+                "Limit must be greater than zero.");
+        }
+
+        await EnsureInitializedAsync(cancellationToken);
+
+        await using var connection = await OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT
+                WorkItemId,
+                RunId,
+                EventId,
+                Status,
+                CreatedAt,
+                FinishedAt,
+                ErrorMessage
+            FROM ResumeWorkItems
+            WHERE Status = $pendingStatus
+            ORDER BY CreatedAt, WorkItemId
+            LIMIT $limit;
+            """;
+        command.Parameters.AddWithValue(
+            "$pendingStatus",
+            ResumeWorkItemStatus.Pending.ToString());
+        command.Parameters.AddWithValue("$limit", limit);
+
+        var items = new List<ResumeWorkItem>();
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            items.Add(ReadResumeWorkItem(reader));
+        }
+
+        return items;
+    }
+
+    public Task MarkResumeWorkItemCompletedAsync(
+        Guid workItemId,
+        DateTimeOffset finishedAt,
+        CancellationToken cancellationToken = default) =>
+        FinalizeResumeWorkItemAsync(
+            workItemId,
+            ResumeWorkItemStatus.Completed,
+            errorMessage: null,
+            finishedAt,
+            cancellationToken);
+
+    public Task MarkResumeWorkItemFailedAsync(
+        Guid workItemId,
+        string errorMessage,
+        DateTimeOffset finishedAt,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(errorMessage);
+
+        return FinalizeResumeWorkItemAsync(
+            workItemId,
+            ResumeWorkItemStatus.Failed,
+            errorMessage,
+            finishedAt,
+            cancellationToken);
+    }
+
+    private async Task FinalizeResumeWorkItemAsync(
+        Guid workItemId,
+        ResumeWorkItemStatus status,
+        string? errorMessage,
+        DateTimeOffset finishedAt,
+        CancellationToken cancellationToken)
+    {
+        if (workItemId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Work item ID must not be empty.",
+                nameof(workItemId));
+        }
+
+        await EnsureInitializedAsync(cancellationToken);
+
+        await using var connection = await OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            UPDATE ResumeWorkItems
+            SET
+                Status = $status,
+                FinishedAt = $finishedAt,
+                ErrorMessage = $errorMessage
+            WHERE WorkItemId = $workItemId
+              AND Status = $pendingStatus;
+            """;
+        command.Parameters.AddWithValue("$status", status.ToString());
+        command.Parameters.AddWithValue(
+            "$finishedAt",
+            FormatTimestamp(finishedAt));
+        command.Parameters.AddWithValue(
+            "$errorMessage",
+            errorMessage is null ? DBNull.Value : errorMessage);
+        command.Parameters.AddWithValue(
+            "$workItemId",
+            workItemId.ToString("D"));
+        command.Parameters.AddWithValue(
+            "$pendingStatus",
+            ResumeWorkItemStatus.Pending.ToString());
+
+        var changed = await command.ExecuteNonQueryAsync(cancellationToken);
+        if (changed != 1)
+        {
+            throw new InvalidOperationException(
+                $"Pending resume work item '{workItemId}' does not exist or was already finalized.");
+        }
+    }
+
+    private static ResumeWorkItem ReadResumeWorkItem(
+        SqliteDataReader reader) =>
+        new()
+        {
+            WorkItemId = ParseGuid(
+                reader.GetString(0),
+                "ResumeWorkItem.WorkItemId"),
+            RunId = ParseGuid(
+                reader.GetString(1),
+                "ResumeWorkItem.RunId"),
+            EventId = ParseGuid(
+                reader.GetString(2),
+                "ResumeWorkItem.EventId"),
+            Status = ParseEnum<ResumeWorkItemStatus>(
+                reader.GetString(3),
+                "ResumeWorkItem.Status"),
+            CreatedAt = ParseTimestamp(
+                reader.GetString(4),
+                "ResumeWorkItem.CreatedAt"),
+            FinishedAt = reader.IsDBNull(5)
+                ? null
+                : ParseTimestamp(
+                    reader.GetString(5),
+                    "ResumeWorkItem.FinishedAt"),
+            ErrorMessage = reader.IsDBNull(6)
+                ? null
+                : reader.GetString(6),
+        };
+
     private async Task EnsureInitializedAsync(CancellationToken cancellationToken)
     {
         if (_initialized)
