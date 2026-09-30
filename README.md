@@ -180,7 +180,7 @@ Agents should use the README and implementation backlog to distinguish current f
 
 The detailed implementation state is tracked in [docs/tasks.md](docs/tasks.md).
 
-The first read-only Blazor management dashboard is available:
+The Blazor management panel is available:
 
 ```bash
 dotnet run --project src/DesktopAutomationBot.Web
