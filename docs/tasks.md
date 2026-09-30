@@ -310,12 +310,12 @@ The web panel is optional and uses Application services. It must not directly ow
 ### Scenarios
 
 - [x] Scenario list. The read-only web page lists JSON scenarios from the configured scenarios directory, including validation status, schema version, step count, and browser profile.
-- [ ] Create/edit/delete scenario.
+- [x] Create/edit/delete scenario. The web panel can create, edit, and delete top-level scenario JSON files through `IScenarioManagementService` with path-safe filesystem writes.
 - [ ] Visual step editor.
 - [ ] Reorder steps.
 - [ ] Enable/disable steps.
-- [ ] Validation UI.
-- [ ] JSON editor.
+- [x] Validation UI. The JSON editor validates syntax and the existing scenario domain rules before saving and can validate on demand.
+- [x] JSON editor. A shared raw JSON editor is available in both the real management host and the GitHub Pages demo.
 - [ ] Synchronized visual/JSON representations.
 - [ ] Import JSON.
 - [ ] Export JSON.

@@ -5,7 +5,8 @@ namespace DesktopAutomationBot.Web.Demo;
 
 public sealed class DemoDataService :
     IRunQueryService,
-    IScenarioCatalogQueryService
+    IScenarioCatalogQueryService,
+    IScenarioManagementService
 {
     private static readonly Guid ScenarioCheckout =
         Guid.Parse("1673266b-a930-457c-b267-dda111d81da8");
@@ -16,45 +17,77 @@ public sealed class DemoDataService :
 
     private static readonly IReadOnlyList<RunListItem> Runs = CreateRuns();
 
-    private static readonly IReadOnlyList<ScenarioListItem> Scenarios =
-    [
-        new(
-            "checkout-smoke.json",
-            "Checkout smoke test",
-            SchemaVersion: 1,
-            StepCount: 8,
-            BrowserProfile: null,
-            IsValid: true,
-            ValidationErrors: []),
-        new(
-            "inventory-watch.json",
-            "Inventory availability watcher",
-            SchemaVersion: 1,
-            StepCount: 6,
-            BrowserProfile: "shop-account",
-            IsValid: true,
-            ValidationErrors: []),
-        new(
-            "approval-flow.json",
-            "Approval workflow",
-            SchemaVersion: 1,
-            StepCount: 11,
-            BrowserProfile: "backoffice",
-            IsValid: true,
-            ValidationErrors: []),
-        new(
-            "broken-example.json",
-            "broken-example",
-            SchemaVersion: 0,
-            StepCount: 0,
-            BrowserProfile: null,
-            IsValid: false,
-            ValidationErrors:
-            [
-                "Step 'open-order' requires url for OpenUrl.",
-                "Step IDs must be unique within a scenario.",
-            ]),
-    ];
+    private readonly Dictionary<string, string> _scenarioDocuments =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["checkout-smoke.json"] = """
+                {
+                  "schemaVersion": 1,
+                  "name": "Checkout smoke test",
+                  "steps": [
+                    {
+                      "id": "open",
+                      "type": "OpenUrl",
+                      "url": "https://example.test/checkout"
+                    }
+                  ]
+                }
+                """,
+            ["inventory-watch.json"] = """
+                {
+                  "schemaVersion": 1,
+                  "name": "Inventory availability watcher",
+                  "browserProfile": "shop-account",
+                  "steps": [
+                    {
+                      "id": "open",
+                      "type": "OpenUrl",
+                      "url": "https://example.test/products"
+                    },
+                    {
+                      "id": "wait",
+                      "type": "WaitFor",
+                      "selector": "[data-stock='available']"
+                    }
+                  ]
+                }
+                """,
+            ["approval-flow.json"] = """
+                {
+                  "schemaVersion": 1,
+                  "name": "Approval workflow",
+                  "browserProfile": "backoffice",
+                  "steps": [
+                    {
+                      "id": "open",
+                      "type": "OpenUrl",
+                      "url": "https://example.test/approvals"
+                    },
+                    {
+                      "id": "suspend",
+                      "type": "Suspend",
+                      "parameters": {
+                        "reason": "Event",
+                        "correlationId": "approval-123",
+                        "eventType": "approval.completed"
+                      }
+                    }
+                  ]
+                }
+                """,
+            ["broken-example.json"] = """
+                {
+                  "schemaVersion": 1,
+                  "name": "Broken scenario",
+                  "steps": [
+                    {
+                      "id": "open",
+                      "type": "OpenUrl"
+                    }
+                  ]
+                }
+                """,
+        };
 
     public Task<RunDashboardSummary> GetDashboardSummaryAsync(
         CancellationToken cancellationToken = default)
@@ -93,7 +126,105 @@ public sealed class DemoDataService :
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(Scenarios);
+
+        var scenarios = _scenarioDocuments
+            .OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(pair => ToListItem(pair.Key, pair.Value))
+            .ToArray();
+
+        return Task.FromResult<IReadOnlyList<ScenarioListItem>>(scenarios);
+    }
+
+    public Task<ScenarioDocument?> GetAsync(
+        string fileName,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ScenarioFileName.Validate(fileName);
+
+        return Task.FromResult(
+            _scenarioDocuments.TryGetValue(fileName, out var json)
+                ? new ScenarioDocument(fileName, json)
+                : null);
+    }
+
+    public Task<ScenarioWriteResult> SaveAsync(
+        string fileName,
+        string json,
+        bool overwrite,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ScenarioFileName.Validate(fileName);
+
+        var validation = ScenarioJsonValidation.Validate(json);
+        if (!validation.IsValid)
+        {
+            return Task.FromResult(
+                new ScenarioWriteResult(false, validation.Errors));
+        }
+
+        if (!overwrite && _scenarioDocuments.ContainsKey(fileName))
+        {
+            return Task.FromResult(
+                new ScenarioWriteResult(
+                    false,
+                    [$"Scenario file '{fileName}' already exists."]));
+        }
+
+        _scenarioDocuments[fileName] = json;
+        return Task.FromResult(new ScenarioWriteResult(true, []));
+    }
+
+    public Task<bool> DeleteAsync(
+        string fileName,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ScenarioFileName.Validate(fileName);
+        return Task.FromResult(_scenarioDocuments.Remove(fileName));
+    }
+
+    private static ScenarioListItem ToListItem(
+        string fileName,
+        string json)
+    {
+        var validation = ScenarioJsonValidation.Validate(json);
+        if (!validation.IsValid)
+        {
+            return new ScenarioListItem(
+                fileName,
+                Path.GetFileNameWithoutExtension(fileName),
+                0,
+                0,
+                null,
+                false,
+                validation.Errors);
+        }
+
+        using var document = System.Text.Json.JsonDocument.Parse(json);
+        var root = document.RootElement;
+        var name = root.TryGetProperty("name", out var nameElement)
+            ? nameElement.GetString() ?? Path.GetFileNameWithoutExtension(fileName)
+            : Path.GetFileNameWithoutExtension(fileName);
+        var schemaVersion = root.TryGetProperty("schemaVersion", out var schemaElement)
+            ? schemaElement.GetInt32()
+            : ScenarioSchema.CurrentVersion;
+        var stepCount = root.TryGetProperty("steps", out var stepsElement)
+            ? stepsElement.GetArrayLength()
+            : 0;
+        var browserProfile = root.TryGetProperty("browserProfile", out var profileElement)
+            ? profileElement.GetString()
+            : null;
+
+        return new ScenarioListItem(
+            fileName,
+            name,
+            schemaVersion,
+            stepCount,
+            browserProfile,
+            true,
+            []);
     }
 
     private static IReadOnlyList<RunListItem> CreateRuns()

@@ -51,11 +51,19 @@ The Application contract is `IRunQueryService`; the Blazor components do not iss
 
 ### Scenarios
 
-The scenarios page is read-only and lists top-level JSON files from `bot.storage.scenariosDirectory`.
+The scenarios page lists top-level JSON files from `bot.storage.scenariosDirectory`.
 
 For each file it shows the scenario name, file name, schema version, step count, browser-profile mode, and validation status. Invalid definitions remain visible with validation diagnostics instead of failing the whole page.
 
-The UI uses `IScenarioCatalogQueryService`; filesystem access and JSON loading stay in Infrastructure.
+Each scenario can be opened in the shared raw JSON editor. The editor supports:
+
+- create,
+- edit,
+- explicit validation,
+- save only when JSON syntax and scenario-domain validation pass,
+- delete.
+
+The UI uses `IScenarioCatalogQueryService` for listing and `IScenarioManagementService` for document operations. The filesystem implementation accepts only simple `.json` file names, rejects directory traversal, writes through a temporary file, and keeps all file IO in Infrastructure.
 
 ## Architecture
 
@@ -92,9 +100,9 @@ No login/identity provider is enabled yet, so current routes remain anonymous un
 
 ## Current scope
 
-The foundation is intentionally read-only.
+The dashboard and run views remain read-only. Scenario JSON management now supports create/edit/delete and validation.
 
-Scenario editing, run detail/actions, browser-profile management, configuration editing, event history, and authentication UX remain later Sprint 8/9 work. The scenario catalog itself is now available read-only.
+Visual scenario editing, synchronized visual/JSON representations, import/export, scenario test runs, run detail/actions, browser-profile management, configuration editing, event history, and authentication UX remain later Sprint 8/9 work.
 
 
 ## Static GitHub Pages demo
@@ -107,7 +115,7 @@ Public demo:
 https://pawelwielga.github.io/DABot/
 ```
 
-The demo registers in-memory implementations of `IRunQueryService` and `IScenarioCatalogQueryService`. It contains representative completed, running, waiting, failed, and cancelled runs plus valid and invalid scenario examples.
+The demo registers in-memory implementations of `IRunQueryService`, `IScenarioCatalogQueryService`, and `IScenarioManagementService`. It contains representative completed, running, waiting, failed, and cancelled runs plus valid and invalid scenario examples. Scenario edits in the demo exist only in browser memory and disappear after reload.
 
 The demo is intentionally presentation-only:
 

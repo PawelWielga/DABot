@@ -3,8 +3,13 @@
 
 <PageTitle>DABot scenarios</PageTitle>
 
-<h1>Scenarios</h1>
-<p class="lead">Scenario definitions available in the configured scenarios directory.</p>
+<div class="page-heading">
+    <div>
+        <h1>Scenarios</h1>
+        <p class="lead">Scenario definitions available in the configured scenarios directory.</p>
+    </div>
+    <a class="button primary" href="scenarios/new">New scenario</a>
+</div>
 
 <section class="panel">
     @if (_loading)
@@ -33,7 +38,7 @@
                     @foreach (var scenario in _scenarios)
                     {
                         <tr>
-                            <td>@scenario.Name</td>
+                            <td><a href="@($"scenarios/{Uri.EscapeDataString(scenario.FileName)}")">@scenario.Name</a></td>
                             <td><code>@scenario.FileName</code></td>
                             <td>@(scenario.IsValid ? scenario.SchemaVersion.ToString() : "-")</td>
                             <td>@(scenario.IsValid ? scenario.StepCount.ToString() : "-")</td>

@@ -1,0 +1,200 @@
+@page "/scenarios/new"
+@page "/scenarios/{FileName}"
+@inject IScenarioManagementService ScenarioManagement
+@inject NavigationManager Navigation
+
+<PageTitle>@(_isNew ? "New DABot scenario" : $"Edit {FileName}")</PageTitle>
+
+<div class="page-heading">
+    <div>
+        <h1>@(_isNew ? "New scenario" : "Edit scenario")</h1>
+        <p class="lead">@(_isNew ? "Create a scenario JSON file." : $"Editing {FileName}")</p>
+    </div>
+    <a class="button secondary" href="scenarios">Back to scenarios</a>
+</div>
+
+<section class="panel">
+    <div class="form-grid">
+        <label>
+            <span>File name</span>
+            <input @bind="_fileName" disabled="@(!_isNew)" placeholder="my-scenario.json" />
+        </label>
+    </div>
+
+    <label class="editor-label" for="scenario-json">Scenario JSON</label>
+    <textarea id="scenario-json"
+              class="json-editor"
+              @bind="_json"
+              spellcheck="false"></textarea>
+
+    @if (_validationErrors.Count > 0)
+    {
+        <div class="scenario-errors editor-errors">
+            @foreach (var error in _validationErrors)
+            {
+                <div>@error</div>
+            }
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(_message))
+    {
+        <p class="editor-message">@_message</p>
+    }
+
+    <div class="button-row">
+        <button class="button secondary" @onclick="ValidateAsync" disabled="@_busy">Validate</button>
+        <button class="button primary" @onclick="SaveAsync" disabled="@_busy">Save</button>
+
+        @if (!_isNew)
+        {
+            @if (_confirmDelete)
+            {
+                <button class="button danger" @onclick="DeleteAsync" disabled="@_busy">Confirm delete</button>
+                <button class="button secondary" @onclick="CancelDelete" disabled="@_busy">Cancel</button>
+            }
+            else
+            {
+                <button class="button danger" @onclick="RequestDelete" disabled="@_busy">Delete</button>
+            }
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter]
+    public string? FileName { get; set; }
+
+    private bool _isNew;
+    private bool _busy;
+    private bool _confirmDelete;
+    private string _fileName = string.Empty;
+    private string _json =
+        "{\n" +
+        "  \"schemaVersion\": 1,\n" +
+        "  \"name\": \"New scenario\",\n" +
+        "  \"steps\": [\n" +
+        "    {\n" +
+        "      \"id\": \"open\",\n" +
+        "      \"type\": \"OpenUrl\",\n" +
+        "      \"url\": \"https://example.com\"\n" +
+        "    }\n" +
+        "  ]\n" +
+        "}";
+    private string? _message;
+    private IReadOnlyList<string> _validationErrors = [];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _isNew = string.IsNullOrWhiteSpace(FileName);
+        _fileName = FileName ?? string.Empty;
+        _message = null;
+        _validationErrors = [];
+        _confirmDelete = false;
+
+        if (_isNew)
+        {
+            return;
+        }
+
+        var document = await ScenarioManagement.GetAsync(FileName!);
+        if (document is null)
+        {
+            _message = "Scenario file was not found.";
+            return;
+        }
+
+        _json = document.Json;
+    }
+
+    private Task ValidateAsync()
+    {
+        var validation = ScenarioJsonValidation.Validate(_json);
+        _validationErrors = validation.Errors;
+        _message = validation.IsValid
+            ? "Scenario JSON is valid."
+            : null;
+
+        return Task.CompletedTask;
+    }
+
+    private async Task SaveAsync()
+    {
+        _busy = true;
+        _message = null;
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(_fileName))
+            {
+                _validationErrors = ["File name is required."];
+                return;
+            }
+
+            var result = await ScenarioManagement.SaveAsync(
+                _fileName.Trim(),
+                _json,
+                overwrite: !_isNew);
+
+            _validationErrors = result.Errors;
+            if (!result.Success)
+            {
+                return;
+            }
+
+            if (_isNew)
+            {
+                Navigation.NavigateTo(
+                    $"scenarios/{Uri.EscapeDataString(_fileName.Trim())}");
+                return;
+            }
+
+            _message = "Scenario saved.";
+        }
+        catch (ArgumentException exception)
+        {
+            _validationErrors = [exception.Message];
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void RequestDelete()
+    {
+        _confirmDelete = true;
+        _message = "Confirm deletion. This removes the scenario file.";
+    }
+
+    private void CancelDelete()
+    {
+        _confirmDelete = false;
+        _message = null;
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (_isNew || string.IsNullOrWhiteSpace(FileName))
+        {
+            return;
+        }
+
+        _busy = true;
+        _message = null;
+
+        try
+        {
+            await ScenarioManagement.DeleteAsync(FileName);
+            Navigation.NavigateTo("scenarios");
+        }
+        catch (ArgumentException exception)
+        {
+            _validationErrors = [exception.Message];
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}
