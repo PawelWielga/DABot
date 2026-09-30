@@ -337,7 +337,7 @@ The web panel is optional and uses Application services. It must not directly ow
 ### Browser profiles
 
 - [x] Profile list. The management panel lists persistent profile directories through `IBrowserProfileCatalog`; the filesystem adapter ignores internal `.locks` state and the static demo uses representative sample profiles.
-- [ ] Create/rename/delete profile metadata.
+- [x] Create/rename/delete profile metadata. The web panel uses `IBrowserProfileManagementService`; filesystem mutations validate path-safe names, share the normal profile lease, require delete confirmation in the UI, and reject symlink/reparse-point profile directories.
 - [ ] Open interactive session from the profile page using a headed browser on the runtime node.
 - [ ] Stream the real runtime browser display and keyboard/mouse input to the management panel; do not rely on embedding the target site in an iframe.
 - [ ] Add an exclusive profile/session lease so interactive login cannot overlap a run or observer using the same persistent profile.
