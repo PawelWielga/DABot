@@ -662,3 +662,30 @@ select {
         grid-template-columns: 1fr;
     }
 }
+
+
+.run-action-buttons {
+    margin-top: 0;
+}
+
+.action-note,
+.action-warning,
+.action-message,
+.action-error {
+    margin: 12px 0 0;
+}
+
+.action-warning {
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #fff7ed;
+    color: #9a3412;
+}
+
+.action-message {
+    color: #166534;
+}
+
+.action-error {
+    color: #b91c1c;
+}
