@@ -267,6 +267,15 @@ dotnet run --project src/DesktopAutomationBot.Runner -- cancel --run-id <guid>
 ```
 
 Manual `resume` is for non-retry waiting runs. `cancel` currently accepts queued/waiting runs; cancelling an actively running process is deliberately rejected until worker lease/CAS coordination is implemented.
+
+Durable events can be injected and processed without an external transport adapter:
+
+```bash
+dotnet run --project src/DesktopAutomationBot.Runner -- event publish --id <guid> --type order.approved --correlation order-123 --payload '{"approved":true}'
+dotnet run --project src/DesktopAutomationBot.Runner -- event-worker
+```
+
+Event delivery is idempotent by `EventId`; the worker resumes matching persisted `Suspend(reason: Event)` runs from durable work items.
 ```
 
 The retry worker polls SQLite using `bot.retryWorker.pollIntervalMs` and processes at most `bot.retryWorker.batchSize` due runs per sweep. Ctrl+C requests a graceful stop: an active durable retry is allowed to finish, then the worker stops before starting the next run.
