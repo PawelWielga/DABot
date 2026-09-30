@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using DesktopAutomationBot.Core;
@@ -333,6 +335,27 @@ public sealed class PageObserverWorker : IPageObserverWorker
                     changed);
             }
 
+            case PageObserverConditionKind.DomChanged:
+            {
+                var html = await session.ReadHtmlAsync(
+                    definition.Locator!,
+                    cancellationToken);
+                var hash = Convert.ToHexString(
+                    SHA256.HashData(
+                        Encoding.UTF8.GetBytes(html)));
+
+                var changed =
+                    snapshot.LastObservation is not null &&
+                    !string.Equals(
+                        snapshot.LastObservation,
+                        hash,
+                        StringComparison.Ordinal);
+
+                return new PageObserverEvaluation(
+                    hash,
+                    changed);
+            }
+
             case PageObserverConditionKind.UrlMatches:
             {
                 var currentUrl = await session.GetCurrentUrlAsync(
@@ -359,7 +382,7 @@ public sealed class PageObserverWorker : IPageObserverWorker
         PageObserverConditionKind condition,
         PageObserverSnapshot snapshot,
         PageObserverEvaluation evaluation) =>
-        condition == PageObserverConditionKind.TextChanged
+        condition is PageObserverConditionKind.TextChanged or PageObserverConditionKind.DomChanged
             ? evaluation.Matched
             : evaluation.Matched &&
               snapshot.LastMatched != true;

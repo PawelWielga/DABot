@@ -284,6 +284,16 @@ public sealed class PlaywrightBrowserAutomation : IBrowserSession
         return page.Url;
     }
 
+    public async Task<string> ReadHtmlAsync(
+        ScenarioLocator locator,
+        CancellationToken cancellationToken = default)
+    {
+        var page = await GetPageAsync(cancellationToken);
+        return await CreateLocator(page, locator)
+            .EvaluateAsync<string>("element => element.outerHTML")
+            .WaitAsync(cancellationToken);
+    }
+
     public async Task<string> TakeScreenshotAsync(string filePath, CancellationToken cancellationToken = default)
     {
         var page = await GetPageAsync(cancellationToken);

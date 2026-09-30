@@ -89,6 +89,13 @@ public interface IBrowserAutomation : IAsyncDisposable
             new NotSupportedException(
                 "Reading the current URL is not supported by this browser automation implementation."));
 
+    Task<string> ReadHtmlAsync(
+        ScenarioLocator locator,
+        CancellationToken cancellationToken = default) =>
+        Task.FromException<string>(
+            new NotSupportedException(
+                "Reading locator HTML is not supported by this browser automation implementation."));
+
     Task<string> TakeScreenshotAsync(string filePath, CancellationToken cancellationToken = default);
 
     Task<string> SaveHtmlSnapshotAsync(

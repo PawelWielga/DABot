@@ -27,6 +27,7 @@ Supported conditions:
 - `TextEquals`
 - `TextContains`
 - `TextChanged`
+- `DomChanged`
 - `UrlMatches`
 
 Locator-based conditions reuse the scenario locator model, including selector, text, and test-id locators.
@@ -40,6 +41,8 @@ Each observer defines an `eventType` and `correlationId`.
 For visible/hidden/equality/contains/URL conditions, events are edge-triggered: a matching state emits once and remains silent until the condition becomes false and matches again.
 
 `TextChanged` stores the first observed text as a baseline without emitting an event. Later changes emit an event and replace the baseline.
+
+`DomChanged` reads the selected element's `outerHTML`, stores only its SHA-256 hash as the durable baseline, and emits when a later poll produces a different hash. The raw DOM fragment is not persisted in observer state, which keeps snapshots bounded and avoids storing arbitrary page markup.
 
 Observer event payloads include the observer ID, observer name, condition, current observation, match result, and check timestamp.
 
@@ -71,6 +74,6 @@ Worker scan settings live under:
 }
 ```
 
-## Current limit
+## Sprint 7 status
 
-Optional DOM-fragment/hash change detection remains planned. Existing text and visibility conditions cover the first generic observer runtime without coupling observation semantics to a specific transport or scenario.
+The initial generic observer runtime is complete: visibility, text, URL, and DOM-fragment change conditions all publish the same durable event model and preserve polling state across restarts.
