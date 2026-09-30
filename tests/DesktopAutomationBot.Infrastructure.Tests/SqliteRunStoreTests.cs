@@ -407,7 +407,7 @@ public sealed class SqliteRunStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task ExistingVersion1Database_IsMigratedToVersion4()
+    public async Task ExistingVersion1Database_IsMigratedToVersion5()
     {
         var databasePath = Path.Combine(_tempDirectory, "schema-v1.db");
         await CreateVersion1DatabaseAsync(databasePath);
@@ -439,11 +439,11 @@ public sealed class SqliteRunStoreTests : IDisposable
         command.CommandText = "PRAGMA user_version;";
         var rawVersion = await command.ExecuteScalarAsync();
 
-        Convert.ToInt32(rawVersion).Should().Be(4);
+        Convert.ToInt32(rawVersion).Should().Be(5);
     }
 
     [Fact]
-    public async Task ExistingVersion2RetryWait_IsMigratedAndBackfilledToVersion4()
+    public async Task ExistingVersion2RetryWait_IsMigratedAndBackfilledToVersion5()
     {
         var databasePath = Path.Combine(_tempDirectory, "schema-v2.db");
         var version = CreateScenarioVersion();
@@ -479,7 +479,7 @@ public sealed class SqliteRunStoreTests : IDisposable
         command.CommandText = "PRAGMA user_version;";
         var rawVersion = await command.ExecuteScalarAsync();
 
-        Convert.ToInt32(rawVersion).Should().Be(4);
+        Convert.ToInt32(rawVersion).Should().Be(5);
     }
 
     [Fact]
@@ -587,7 +587,7 @@ public sealed class SqliteRunStoreTests : IDisposable
         var duplicate = await store.AcceptAsync(
             automationEvent);
         var workItems =
-            await store.LoadPendingResumeWorkItemsAsync();
+            await store.LoadPendingResumeWorkItemsAsync(DateTimeOffset.MaxValue);
         var loaded = await store.LoadAsync(waiting.RunId);
 
         first.IsDuplicate.Should().BeFalse();
@@ -668,7 +668,7 @@ public sealed class SqliteRunStoreTests : IDisposable
         result.MatchedWaitingRun.Should().BeFalse();
 
         var workItems =
-            await store.LoadPendingResumeWorkItemsAsync();
+            await store.LoadPendingResumeWorkItemsAsync(DateTimeOffset.MaxValue);
         workItems.Should().BeEmpty();
     }
 
@@ -722,6 +722,101 @@ public sealed class SqliteRunStoreTests : IDisposable
         await action.Should()
             .ThrowAsync<InvalidOperationException>()
             .WithMessage("*already used*");
+    }
+
+
+    [Fact]
+    public async Task ResumeWorkItemRetry_IsDueOnlyAfterScheduledTime_AndCanDeadLetter()
+    {
+        var databasePath = Path.Combine(
+            _tempDirectory,
+            "event-retry.db");
+        var store = new SqliteRunStore(
+            CreateOptions(databasePath));
+        var version = CreateScenarioVersion();
+        var createdAt =
+            DateTimeOffset.Parse("2026-09-30T10:00:00+02:00");
+        var waiting = CreateRun(
+            version,
+            RunState.Restore(
+                RunStatus.Waiting,
+                RunWaitReason.Event),
+            createdAt,
+            createdAt.AddSeconds(1));
+
+        await store.ArmEventWaitAsync(
+            waiting,
+            version,
+            new EventWaitRegistration
+            {
+                RunId = waiting.RunId,
+                CorrelationId = "retry-correlation",
+                CreatedAt = waiting.UpdatedAt,
+            });
+
+        var acceptance = await store.AcceptAsync(
+            AutomationEvent.Create(
+                Guid.NewGuid(),
+                "resume.requested",
+                "retry-correlation",
+                ScenarioVariableValue.FromNull(),
+                createdAt.AddSeconds(2)));
+
+        var workItemId = acceptance.ResumeWorkItemId!.Value;
+        var retryAt = createdAt.AddMinutes(5);
+
+        await store.ScheduleResumeWorkItemRetryAsync(
+            workItemId,
+            "temporary failure",
+            retryAt);
+
+        var beforeDue =
+            await store.LoadPendingResumeWorkItemsAsync(
+                retryAt.AddMilliseconds(-1));
+        var atDue =
+            await store.LoadPendingResumeWorkItemsAsync(
+                retryAt);
+
+        beforeDue.Should().BeEmpty();
+        atDue.Should().ContainSingle();
+        atDue[0].AttemptCount.Should().Be(1);
+        atDue[0].NextAttemptAt.Should().Be(retryAt);
+        atDue[0].ErrorMessage.Should().Be("temporary failure");
+
+        await store.DeadLetterResumeWorkItemAsync(
+            workItemId,
+            "permanent failure",
+            retryAt.AddMinutes(1));
+
+        var afterDeadLetter =
+            await store.LoadPendingResumeWorkItemsAsync(
+                DateTimeOffset.MaxValue);
+        afterDeadLetter.Should().BeEmpty();
+
+        await using var connection = new SqliteConnection(
+            new SqliteConnectionStringBuilder
+            {
+                DataSource = databasePath,
+            }.ToString());
+        await connection.OpenAsync();
+
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT Status, AttemptCount, ErrorMessage
+            FROM ResumeWorkItems
+            WHERE WorkItemId = $workItemId;
+            """;
+        command.Parameters.AddWithValue(
+            "$workItemId",
+            workItemId.ToString("D"));
+
+        await using var reader = await command.ExecuteReaderAsync();
+        (await reader.ReadAsync()).Should().BeTrue();
+        reader.GetString(0).Should().Be(
+            ResumeWorkItemStatus.DeadLetter.ToString());
+        reader.GetInt32(1).Should().Be(2);
+        reader.GetString(2).Should().Be("permanent failure");
     }
 
     public void Dispose()
