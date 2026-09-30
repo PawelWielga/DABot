@@ -23,6 +23,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IRunArtifactService, FileSystemRunArtifactService>();
         services.AddSingleton<IScenarioCatalogQueryService, FileSystemScenarioCatalogQueryService>();
         services.AddSingleton<IScenarioManagementService, FileSystemScenarioManagementService>();
+        services.AddSingleton<IBrowserProfileCatalog, FileSystemBrowserProfileCatalog>();
         services.AddSingleton<IHttpAutomationClient, HttpAutomationClient>();
         services.AddSingleton<ISecretProvider, EnvironmentSecretProvider>();
         services.AddSingleton<IBrowserSessionFactory, PlaywrightBrowserSessionFactory>();
