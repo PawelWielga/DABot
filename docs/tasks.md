@@ -307,7 +307,7 @@ The web panel is optional and uses Application services. It must not directly ow
 
 ### Scenarios
 
-- [ ] Scenario list.
+- [x] Scenario list. The read-only web page lists JSON scenarios from the configured scenarios directory, including validation status, schema version, step count, and browser profile.
 - [ ] Create/edit/delete scenario.
 - [ ] Visual step editor.
 - [ ] Reorder steps.
