@@ -26,6 +26,7 @@ public interface IEventInboxStore
         CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<ResumeWorkItem>> LoadPendingResumeWorkItemsAsync(
+        DateTimeOffset dueAt,
         int limit = 100,
         CancellationToken cancellationToken = default);
 
@@ -34,7 +35,13 @@ public interface IEventInboxStore
         DateTimeOffset finishedAt,
         CancellationToken cancellationToken = default);
 
-    Task MarkResumeWorkItemFailedAsync(
+    Task ScheduleResumeWorkItemRetryAsync(
+        Guid workItemId,
+        string errorMessage,
+        DateTimeOffset nextAttemptAt,
+        CancellationToken cancellationToken = default);
+
+    Task DeadLetterResumeWorkItemAsync(
         Guid workItemId,
         string errorMessage,
         DateTimeOffset finishedAt,
