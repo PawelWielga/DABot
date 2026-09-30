@@ -35,4 +35,49 @@ internal static class SuspendStepEvaluator
 
         return reason;
     }
+
+    public static EventWaitRegistration CreateEventWait(
+        ScenarioStep step,
+        Guid runId,
+        DateTimeOffset createdAt)
+    {
+        ArgumentNullException.ThrowIfNull(step);
+
+        if (GetWaitReason(step) != RunWaitReason.Event)
+        {
+            throw new ArgumentException(
+                "Event wait metadata is only valid for Suspend steps waiting for Event.",
+                nameof(step));
+        }
+
+        if (step.Parameters is null ||
+            !step.Parameters.TryGetValue("correlationId", out var rawCorrelation) ||
+            rawCorrelation.ValueKind != JsonValueKind.String ||
+            string.IsNullOrWhiteSpace(rawCorrelation.GetString()))
+        {
+            throw new InvalidOperationException(
+                "Suspend with reason Event requires parameters.correlationId.");
+        }
+
+        string? eventType = null;
+        if (step.Parameters.TryGetValue("eventType", out var rawEventType))
+        {
+            if (rawEventType.ValueKind != JsonValueKind.String ||
+                string.IsNullOrWhiteSpace(rawEventType.GetString()))
+            {
+                throw new InvalidOperationException(
+                    "Suspend parameters.eventType must be a non-empty string when specified.");
+            }
+
+            eventType = rawEventType.GetString()!.Trim();
+        }
+
+        return new EventWaitRegistration
+        {
+            RunId = runId,
+            CorrelationId = rawCorrelation.GetString()!.Trim(),
+            EventType = eventType,
+            CreatedAt = createdAt,
+        };
+    }
 }
