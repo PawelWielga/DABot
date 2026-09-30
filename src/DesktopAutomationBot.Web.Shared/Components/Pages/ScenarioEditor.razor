@@ -48,7 +48,15 @@
 
         @if (!_isNew)
         {
-            <button class="button danger" @onclick="DeleteAsync" disabled="@_busy">Delete</button>
+            @if (_confirmDelete)
+            {
+                <button class="button danger" @onclick="DeleteAsync" disabled="@_busy">Confirm delete</button>
+                <button class="button secondary" @onclick="CancelDelete" disabled="@_busy">Cancel</button>
+            }
+            else
+            {
+                <button class="button danger" @onclick="RequestDelete" disabled="@_busy">Delete</button>
+            }
         }
     </div>
 </section>
@@ -59,6 +67,7 @@
 
     private bool _isNew;
     private bool _busy;
+    private bool _confirmDelete;
     private string _fileName = string.Empty;
     private string _json = """
         {
@@ -82,6 +91,7 @@
         _fileName = FileName ?? string.Empty;
         _message = null;
         _validationErrors = [];
+        _confirmDelete = false;
 
         if (_isNew)
         {
@@ -150,6 +160,18 @@
         {
             _busy = false;
         }
+    }
+
+    private void RequestDelete()
+    {
+        _confirmDelete = true;
+        _message = "Confirm deletion. This removes the scenario file.";
+    }
+
+    private void CancelDelete()
+    {
+        _confirmDelete = false;
+        _message = null;
     }
 
     private async Task DeleteAsync()
