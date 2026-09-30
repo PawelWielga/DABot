@@ -13,6 +13,13 @@ public sealed class BotOptions
     public EventWorkerOptions EventWorker { get; init; } = new();
 
     public ObserverWorkerOptions ObserverWorker { get; init; } = new();
+
+    public InteractiveBrowserOptions InteractiveBrowser { get; init; } = new();
+}
+
+public sealed class InteractiveBrowserOptions
+{
+    public int MaxDurationSeconds { get; init; } = 1800;
 }
 
 public sealed class ObserverWorkerOptions

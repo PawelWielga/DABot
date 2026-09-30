@@ -9,6 +9,8 @@ public sealed record InteractiveBrowserSessionInfo
     public string? InitialUrl { get; init; }
 
     public required DateTimeOffset StartedAt { get; init; }
+
+    public required DateTimeOffset ExpiresAt { get; init; }
 }
 
 public interface IInteractiveBrowserSessionService
@@ -28,7 +30,8 @@ public interface IInteractiveBrowserSessionService
 
 public sealed class InteractiveBrowserSessionService(
     IBrowserProfileService profileService,
-    TimeProvider timeProvider) :
+    TimeProvider timeProvider,
+    BotOptions options) :
     IInteractiveBrowserSessionService,
     IAsyncDisposable
 {
@@ -59,6 +62,7 @@ public sealed class InteractiveBrowserSessionService(
         CancellationToken cancellationToken = default)
     {
         BrowserProfileNameRules.Validate(profileName);
+        var maxDuration = GetMaxDuration();
 
         await _gate.WaitAsync(cancellationToken);
 
@@ -79,21 +83,32 @@ public sealed class InteractiveBrowserSessionService(
                 url,
                 cancellationToken);
 
+            var startedAt = timeProvider.GetUtcNow();
             var info = new InteractiveBrowserSessionInfo
             {
                 SessionId = Guid.NewGuid(),
                 ProfileName = profileName,
                 InitialUrl = string.IsNullOrWhiteSpace(url) ? null : url,
-                StartedAt = timeProvider.GetUtcNow(),
+                StartedAt = startedAt,
+                ExpiresAt = startedAt.Add(maxDuration),
             };
+            var expirationCancellation = new CancellationTokenSource();
 
             _sessions.Add(
                 info.SessionId,
-                new ActiveSession(info, session));
+                new ActiveSession(
+                    info,
+                    session,
+                    expirationCancellation));
 
             _ = ObserveCompletionAsync(
                 info.SessionId,
                 session);
+            _ = ExpireAsync(
+                info.SessionId,
+                session,
+                maxDuration,
+                expirationCancellation.Token);
 
             return info;
         }
@@ -107,22 +122,17 @@ public sealed class InteractiveBrowserSessionService(
         Guid sessionId,
         CancellationToken cancellationToken = default)
     {
-        ActiveSession? activeSession;
+        var activeSession = await RemoveActiveSessionAsync(
+            sessionId,
+            expectedSession: null,
+            cancellationToken);
 
-        await _gate.WaitAsync(cancellationToken);
-
-        try
+        if (activeSession is null)
         {
-            if (!_sessions.Remove(sessionId, out activeSession))
-            {
-                return false;
-            }
-        }
-        finally
-        {
-            _gate.Release();
+            return false;
         }
 
+        CancelExpiration(activeSession);
         await activeSession.Session.DisposeAsync();
         return true;
     }
@@ -145,17 +155,23 @@ public sealed class InteractiveBrowserSessionService(
 
         foreach (var activeSession in sessions)
         {
-            try
-            {
-                await activeSession.Session.DisposeAsync();
-            }
-            catch
-            {
-                // Best-effort process shutdown cleanup; individual close failures
-                // must not prevent other profile leases from being released.
-            }
+            CancelExpiration(activeSession);
+            await TryDisposeAsync(activeSession.Session);
+        }
+    }
+
+    private TimeSpan GetMaxDuration()
+    {
+        var maxDurationSeconds =
+            options.InteractiveBrowser.MaxDurationSeconds;
+
+        if (maxDurationSeconds < 1)
+        {
+            throw new InvalidOperationException(
+                "bot.interactiveBrowser.maxDurationSeconds must be at least 1.");
         }
 
+        return TimeSpan.FromSeconds(maxDurationSeconds);
     }
 
     private async Task ObserveCompletionAsync(
@@ -172,37 +188,104 @@ public sealed class InteractiveBrowserSessionService(
             // by the browser/session layer and cleanup still has to run.
         }
 
-        ActiveSession? activeSession;
+        var activeSession = await RemoveActiveSessionAsync(
+            sessionId,
+            session,
+            CancellationToken.None);
 
-        await _gate.WaitAsync();
+        if (activeSession is null)
+        {
+            return;
+        }
+
+        CancelExpiration(activeSession);
+        await TryDisposeAsync(activeSession.Session);
+    }
+
+    private async Task ExpireAsync(
+        Guid sessionId,
+        IInteractiveBrowserSession session,
+        TimeSpan maxDuration,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(
+                maxDuration,
+                timeProvider,
+                cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        var activeSession = await RemoveActiveSessionAsync(
+            sessionId,
+            session,
+            CancellationToken.None);
+
+        if (activeSession is null)
+        {
+            return;
+        }
+
+        CancelExpiration(activeSession);
+        await TryDisposeAsync(activeSession.Session);
+    }
+
+    private async Task<ActiveSession?> RemoveActiveSessionAsync(
+        Guid sessionId,
+        IInteractiveBrowserSession? expectedSession,
+        CancellationToken cancellationToken)
+    {
+        await _gate.WaitAsync(cancellationToken);
 
         try
         {
-            if (!_sessions.TryGetValue(sessionId, out activeSession) ||
-                !ReferenceEquals(activeSession.Session, session))
+            if (!_sessions.TryGetValue(
+                    sessionId,
+                    out var activeSession) ||
+                (expectedSession is not null &&
+                 !ReferenceEquals(
+                     activeSession.Session,
+                     expectedSession)))
             {
-                return;
+                return null;
             }
 
             _sessions.Remove(sessionId);
+            return activeSession;
         }
         finally
         {
             _gate.Release();
         }
+    }
 
+    private static void CancelExpiration(
+        ActiveSession activeSession)
+    {
+        activeSession.ExpirationCancellation.Cancel();
+        activeSession.ExpirationCancellation.Dispose();
+    }
+
+    private static async Task TryDisposeAsync(
+        IInteractiveBrowserSession session)
+    {
         try
         {
             await session.DisposeAsync();
         }
         catch
         {
-            // The browser may already be closed/crashed. Dispose is only
-            // responsible for releasing remaining resources such as the lease.
+            // The browser may already be closed/crashed. Cleanup is best effort
+            // after the session has been removed from the active registry.
         }
     }
 
     private sealed record ActiveSession(
         InteractiveBrowserSessionInfo Info,
-        IInteractiveBrowserSession Session);
+        IInteractiveBrowserSession Session,
+        CancellationTokenSource ExpirationCancellation);
 }

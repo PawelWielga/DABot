@@ -36,6 +36,9 @@
       "baseRetryDelayMs": 1000,
       "maxRetryDelayMs": 60000
     },
+    "interactiveBrowser": {
+      "maxDurationSeconds": 1800
+    },
     "observerWorker": {
       "pollIntervalMs": 1000,
       "batchSize": 50,
