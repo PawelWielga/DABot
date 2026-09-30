@@ -2,7 +2,7 @@
 
 Guidelines for agents working in this repository.
 
-DABot is a general-purpose .NET browser automation engine built around declarative scenarios and Playwright. The current implementation executes synchronous browser scenarios; durable runs, suspend/resume, external-system integrations, events, page observers, a web panel, and MCP integration are roadmap work unless the code and README explicitly state otherwise.
+DABot is a general-purpose .NET browser automation engine built around declarative scenarios and Playwright. The current implementation supports one-shot scenarios, durable runs, suspend/resume, persistent browser profiles, durable events, page observers, and a read-only Blazor management foundation. MCP integration and the dynamic Tool registry remain roadmap work unless the code and README explicitly state otherwise.
 
 ## Product direction
 
@@ -25,11 +25,13 @@ Current projects:
 - `src/DesktopAutomationBot.Application` - orchestration, use cases, and abstractions.
 - `src/DesktopAutomationBot.Infrastructure` - Playwright and external integrations.
 - `src/DesktopAutomationBot.Runner` - CLI/worker composition root.
+- `src/DesktopAutomationBot.Web` - optional server-hosted Blazor management panel.
+- `src/DesktopAutomationBot.Web.Shared` - shared Razor management UI.
+- `src/DesktopAutomationBot.Web.Demo` - sample-data Blazor WebAssembly host deployed to GitHub Pages.
 - `tests/` - unit and integration tests.
 
 Planned:
 
-- `src/DesktopAutomationBot.Web` - optional Blazor management panel.
 - `src/DesktopAutomationBot.Mcp` - optional MCP server/client adapter over Application services.
 
 ## Architecture rules
@@ -64,7 +66,7 @@ Planned:
 
 ## Durable workflow rules
 
-These rules describe the planned durable execution architecture. They do not imply that durable execution is already implemented.
+These rules describe the durable execution architecture. Durable execution, suspend/resume, event inbox processing, and page observers are implemented; multi-worker coordination is still planned.
 
 - `WaitFor` is for short waits inside an active browser execution.
 - `Suspend` is for waits that should survive process termination.
@@ -87,13 +89,10 @@ These rules describe the planned durable execution architecture. They do not imp
 
 ## Web panel rules
 
-The planned web panel should initially cover:
+The web panel currently provides a read-only dashboard, run list, and scenario list. Continue toward:
 
-- dashboard,
-- scenarios,
 - visual + JSON scenario editor,
-- runs,
-- run details,
+- run details and actions,
 - browser profiles,
 - configuration.
 
@@ -106,11 +105,11 @@ Later features may include:
 - secret management,
 - audit logs.
 
-The panel must not duplicate domain logic already available in Application.
+The panel must not duplicate domain logic already available in Application. Shared presentation belongs in `DesktopAutomationBot.Web.Shared`; both the real host and `DesktopAutomationBot.Web.Demo` must render the same shared components. The Pages demo uses dummy Application-service implementations only and must never execute automation, access SQLite, contain credentials, or become a separate UI fork.
 
 ## Scenario expectations
 
-Currently registered executable step handlers:
+Currently supported scenario actions include:
 
 - `OpenUrl`
 - `Click`
@@ -120,8 +119,12 @@ Currently registered executable step handlers:
 - `Delay`
 - `ReadText`
 - `Screenshot`
+- `CallApi`
+- `If`
+- `Loop`
+- durable `Suspend`.
 
-The current domain enum also reserves `CallApi`, `If`, and `Loop`, but they are not executable until handlers are implemented and registered. `Suspend` is planned and is not yet part of the current enum.
+Check the scenario schema and current handler/compiled-execution code before changing this list.
 
 String scenario inputs support `{{variableName}}` interpolation. Values may come from prior step outputs or run variables, and `runId` is a built-in execution variable. Missing variables must fail explicitly rather than remain unresolved.
 
@@ -144,14 +147,11 @@ A restart between `Suspend` and `Resume` must be supported.
 
 ## Current implementation priorities
 
-1. Finish the original stable runner requirements: API, logging, retry, variables, control flow, diagnostics, Linux runtime.
-2. Add explicit browser session management and persistent profiles.
-3. Introduce `ScenarioRunRequest`, `AutomationRun`, statuses, and durable run storage.
-4. Add `Suspend` / `Resume` with idempotency.
-5. Add neutral event abstractions and event history.
-6. Add generic page observers.
-7. Add the optional Blazor management panel.
-8. Add worker coordination, leases, schedules, and operational hardening.
+1. Continue the Web management MVP without duplicating Application/domain logic.
+2. Add run details/actions and richer scenario management.
+3. Add worker coordination, leases, and concurrency safety.
+4. Add scheduling and operational hardening.
+5. Add the neutral Action/Tool registry and MCP adapters after the execution/runtime boundaries are stable.
 
 ## Testing expectations
 
