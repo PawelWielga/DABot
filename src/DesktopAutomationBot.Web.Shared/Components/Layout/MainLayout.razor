@@ -1,0 +1,29 @@
+@inherits LayoutComponentBase
+@inject ManagementUiEnvironment UiEnvironment
+
+<div class="app-shell">
+    <aside class="sidebar">
+        <NavMenu />
+    </aside>
+
+    <main class="content">
+        <header class="topbar">
+            <div>
+                <strong>DABot</strong>
+                <span>Management</span>
+            </div>
+            <span class="runtime-badge @(UiEnvironment.IsDemo ? "demo" : null)">@UiEnvironment.RuntimeLabel</span>
+        </header>
+
+        @if (UiEnvironment.IsDemo)
+        {
+            <div class="demo-banner">
+                Demo mode. This dashboard uses sample data and does not execute automation.
+            </div>
+        }
+
+        <div class="page-body">
+            @Body
+        </div>
+    </main>
+</div>
