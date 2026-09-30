@@ -140,6 +140,13 @@
               "minimum": 1,
               "default": 1800,
               "description": "Maximum lifetime of one headed interactive browser-profile session before DABot closes it automatically."
+            },
+            "grantLifetimeSeconds": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 300,
+              "default": 60,
+              "description": "Lifetime of a single-use access grant intended to authorize establishment of a remote interactive-browser channel."
             }
           }
         },
