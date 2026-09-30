@@ -10,6 +10,7 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<TimeProvider>(TimeProvider.System);
         services.AddSingleton<IScenarioValidationService, ScenarioValidationService>();
         services.AddSingleton<IBrowserProfileService, BrowserProfileService>();
+        services.AddSingleton<IInteractiveBrowserSessionService, InteractiveBrowserSessionService>();
         services.AddSingleton<IScenarioExecutor, ScenarioExecutor>();
         services.AddSingleton<DurableScenarioExecutor>();
         services.AddSingleton<IDurableScenarioExecutor>(

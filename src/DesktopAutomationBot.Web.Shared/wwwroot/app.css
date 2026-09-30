@@ -773,3 +773,28 @@ select {
         width: 100%;
     }
 }
+
+
+.profile-summary-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.profile-summary-actions .button {
+    min-height: 34px;
+    padding: 6px 12px;
+}
+
+.profile-session-state {
+    color: #166534;
+    font-size: .82rem;
+    white-space: normal;
+}
+
+@media (max-width: 760px) {
+    .profile-summary-actions {
+        align-items: flex-end;
+        flex-direction: column;
+    }
+}

@@ -94,21 +94,22 @@ The UI uses `IScenarioCatalogQueryService` for listing and `IScenarioManagementS
 
 The profiles page lists persistent browser profile directories through the Application-level `IBrowserProfileCatalog` contract. The Infrastructure adapter reads only names beneath `bot.storage.browserProfilesDirectory`, ignores internal dot-prefixed directories such as `.locks`, and does not launch Chromium or acquire a profile lease while listing.
 
-The static demo uses representative profile names. The connected runtime can create, rename, clear, and delete profiles through `IBrowserProfileManagementService`, and can test a profile through the existing `IBrowserProfileService`. Filesystem mutations validate profile names, acquire the same exclusive profile lease used by Playwright, require explicit confirmation for clear/delete, and reject symlink/reparse-point profile directories. Clear removes browser-managed data such as cookies, local storage, and cache by replacing the profile contents with an empty profile directory while keeping the profile name available. The health check starts the selected persistent profile headlessly and disposes it immediately after successful launch. The static demo renders all runtime actions as unavailable and never modifies profiles or starts Chromium. Interactive setup remains separate follow-up work.
+The static demo uses representative profile names. The connected runtime can create, rename, clear, and delete profiles through `IBrowserProfileManagementService`, test a profile through `IBrowserProfileService`, and start/stop a headed interactive setup session through `IInteractiveBrowserSessionService`. Filesystem mutations and interactive setup acquire the same exclusive profile lease used by Playwright. Clear/delete require explicit confirmation and symlink/reparse-point profile directories are rejected. Clear replaces the profile contents with an empty profile directory while keeping the name available. The health check starts the selected profile headlessly and disposes it immediately after successful launch. The static demo renders all runtime actions as unavailable and never modifies profiles or starts Chromium.
 
-#### Planned interactive browser sessions
+#### Interactive browser sessions
 
-The profile management flow should allow an authorized administrator to open a real headed browser for a specific persistent profile directly from the management panel. The primary use case is manual login, MFA, CAPTCHA handling, consent screens, and session repair without giving DABot a reusable username/password secret.
+The profile page can now open and close a real headed browser for a specific persistent profile on the runtime node. The primary use case is manual login, MFA, CAPTCHA handling, consent screens, and session repair without giving DABot a reusable username/password secret. This first implementation manages the browser lifecycle only; it does not yet stream the runtime-node display into the web panel.
 
-The intended flow is:
+The current local lifecycle is:
 
-1. the operator selects a profile and chooses **Open interactive session**,
-2. Application resolves the profile and, in distributed mode, the node that owns it,
-3. the runtime acquires an exclusive profile lease,
-4. the execution node starts a headed Chromium session using that profile,
-5. the browser display and keyboard/mouse input are streamed to the management panel through an authenticated remote-display bridge,
-6. the operator signs in directly inside the browser,
-7. closing the interactive session terminates Chromium, releases the lease, and leaves the browser profile available for later headless automation.
+1. the operator selects a profile and chooses **Open browser**,
+2. Application starts a headed Chromium session through the existing profile/session abstractions,
+3. the normal profile lease prevents a run, observer, health test, mutation, or second interactive session from using that profile concurrently,
+4. `IInteractiveBrowserSessionService` retains the session beyond the initiating web request and exposes active-session state to the page,
+5. **Close browser** disposes the session and releases the lease,
+6. if the Chromium window is closed manually or crashes, Playwright's browser-context close signal completes the session lifetime and DABot automatically removes/disposes the active-session handle.
+
+The next stage is remote interaction: stream the browser display and keyboard/mouse input to the management panel through an authenticated remote-display bridge so the operator does not need access to the runtime node's desktop.
 
 The management panel must not attempt to embed the target website with an `iframe`. Many authentication providers block framing, and an iframe would not represent the actual Playwright browser/profile used by the bot. A remote display implementation such as Xvfb plus VNC/noVNC over an authenticated WebSocket is an acceptable Infrastructure implementation, but the transport must remain replaceable and must not leak remote-desktop types into Core.
 
@@ -163,7 +164,7 @@ No login/identity provider is enabled yet, so current routes remain anonymous un
 
 The dashboard remains read-only. Run details support guarded manual resume/retry/cancel actions, the run list supports filtering, scenario JSON management supports create/edit/delete and validation, and persistent browser profiles can be listed, created, renamed, cleared, deleted, and health-tested.
 
-Visual scenario editing, synchronized visual/JSON representations, import/export, scenario test runs, clone-run actions, browser-profile interactive sessions, configuration editing, and authentication UX remain later Sprint 8/9 work.
+Visual scenario editing, synchronized visual/JSON representations, import/export, scenario test runs, clone-run actions, remote browser display/input streaming, interactive-session authorization/timeout/audit, configuration editing, and authentication UX remain later Sprint 8/9 work.
 
 
 ## Static GitHub Pages demo

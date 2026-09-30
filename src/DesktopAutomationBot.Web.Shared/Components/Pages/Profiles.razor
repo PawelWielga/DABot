@@ -3,6 +3,7 @@
 @inject IBrowserProfileCatalog ProfileCatalog
 @inject IBrowserProfileService ProfileService
 @inject IBrowserProfileManagementService ProfileManagement
+@inject IInteractiveBrowserSessionService InteractiveSessions
 @inject ManagementUiEnvironment UiEnvironment
 @inject ILogger<Profiles> Logger
 
@@ -61,7 +62,15 @@
             <h2>Persistent profiles</h2>
             <p>Profiles keep browser session data between runs. Listing profiles does not open Chromium or acquire a profile lease.</p>
         </div>
-        <span class="muted">@(_loading ? "Loading…" : $"{_profiles.Count} profile(s)")</span>
+        <div class="profile-summary-actions">
+            <span class="muted">@(_loading ? "Loading…" : $"{_profiles.Count} profile(s)")</span>
+            <button class="button secondary"
+                    type="button"
+                    @onclick="ReloadInteractiveSessionsAsync"
+                    disabled="@IsBusy">
+                Refresh sessions
+            </button>
+        </div>
     </div>
 
     @if (_loading)
@@ -97,7 +106,7 @@
                                     <button class="button secondary"
                                             type="button"
                                             @onclick="async () => await TestProfileAsync(profile.Name)"
-                                            disabled="@(UiEnvironment.IsDemo || IsBusy)">
+                                            disabled="@(UiEnvironment.IsDemo || IsBusy || HasInteractiveSession(profile.Name))">
                                         @(_testingProfile == profile.Name ? "Testing…" : "Test")
                                     </button>
 
@@ -170,24 +179,45 @@
                                 else
                                 {
                                     <div class="profile-row-actions">
-                                        <button class="button secondary"
-                                                type="button"
-                                                @onclick="() => RequestRename(profile.Name)"
-                                                disabled="@(UiEnvironment.IsDemo || IsBusy)">
-                                            Rename
-                                        </button>
-                                        <button class="button secondary"
-                                                type="button"
-                                                @onclick="() => RequestClear(profile.Name)"
-                                                disabled="@(UiEnvironment.IsDemo || IsBusy)">
-                                            Clear
-                                        </button>
-                                        <button class="button danger"
-                                                type="button"
-                                                @onclick="() => RequestDelete(profile.Name)"
-                                                disabled="@(UiEnvironment.IsDemo || IsBusy)">
-                                            Delete
-                                        </button>
+                                        @if (_interactiveSessions.TryGetValue(profile.Name, out var interactiveSession))
+                                        {
+                                            <button class="button danger"
+                                                    type="button"
+                                                    @onclick="async () => await StopInteractiveSessionAsync(interactiveSession)"
+                                                    disabled="@(UiEnvironment.IsDemo || IsBusy)">
+                                                @(_interactiveBusyProfile == profile.Name ? "Closing…" : "Close browser")
+                                            </button>
+                                            <span class="profile-session-state">
+                                                Headed browser open since @FormatTime(interactiveSession.StartedAt)
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <button class="button primary"
+                                                    type="button"
+                                                    @onclick="async () => await StartInteractiveSessionAsync(profile.Name)"
+                                                    disabled="@(UiEnvironment.IsDemo || IsBusy)">
+                                                @(_interactiveBusyProfile == profile.Name ? "Opening…" : "Open browser")
+                                            </button>
+                                            <button class="button secondary"
+                                                    type="button"
+                                                    @onclick="() => RequestRename(profile.Name)"
+                                                    disabled="@(UiEnvironment.IsDemo || IsBusy)">
+                                                Rename
+                                            </button>
+                                            <button class="button secondary"
+                                                    type="button"
+                                                    @onclick="() => RequestClear(profile.Name)"
+                                                    disabled="@(UiEnvironment.IsDemo || IsBusy)">
+                                                Clear
+                                            </button>
+                                            <button class="button danger"
+                                                    type="button"
+                                                    @onclick="() => RequestDelete(profile.Name)"
+                                                    disabled="@(UiEnvironment.IsDemo || IsBusy)">
+                                                Delete
+                                            </button>
+                                        }
                                     </div>
                                 }
                             </td>
@@ -200,11 +230,12 @@
 
     @if (UiEnvironment.IsDemo)
     {
-        <p class="muted privacy-note">These are representative demo profiles. Runtime profile tests and browser actions are disabled in the static demo.</p>
+        <p class="muted privacy-note">These are representative demo profiles. Runtime profile tests, mutations, and interactive browser sessions are disabled in the static demo.</p>
     }
     else
     {
-        <p class="muted privacy-note">Profile mutations and health tests acquire the same exclusive profile lock used by browser sessions. Clear removes browser-managed profile data while keeping the named profile available; clear and delete both require explicit confirmation and refuse symlink/reparse-point profiles.</p>
+        <p class="muted privacy-note">Interactive setup opens a real headed Chromium window on the runtime node and holds the same exclusive profile lease used by runs and observers. Closing the browser window or choosing Close browser releases the session. Remote display streaming to the panel is not implemented yet.</p>
+        <p class="muted privacy-note">Profile mutations and health tests use the same exclusive profile lock. Clear removes browser-managed profile data while keeping the named profile available; clear and delete both require explicit confirmation and refuse symlink/reparse-point profiles.</p>
     }
 </section>
 
@@ -212,6 +243,7 @@
     private bool _loading = true;
     private bool _mutationBusy;
     private string? _testingProfile;
+    private string? _interactiveBusyProfile;
     private string? _activeAction;
     private string? _renamingProfile;
     private string? _clearProfile;
@@ -223,18 +255,95 @@
     private IReadOnlyList<BrowserProfileListItem> _profiles = [];
     private readonly Dictionary<string, BrowserProfileTestResult> _testResults =
         new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, InteractiveBrowserSessionInfo> _interactiveSessions =
+        new(StringComparer.OrdinalIgnoreCase);
 
     private bool IsBusy =>
-        _mutationBusy || _testingProfile is not null;
+        _mutationBusy ||
+        _testingProfile is not null ||
+        _interactiveBusyProfile is not null;
 
     protected override async Task OnInitializedAsync()
     {
-        await ReloadProfilesAsync();
+        await Task.WhenAll(
+            ReloadProfilesAsync(),
+            ReloadInteractiveSessionsAsync());
         _loading = false;
     }
 
     private async Task ReloadProfilesAsync() =>
         _profiles = await ProfileCatalog.ListAsync();
+
+    private async Task ReloadInteractiveSessionsAsync()
+    {
+        var activeSessions = await InteractiveSessions.ListAsync();
+
+        _interactiveSessions.Clear();
+
+        foreach (var activeSession in activeSessions)
+        {
+            _interactiveSessions[activeSession.ProfileName] = activeSession;
+        }
+    }
+
+    private bool HasInteractiveSession(string profileName) =>
+        _interactiveSessions.ContainsKey(profileName);
+
+    private async Task StartInteractiveSessionAsync(string profileName)
+    {
+        if (UiEnvironment.IsDemo || IsBusy)
+        {
+            return;
+        }
+
+        _interactiveBusyProfile = profileName;
+        ClearActionState();
+
+        try
+        {
+            var session = await InteractiveSessions.StartAsync(profileName);
+            _interactiveSessions[profileName] = session;
+            _actionMessage =
+                $"Headed browser for '{profileName}' opened on the runtime node. Remote display streaming is not implemented yet.";
+        }
+        catch (Exception exception)
+        {
+            HandleMutationError(exception, "Open interactive browser");
+        }
+        finally
+        {
+            _interactiveBusyProfile = null;
+        }
+    }
+
+    private async Task StopInteractiveSessionAsync(
+        InteractiveBrowserSessionInfo session)
+    {
+        if (UiEnvironment.IsDemo || IsBusy)
+        {
+            return;
+        }
+
+        _interactiveBusyProfile = session.ProfileName;
+        ClearActionState();
+
+        try
+        {
+            var stopped = await InteractiveSessions.StopAsync(session.SessionId);
+            _interactiveSessions.Remove(session.ProfileName);
+            _actionMessage = stopped
+                ? $"Interactive browser for '{session.ProfileName}' was closed."
+                : $"Interactive browser for '{session.ProfileName}' had already closed.";
+        }
+        catch (Exception exception)
+        {
+            HandleMutationError(exception, "Close interactive browser");
+        }
+        finally
+        {
+            _interactiveBusyProfile = null;
+        }
+    }
 
     private async Task TestProfileAsync(string profileName)
     {
@@ -459,6 +568,9 @@
         _actionError = null;
     }
 
+    private static string FormatTime(DateTimeOffset value) =>
+        value.ToLocalTime().ToString("HH:mm:ss");
+
     private void HandleMutationError(
         Exception exception,
         string action)
@@ -468,7 +580,7 @@
             "{Action} failed for browser profile management.",
             action);
 
-        _actionError = exception is ArgumentException or InvalidOperationException
+        _actionError = exception is ArgumentException or InvalidOperationException or NotSupportedException
             ? exception.Message
             : $"{action} failed. Check server logs for diagnostics.";
     }
