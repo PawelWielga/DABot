@@ -16,3 +16,5 @@
 - After merging, verify the latest `main` CI and fix regressions before continuing with unrelated work.
 
 - Keep management presentation in `DesktopAutomationBot.Web.Shared`; the real web host and GitHub Pages demo must reuse those components. The demo is sample-data only and must not execute automation or access real runtime data.
+
+- Keep interactive-browser audit events metadata-only; never include target URLs with sensitive query data, page content, credentials, MFA values, or operator keystrokes.
