@@ -13,13 +13,54 @@
     }
     else
     {
-        <RunTable Runs="_runs" EmptyMessage="No durable runs have been persisted yet." />
+        <div class="filters">
+            <label>
+                <span>Status</span>
+                <select @bind="_statusFilter">
+                    <option value="">All statuses</option>
+                    @foreach (var status in Enum.GetValues<RunStatus>())
+                    {
+                        <option value="@status.ToString()">@status</option>
+                    }
+                </select>
+            </label>
+
+            <label>
+                <span>Run ID</span>
+                <input @bind="_runIdFilter"
+                       @bind:event="oninput"
+                       placeholder="Search by run ID" />
+            </label>
+
+            <span class="filter-count">@FilteredRuns.Count run(s)</span>
+        </div>
+
+        <RunTable Runs="FilteredRuns" EmptyMessage="No runs match the current filters." />
     }
 </section>
 
 @code {
     private bool _loading = true;
+    private string _statusFilter = string.Empty;
+    private string _runIdFilter = string.Empty;
     private IReadOnlyList<RunListItem> _runs = [];
+
+    private IReadOnlyList<RunListItem> FilteredRuns =>
+        _runs
+            .Where(
+                run =>
+                    string.IsNullOrWhiteSpace(_statusFilter) ||
+                    string.Equals(
+                        run.Status.ToString(),
+                        _statusFilter,
+                        StringComparison.OrdinalIgnoreCase))
+            .Where(
+                run =>
+                    string.IsNullOrWhiteSpace(_runIdFilter) ||
+                    run.RunId.ToString("D").Contains(
+                        _runIdFilter.Trim(),
+                        StringComparison.OrdinalIgnoreCase))
+            .ToArray();
 
     protected override async Task OnInitializedAsync()
     {
