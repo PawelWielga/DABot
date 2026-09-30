@@ -326,6 +326,7 @@ Treat non-zero codes as failures. Code `3` is intended for problems that can be 
 - [Implementation backlog](docs/tasks.md)
 - [Linux publish and smoke test](docs/linux-publish.md)
 - [Durable workflow architecture](docs/durable-workflows.md)
+- [Distributed DABot deployment](docs/distributed-deployment.md)
 - [MCP and dynamic tools architecture](docs/mcp-and-dynamic-tools.md)
 - [Scenario schema and migration policy](docs/scenario-schema.md)
 - [Architecture review and improvement plan](docs/architecture-review-2026-09-27.md)
@@ -336,7 +337,7 @@ Treat non-zero codes as failures. Code `3` is intended for problems that can be 
 
 ## Roadmap
 
-The roadmap is maintained as an implementation backlog rather than a marketing feature list. Planned work includes the web management panel, multi-worker coordination, operations/deployment features, scheduling, and MCP/tool-registry integration.
+The roadmap is maintained as an implementation backlog rather than a marketing feature list. Planned work includes completing the web management panel, a distributed control plane with multiple VM/host agents and one shared dashboard, safe multi-worker coordination, operations/deployment features, scheduling, and MCP/tool-registry integration.
 
 See [docs/tasks.md](docs/tasks.md) for acceptance criteria and implementation order.
 

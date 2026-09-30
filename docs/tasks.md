@@ -359,18 +359,111 @@ The web panel is optional and uses Application services. It must not directly ow
 - [ ] Manual administrative event publishing.
 - [ ] Audit manual resume/cancel/event operations.
 
-## Sprint 10 - Worker coordination
+## Sprint 10 - Distributed workers and shared control plane
 
-- [ ] Add worker identity.
-- [ ] Add heartbeat.
-- [ ] Add worker registry.
-- [ ] Add run lease.
-- [ ] Add lease renewal.
-- [ ] Add abandoned lease recovery.
-- [ ] Add concurrency limits.
-- [ ] Add browser profile lease.
-- [ ] Add worker status page.
-- [ ] Verify safe execution with multiple workers.
+Goal: allow several DABot agents running on different VMs or physical machines to share one central dashboard, durable queue, and coordination layer while preserving standalone SQLite deployment.
+
+Architecture source: [Distributed DABot deployment](distributed-deployment.md).
+
+### Node identity and registry
+
+- [ ] Introduce stable `NodeId` / worker identity.
+- [ ] Add durable node registry.
+- [ ] Add node metadata: display name, OS, DABot version, browser versions, tags/capabilities, configured execution slots.
+- [ ] Add heartbeat with persisted `LastSeenAt`.
+- [ ] Define node lifecycle states: Online, Draining, Offline, Disabled, Unhealthy.
+- [ ] Add heartbeat-expiry/liveness evaluation.
+- [ ] Add drain, enable, and disable application use cases.
+- [ ] Ensure node administrative actions are auditable.
+
+### Run claiming and leases
+
+- [ ] Add atomic run lease / compare-and-swap claiming.
+- [ ] Persist lease owner node, lease token/version, acquisition time, and expiry.
+- [ ] Add lease renewal for active execution.
+- [ ] Reject progress/finalization writes from a node that no longer owns the lease.
+- [ ] Add abandoned/expired lease recovery through the existing step-attempt recovery rules.
+- [ ] Make retry-worker claiming safe with multiple workers.
+- [ ] Make event-resume work claiming safe with multiple workers.
+- [ ] Make observer work claiming safe with multiple workers.
+- [ ] Add concurrency tests proving that two nodes cannot execute the same run concurrently.
+
+### Capacity and scheduling
+
+- [ ] Add per-node execution-slot/concurrency limits.
+- [ ] Report active-run count and capacity in node heartbeats/status.
+- [ ] Add node capabilities/tags.
+- [ ] Add optional run/scenario capability requirements.
+- [ ] Add capability-aware node selection.
+- [ ] Add deterministic scheduler behavior when several nodes are eligible.
+- [ ] Ensure Draining/Disabled/Unhealthy nodes do not receive new work.
+
+### Browser profile ownership
+
+- [ ] Model persistent browser-profile ownership/location by node.
+- [ ] Route runs requiring a node-local profile to the owning node.
+- [ ] Keep the existing local profile lease and combine it with distributed run ownership.
+- [ ] Prevent profile use on a second node unless an explicit migration/restore operation has occurred.
+- [ ] Document that active Chromium user-data directories must not be shared through generic network storage.
+
+### Control plane and agent communication
+
+- [ ] Define Application-level contracts for node registration, heartbeat, work claim/assignment, lease renewal, progress, completion, and artifact reporting.
+- [ ] Add an authenticated agent-server HTTP API as the first distributed transport.
+- [ ] Prefer outbound agent connections so execution VMs do not require inbound public ports.
+- [ ] Keep transport-specific models out of Core.
+- [ ] Add per-node authentication/authorization and credential rotation strategy.
+- [ ] Add compatibility/version negotiation between agent and server where protocol changes require it.
+- [ ] Evaluate SignalR/WebSocket push only after the polling/API contract is stable.
+
+### Distributed persistence
+
+- [ ] Keep SQLite as the supported standalone store.
+- [ ] Add a shared relational persistence provider for distributed coordination, targeting PostgreSQL first.
+- [ ] Implement transactional/CAS run claiming in the distributed provider.
+- [ ] Persist cluster-wide nodes, leases, runs, events, schedules, and audit metadata centrally.
+- [ ] Add schema migration strategy for the distributed database.
+- [ ] Add integration tests against the distributed database provider.
+- [ ] Explicitly reject/document shared-network-file SQLite as an unsupported multi-VM coordination topology.
+
+### Artifacts and diagnostics
+
+- [ ] Add node identity to run execution/diagnostic history.
+- [ ] Define artifact upload or central-reference contract.
+- [ ] Preserve stable `RunId` and step identity across artifact transfer.
+- [ ] Support temporary node-local artifact storage with cleanup after successful transfer/retention expiry.
+- [ ] Show node/lease/recovery information in run details.
+
+### Web dashboard
+
+- [ ] Replace the current worker-summary placeholder with real cluster data.
+- [ ] Add Nodes / Workers list.
+- [ ] Show node status, heartbeat age, version, OS, capabilities, capacity, active runs, and recent errors.
+- [ ] Add node detail page with execution history.
+- [ ] Add Drain / Enable / Disable actions with confirmation and audit.
+- [ ] Show assigned/current node on run list and run detail.
+- [ ] Aggregate run counters across all connected nodes.
+
+### Deployment and operations
+
+- [ ] Define standalone deployment: Web + workers + Playwright + SQLite.
+- [ ] Define distributed deployment: Control Plane + PostgreSQL + one or more Agents.
+- [ ] Add Docker/systemd examples for the control plane and agent roles.
+- [ ] Document TLS and node credential provisioning.
+- [ ] Add health endpoints for control plane and agents.
+- [ ] Add multi-node upgrade/version-skew guidance.
+- [ ] Add failure tests for node crash, control-plane restart, expired lease, network interruption, and duplicate claim attempts.
+
+Acceptance criteria:
+
+- two agents on separate VMs can register with one control plane and appear in one dashboard,
+- a centrally queued run is executed by exactly one eligible agent,
+- concurrent claims cannot produce duplicate run execution,
+- an expired agent lease invokes the existing safe recovery semantics instead of blindly replaying side effects,
+- node-local persistent profiles remain single-owner/single-user,
+- the dashboard shows cluster-wide runs and node health,
+- standalone SQLite mode remains fully usable,
+- distributed mode uses a supported shared database rather than SQLite on a network share.
 
 ## Sprint 11 - Scheduling and operations
 
@@ -486,7 +579,9 @@ The recommended next sequence is:
 6. Add event inbox/idempotency and durable resume work items.
 7. Add page observers.
 8. Add the web panel MVP.
-9. Add multi-worker coordination and operational features.
-10. Add the neutral Action/Tool registry, then MCP server/client adapters and AI-authored declarative tools.
+9. Add the distributed worker/control-plane foundation: node registry, heartbeat, leases/CAS, multi-worker-safe queues, capacity limits, and Nodes dashboard.
+10. Add the distributed deployment path: authenticated agents, capability-aware scheduling, node-local profile ownership, PostgreSQL coordination, and artifact transfer.
+11. Add scheduling and remaining operational hardening.
+12. Add the neutral Action/Tool registry, then MCP server/client adapters and AI-authored declarative tools.
 
 This order keeps the existing runner useful at every stage, avoids making the web panel the owner of core runtime behavior, and prevents persistence/UI code from being built around execution semantics that still need redesign.
