@@ -272,7 +272,7 @@ Goal: detect page changes independently of scenario execution.
 - [x] Implement `TextContains`.
 - [x] Implement `TextChanged` with a persisted baseline.
 - [x] Implement `UrlMatches` using a configured regular expression.
-- [ ] Add optional DOM-fragment change detection.
+- [x] Add optional DOM-fragment change detection. `DomChanged` hashes locator `outerHTML` with SHA-256, persists the hash baseline, and emits only when the fragment changes.
 - [x] Emit an `AutomationEvent` on match through the existing transport-neutral event publisher.
 - [x] Support persistent browser profiles through `IBrowserSessionFactory`.
 - [x] Prevent duplicate events for an unchanged condition. Boolean conditions are edge-triggered; text changes compare against the persisted observation baseline.
