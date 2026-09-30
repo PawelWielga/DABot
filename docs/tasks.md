@@ -338,7 +338,12 @@ The web panel is optional and uses Application services. It must not directly ow
 
 - [x] Profile list. The management panel lists persistent profile directories through `IBrowserProfileCatalog`; the filesystem adapter ignores internal `.locks` state and the static demo uses representative sample profiles.
 - [ ] Create/rename/delete profile metadata.
-- [ ] Open interactive session.
+- [ ] Open interactive session from the profile page using a headed browser on the runtime node.
+- [ ] Stream the real runtime browser display and keyboard/mouse input to the management panel; do not rely on embedding the target site in an iframe.
+- [ ] Add an exclusive profile/session lease so interactive login cannot overlap a run or observer using the same persistent profile.
+- [ ] Add administrator-only authorization, short-lived session grants, inactivity/max-duration cleanup, and audit entries for interactive sessions.
+- [ ] Ensure usernames/passwords/MFA values typed in the interactive browser are not captured as DABot configuration, scenario variables, or logs.
+- [ ] Add an optional later **Take control** flow for diagnostics, gated by explicit browser-command ownership coordination with the active run.
 - [ ] Clear profile.
 - [ ] Test profile.
 
@@ -409,6 +414,11 @@ Architecture source: [Distributed DABot deployment](distributed-deployment.md).
 ### Control plane and agent communication
 
 - [ ] Define Application-level contracts for node registration, heartbeat, work claim/assignment, lease renewal, progress, completion, and artifact reporting.
+- [ ] Define Application-level lifecycle contracts for remote interactive browser sessions without coupling Core to VNC/noVNC or another display protocol.
+- [ ] Route an interactive profile session to the node that owns the selected persistent profile.
+- [ ] Add an authenticated browser-display/input tunnel through the control plane/agent path using short-lived per-session authorization.
+- [ ] Keep the normal agent topology outbound-only; do not require a public VNC/noVNC port on execution nodes.
+- [ ] Add deterministic timeout/disconnect cleanup for headed browsers, display bridges, and profile locks.
 - [ ] Add an authenticated agent-server HTTP API as the first distributed transport.
 - [ ] Prefer outbound agent connections so execution VMs do not require inbound public ports.
 - [ ] Keep transport-specific models out of Core.
@@ -551,7 +561,8 @@ These apply to every sprint.
 
 - No secrets in source control.
 - No credentials in logs.
-- Browser profiles are runtime data.
+- Browser profiles are runtime data and their cookies/storage must be treated as sensitive authentication material.
+- Remote interactive browser sessions must be authenticated, short-lived, auditable, and must not expose reusable remote-desktop credentials or public VNC/noVNC ports.
 - External integrations receive minimum required permissions.
 - Administrative web actions are auditable.
 
