@@ -37,7 +37,8 @@
       "maxRetryDelayMs": 60000
     },
     "interactiveBrowser": {
-      "maxDurationSeconds": 1800
+      "maxDurationSeconds": 1800,
+      "grantLifetimeSeconds": 60
     },
     "observerWorker": {
       "pollIntervalMs": 1000,
