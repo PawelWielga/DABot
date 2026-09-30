@@ -11,6 +11,7 @@ This directory contains design and implementation documentation. Use this page a
 | Instructions for coding/AI agents | [AGENTS](../AGENTS.md) |
 | Generate or validate scenario JSON | [Scenario JSON Schema](../schemas/scenario.schema.json) |
 | Generate or validate runtime configuration | [Configuration JSON Schema](../schemas/config.schema.json) |
+| Generate or validate page observer JSON | [Page observer JSON Schema](../schemas/page-observer.schema.json) |
 | Understand product requirements | [Product requirements](prd.md) |
 | Understand product positioning and differentiation | [Product positioning](product-positioning.md) |
 | See implementation status and order | [Implementation backlog](tasks.md) |
