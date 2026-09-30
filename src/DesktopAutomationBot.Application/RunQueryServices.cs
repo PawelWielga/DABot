@@ -70,10 +70,6 @@ public sealed record RunEventItem
 
     public required string CorrelationId { get; init; }
 
-    public required string PayloadKind { get; init; }
-
-    public required string Payload { get; init; }
-
     public required DateTimeOffset OccurredAt { get; init; }
 
     public required DateTimeOffset ReceivedAt { get; init; }
