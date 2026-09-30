@@ -320,7 +320,7 @@ Treat non-zero codes as failures. Code `3` is intended for problems that can be 
 
 ## Roadmap
 
-The roadmap is maintained as an implementation backlog rather than a marketing feature list. Planned work includes complete runner diagnostics, persistent browser sessions, durable runs, suspend/resume, external events, observers, a web panel, and MCP/tool-registry integration.
+The roadmap is maintained as an implementation backlog rather than a marketing feature list. Planned work includes the web management panel, multi-worker coordination, operations/deployment features, scheduling, and MCP/tool-registry integration.
 
 See [docs/tasks.md](docs/tasks.md) for acceptance criteria and implementation order.
 
