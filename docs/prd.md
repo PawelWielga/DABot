@@ -323,16 +323,24 @@ Panel pozwala konfigurowac:
 
 Panel udostepnia historie zdarzen oraz, dla operatora z odpowiednimi uprawnieniami, mozliwosc recznego wyslania zdarzenia w celach administracyjnych i testowych.
 
-### 5.7 Workers
+### 5.7 Workers / Nodes
 
-Docelowo panel pokazuje:
+Docelowo jeden panel moze zarzadzac wieloma instancjami wykonawczymi DABot uruchomionymi na roznych VM lub maszynach fizycznych.
 
-- identyfikator workera,
-- status,
-- heartbeat,
-- aktywne zadania,
+Panel pokazuje:
+
+- stabilny identyfikator node/workera,
+- status i czas ostatniego heartbeat,
+- wersje DABot, system operacyjny i dostepne przegladarki,
+- capabilities/tags,
+- liczbe slotow wykonawczych i aktywne zadania,
 - obciazenie,
-- ostatni blad.
+- ostatni blad,
+- aktualne i historyczne runy przypisane do node.
+
+Panel udostepnia tez operacje operatorskie takie jak Drain, Enable i Disable. Wszystkie takie operacje powinny byc audytowalne.
+
+Szczegolowy model: [Distributed DABot deployment](distributed-deployment.md).
 
 ## 6. Interfejsy uruchomieniowe
 
@@ -370,7 +378,9 @@ Konfiguracja moze pochodzic z:
 
 ### 7.2 Dane runtime
 
-Dla wersji z panelem preferowanym lokalnym storage jest SQLite.
+Dla pojedynczej, samodzielnej instalacji z panelem preferowanym lokalnym storage jest SQLite.
+
+Dla wdrozenia rozproszonego z wieloma agentami na roznych VM wymagany jest wspoldzielony storage wspierajacy bezpieczna wspolbieznosc i transakcyjne claim/lease. Preferowanym pierwszym providerem jest PostgreSQL. SQLite na wspoldzielonym zasobie sieciowym nie jest wspieranym mechanizmem koordynacji multi-VM.
 
 Minimalne logiczne zbiory danych:
 
@@ -474,6 +484,8 @@ Mcp
 - Playwright types nie powinny wyciekac do Core.
 - Panel webowy nie moze omijac warstwy Application i bezposrednio sterowac Playwrightem.
 - Architektura musi pozwalac uruchomic dwa niezalezne runy bez konfliktu zmiennych, katalogow i profili.
+- W trybie rozproszonym kilka agentow na roznych maszynach musi moc korzystac z jednego control plane i jednego dashboardu bez ryzyka podwojnego wykonania runu.
+- Utrata agenta nie moze powodowac automatycznego powtorzenia niezweryfikowanej operacji ubocznej; odzyskiwanie musi respektowac StepAttempt i retry-safety.
 
 ## 11. Model scenariusza
 
@@ -583,12 +595,20 @@ Przyklad trwalego scenariusza:
 - browser profiles
 - configuration
 
-### Etap 7 - Operational features
+### Etap 7 - Distributed execution and operations
 
-- workers
-- heartbeats
-- leases
-- concurrency limits
+- centralny DABot Server / Control Plane
+- agenci DABot na wielu VM/hostach
+- node registry i stabilne NodeId
+- heartbeats i lifecycle node
+- run leases / CAS claiming
+- concurrency limits i execution slots
+- capability-aware scheduling
+- node-local browser profile ownership
+- wspolny dashboard Nodes / Workers
+- PostgreSQL jako pierwszy wspierany distributed store
+- uwierzytelnione polaczenie Agent -> Server
+- transfer/referencje artefaktow
 - schedules
 - secrets management
 - audit log
