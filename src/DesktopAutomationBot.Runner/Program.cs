@@ -163,6 +163,70 @@ try
     }
 
 
+    if (commandLine.Command == RunnerCommand.ObserverWorker)
+    {
+        var worker = provider.GetRequiredService<IPageObserverWorker>();
+        var workerOptions = provider.GetRequiredService<BotOptions>();
+
+        using var cancellation = new CancellationTokenSource();
+        ConsoleCancelEventHandler cancelHandler = (_, eventArgs) =>
+        {
+            eventArgs.Cancel = true;
+            cancellation.Cancel();
+        };
+
+        Console.CancelKeyPress += cancelHandler;
+
+        try
+        {
+            Console.WriteLine(
+                $"Observer worker started. Poll interval: {workerOptions.ObserverWorker.PollIntervalMs} ms; " +
+                $"batch size: {workerOptions.ObserverWorker.BatchSize}. Press Ctrl+C to stop.");
+
+            await worker.RunAsync(
+                workerOptions.ObserverWorker,
+                cancellation.Token);
+            return RunnerExitCodes.Success;
+        }
+        finally
+        {
+            Console.CancelKeyPress -= cancelHandler;
+        }
+    }
+
+    if (commandLine.Command == RunnerCommand.ObserverImport)
+    {
+        var observerStore =
+            provider.GetRequiredService<IPageObserverStore>();
+        var path = Path.GetFullPath(
+            commandLine.ObserverPath!);
+        var json = await File.ReadAllTextAsync(path);
+
+        var serializerOptions =
+            new JsonSerializerOptions(JsonSerializerDefaults.Web)
+            {
+                PropertyNameCaseInsensitive = true,
+            };
+        serializerOptions.Converters.Add(
+            new System.Text.Json.Serialization.JsonStringEnumConverter());
+
+        var definition =
+            JsonSerializer.Deserialize<PageObserverDefinition>(
+                json,
+                serializerOptions)
+            ?? throw new InvalidDataException(
+                "Observer definition JSON is empty.");
+
+        definition = PageObserverDefinition.Validate(definition);
+
+        await observerStore.SaveAsync(definition);
+
+        Console.WriteLine(
+            $"Observer '{definition.Name}' ({definition.ObserverId}) imported.");
+        return RunnerExitCodes.Success;
+    }
+
+
     if (commandLine.Command is RunnerCommand.ProfileSetup or RunnerCommand.ProfileTest)
     {
         var profileService = provider.GetRequiredService<IBrowserProfileService>();
