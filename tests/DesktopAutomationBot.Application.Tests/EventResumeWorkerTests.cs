@@ -24,11 +24,12 @@ public sealed class EventResumeWorkerTests
         processed.Should().Be(1);
         control.ResumedRunIds.Should().Equal(runId);
         inbox.CompletedWorkItems.Should().Equal(workItem.WorkItemId);
-        inbox.FailedWorkItems.Should().BeEmpty();
+        inbox.RetryWorkItems.Should().BeEmpty();
+        inbox.DeadLetterWorkItems.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task RunOnceAsync_WhenResumeFails_MarksWorkItemFailed()
+    public async Task RunOnceAsync_WhenResumeFails_SchedulesRetryWithExponentialBackoff()
     {
         var workItem = CreateWorkItem(Guid.NewGuid());
         var inbox = new RecordingInboxStore(workItem);
@@ -36,21 +37,91 @@ public sealed class EventResumeWorkerTests
         {
             ResumeException = new InvalidOperationException("resume failed"),
         };
+        var now = DateTimeOffset.Parse("2026-09-30T10:05:00+02:00");
         var worker = new EventResumeWorker(
             inbox,
             control,
-            new FixedTimeProvider(
-                DateTimeOffset.Parse("2026-09-30T10:05:00+02:00")));
+            new FixedTimeProvider(now),
+            new BotOptions
+            {
+                EventWorker = new EventWorkerOptions
+                {
+                    MaxAttempts = 5,
+                    BaseRetryDelayMs = 1000,
+                    MaxRetryDelayMs = 60_000,
+                },
+            });
 
         var processed = await worker.RunOnceAsync();
 
         processed.Should().Be(1);
         inbox.CompletedWorkItems.Should().BeEmpty();
-        inbox.FailedWorkItems.Should().ContainSingle();
-        inbox.FailedWorkItems[0].WorkItemId.Should().Be(workItem.WorkItemId);
-        inbox.FailedWorkItems[0].ErrorMessage.Should().Be("resume failed");
+        inbox.RetryWorkItems.Should().ContainSingle();
+        inbox.RetryWorkItems[0].WorkItemId.Should().Be(workItem.WorkItemId);
+        inbox.RetryWorkItems[0].ErrorMessage.Should().Be("resume failed");
+        inbox.RetryWorkItems[0].NextAttemptAt.Should().Be(now.AddSeconds(1));
+        inbox.DeadLetterWorkItems.Should().BeEmpty();
     }
 
+
+
+    [Fact]
+    public async Task RunOnceAsync_WhenMaxAttemptsReached_DeadLettersWorkItem()
+    {
+        var workItem = CreateWorkItem(Guid.NewGuid()) with
+        {
+            AttemptCount = 2,
+        };
+        var inbox = new RecordingInboxStore(workItem);
+        var control = new RecordingRunControlService
+        {
+            ResumeException = new InvalidOperationException("still failing"),
+        };
+        var now = DateTimeOffset.Parse("2026-09-30T10:10:00+02:00");
+        var worker = new EventResumeWorker(
+            inbox,
+            control,
+            new FixedTimeProvider(now),
+            new BotOptions
+            {
+                EventWorker = new EventWorkerOptions
+                {
+                    MaxAttempts = 3,
+                    BaseRetryDelayMs = 1000,
+                    MaxRetryDelayMs = 60_000,
+                },
+            });
+
+        var processed = await worker.RunOnceAsync();
+
+        processed.Should().Be(1);
+        inbox.RetryWorkItems.Should().BeEmpty();
+        inbox.DeadLetterWorkItems.Should().ContainSingle();
+        inbox.DeadLetterWorkItems[0].WorkItemId.Should().Be(workItem.WorkItemId);
+        inbox.DeadLetterWorkItems[0].ErrorMessage.Should().Be("still failing");
+        inbox.DeadLetterWorkItems[0].FinishedAt.Should().Be(now);
+    }
+
+    [Theory]
+    [InlineData(1, 1000)]
+    [InlineData(2, 2000)]
+    [InlineData(3, 4000)]
+    [InlineData(10, 5000)]
+    public void CalculateRetryDelay_AppliesExponentialBackoffAndCap(
+        int failedAttempt,
+        int expectedDelayMs)
+    {
+        var delay = EventResumeWorker.CalculateRetryDelay(
+            failedAttempt,
+            new EventWorkerOptions
+            {
+                MaxAttempts = 20,
+                BaseRetryDelayMs = 1000,
+                MaxRetryDelayMs = 5000,
+            });
+
+        delay.Should().Be(TimeSpan.FromMilliseconds(expectedDelayMs));
+    }
 
     [Theory]
     [InlineData(0, 100, "pollIntervalMs")]
@@ -99,7 +170,9 @@ public sealed class EventResumeWorkerTests
     {
         public List<Guid> CompletedWorkItems { get; } = [];
 
-        public List<(Guid WorkItemId, string ErrorMessage)> FailedWorkItems { get; } = [];
+        public List<(Guid WorkItemId, string ErrorMessage, DateTimeOffset NextAttemptAt)> RetryWorkItems { get; } = [];
+
+        public List<(Guid WorkItemId, string ErrorMessage, DateTimeOffset FinishedAt)> DeadLetterWorkItems { get; } = [];
 
         public Task ArmEventWaitAsync(
             AutomationRun run,
@@ -114,10 +187,16 @@ public sealed class EventResumeWorkerTests
             throw new NotSupportedException();
 
         public Task<IReadOnlyList<ResumeWorkItem>> LoadPendingResumeWorkItemsAsync(
+            DateTimeOffset dueAt,
             int limit = 100,
             CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<ResumeWorkItem>>(
-                workItems.Take(limit).ToArray());
+                workItems
+                    .Where(item =>
+                        item.NextAttemptAt is null ||
+                        item.NextAttemptAt <= dueAt)
+                    .Take(limit)
+                    .ToArray());
 
         public Task MarkResumeWorkItemCompletedAsync(
             Guid workItemId,
@@ -128,13 +207,25 @@ public sealed class EventResumeWorkerTests
             return Task.CompletedTask;
         }
 
-        public Task MarkResumeWorkItemFailedAsync(
+        public Task ScheduleResumeWorkItemRetryAsync(
+            Guid workItemId,
+            string errorMessage,
+            DateTimeOffset nextAttemptAt,
+            CancellationToken cancellationToken = default)
+        {
+            RetryWorkItems.Add(
+                (workItemId, errorMessage, nextAttemptAt));
+            return Task.CompletedTask;
+        }
+
+        public Task DeadLetterResumeWorkItemAsync(
             Guid workItemId,
             string errorMessage,
             DateTimeOffset finishedAt,
             CancellationToken cancellationToken = default)
         {
-            FailedWorkItems.Add((workItemId, errorMessage));
+            DeadLetterWorkItems.Add(
+                (workItemId, errorMessage, finishedAt));
             return Task.CompletedTask;
         }
     }
