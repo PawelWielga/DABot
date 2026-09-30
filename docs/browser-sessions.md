@@ -66,4 +66,4 @@ The health check opens the named profile headlessly and disposes it immediately 
 
 ## Remaining profile work
 
-Sprint 3 session/runtime foundations are complete. The web-management layer now supports profile list/create/rename/delete and health testing. Clear-profile and remote interactive-session flows remain planned.
+Sprint 3 session/runtime foundations are complete. The web-management layer now supports profile list/create/rename/clear/delete and health testing. Remote interactive-session flows remain planned.

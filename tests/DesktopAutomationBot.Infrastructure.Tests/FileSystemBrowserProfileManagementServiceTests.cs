@@ -42,6 +42,46 @@ public sealed class FileSystemBrowserProfileManagementServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ClearAsync_RemovesProfileContentsButKeepsProfileDirectory()
+    {
+        var service = CreateService();
+        await service.CreateAsync("clear-profile");
+
+        var profileDirectory = Path.Combine(_profilesRoot, "clear-profile");
+        Directory.CreateDirectory(Path.Combine(profileDirectory, "nested"));
+        await File.WriteAllTextAsync(
+            Path.Combine(profileDirectory, "nested", "marker.txt"),
+            "remove-me");
+
+        await service.ClearAsync("clear-profile");
+
+        Directory.Exists(profileDirectory).Should().BeTrue();
+        Directory.EnumerateFileSystemEntries(profileDirectory)
+            .Should()
+            .BeEmpty();
+    }
+
+    [Fact]
+    public async Task ClearAsync_WhenProfileIsLeased_RejectsClear()
+    {
+        var service = CreateService();
+        await service.CreateAsync("busy-clear-profile");
+
+        var factory = new PlaywrightBrowserSessionFactory(CreateOptions());
+        await using var session = await factory.CreateAsync(
+            new BrowserSessionRequest
+            {
+                ProfileName = "busy-clear-profile",
+            });
+
+        Func<Task> clear = () => service.ClearAsync("busy-clear-profile");
+
+        await clear.Should()
+            .ThrowAsync<InvalidOperationException>()
+            .WithMessage("*already in use*");
+    }
+
+    [Fact]
     public async Task DeleteAsync_WhenProfileIsLeased_RejectsDeletion()
     {
         var service = CreateService();

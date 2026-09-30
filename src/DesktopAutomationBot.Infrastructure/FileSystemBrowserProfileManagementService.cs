@@ -91,6 +91,29 @@ public sealed class FileSystemBrowserProfileManagementService(
         return Task.CompletedTask;
     }
 
+    public Task ClearAsync(
+        string profileName,
+        CancellationToken cancellationToken = default)
+    {
+        BrowserProfileNameRules.Validate(profileName);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var paths = GetPaths(profileName);
+        Directory.CreateDirectory(paths.Root);
+        Directory.CreateDirectory(paths.Locks);
+
+        using var lease = AcquireLease(paths.Locks, profileName);
+
+        EnsureProfileExists(paths.Profile, profileName);
+        BrowserProfileDirectoryGuard.EnsureNotReparsePoint(
+            paths.Profile,
+            profileName);
+
+        Directory.Delete(paths.Profile, recursive: true);
+        Directory.CreateDirectory(paths.Profile);
+        return Task.CompletedTask;
+    }
+
     private ProfilePaths GetPaths(string profileName)
     {
         var root = Path.GetFullPath(options.Storage.BrowserProfilesDirectory);

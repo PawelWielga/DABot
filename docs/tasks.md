@@ -344,7 +344,7 @@ The web panel is optional and uses Application services. It must not directly ow
 - [ ] Add administrator-only authorization, short-lived session grants, inactivity/max-duration cleanup, and audit entries for interactive sessions.
 - [ ] Ensure usernames/passwords/MFA values typed in the interactive browser are not captured as DABot configuration, scenario variables, or logs.
 - [ ] Add an optional later **Take control** flow for diagnostics, gated by explicit browser-command ownership coordination with the active run.
-- [ ] Clear profile.
+- [x] Clear profile. The web panel clears browser-managed profile contents while preserving the named profile directory; the operation requires confirmation, shares the exclusive profile lease, and rejects symlink/reparse-point profiles.
 - [x] Test profile. The profiles page invokes the existing Application-level headless profile health check, which acquires the normal exclusive profile lease before launching Chromium.
 
 ### Configuration

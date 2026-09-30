@@ -20,6 +20,11 @@ public sealed class DemoBrowserProfileManagementService : IBrowserProfileManagem
         CancellationToken cancellationToken = default) =>
         Unavailable(cancellationToken);
 
+    public Task ClearAsync(
+        string profileName,
+        CancellationToken cancellationToken = default) =>
+        Unavailable(cancellationToken);
+
     private static Task Unavailable(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
