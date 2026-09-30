@@ -30,6 +30,10 @@ public interface IEventInboxStore
         int limit = 100,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<ResumeWorkItem>> LoadDeadLetterResumeWorkItemsAsync(
+        int limit = 100,
+        CancellationToken cancellationToken = default);
+
     Task MarkResumeWorkItemCompletedAsync(
         Guid workItemId,
         DateTimeOffset finishedAt,
