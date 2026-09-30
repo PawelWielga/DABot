@@ -20,6 +20,8 @@ public sealed class BotOptions
 public sealed class InteractiveBrowserOptions
 {
     public int MaxDurationSeconds { get; init; } = 1800;
+
+    public int GrantLifetimeSeconds { get; init; } = 60;
 }
 
 public sealed class ObserverWorkerOptions
