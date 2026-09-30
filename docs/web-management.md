@@ -96,6 +96,36 @@ The profiles page lists persistent browser profile directories through the Appli
 
 The static demo uses representative profile names. Create/rename/delete, interactive setup, clear, and profile test actions remain separate follow-up work.
 
+#### Planned interactive browser sessions
+
+The profile management flow should allow an authorized administrator to open a real headed browser for a specific persistent profile directly from the management panel. The primary use case is manual login, MFA, CAPTCHA handling, consent screens, and session repair without giving DABot a reusable username/password secret.
+
+The intended flow is:
+
+1. the operator selects a profile and chooses **Open interactive session**,
+2. Application resolves the profile and, in distributed mode, the node that owns it,
+3. the runtime acquires an exclusive profile lease,
+4. the execution node starts a headed Chromium session using that profile,
+5. the browser display and keyboard/mouse input are streamed to the management panel through an authenticated remote-display bridge,
+6. the operator signs in directly inside the browser,
+7. closing the interactive session terminates Chromium, releases the lease, and leaves the browser profile available for later headless automation.
+
+The management panel must not attempt to embed the target website with an `iframe`. Many authentication providers block framing, and an iframe would not represent the actual Playwright browser/profile used by the bot. A remote display implementation such as Xvfb plus VNC/noVNC over an authenticated WebSocket is an acceptable Infrastructure implementation, but the transport must remain replaceable and must not leak remote-desktop types into Core.
+
+Security requirements:
+
+- interactive browser access is an administrative capability and requires explicit authorization,
+- the panel must use a short-lived, session-specific authorization token rather than exposing a reusable VNC credential,
+- execution nodes must not expose a public VNC/noVNC port in the normal deployment,
+- typed credentials, MFA codes, and page contents must not be copied into DABot configuration, scenario variables, logs, or audit payloads,
+- persistent profile contents, including cookies and local storage, must be treated as sensitive authentication material,
+- only one conflicting owner may use a persistent profile at a time; an interactive session must not overlap a run or observer using the same profile,
+- opening, closing, expiring, and force-terminating an interactive session must be auditable,
+- interactive sessions require inactivity/maximum-duration cleanup so abandoned browser processes and profile locks do not remain indefinitely,
+- the GitHub Pages demo must never create a real remote browser session.
+
+A later diagnostic extension may offer **Take control** for a browser already involved in a run. That must first coordinate ownership with the runtime so automation and a human cannot issue browser commands concurrently. It must not bypass run leases, profile locks, or audit rules.
+
 ## Architecture
 
 The dependency direction is:

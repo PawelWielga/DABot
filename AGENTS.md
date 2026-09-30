@@ -64,6 +64,13 @@ Planned:
 - Headed mode is supported for development, diagnostics, and interactive profile setup.
 - Support both ephemeral and persistent browser sessions.
 - Persistent browser profiles must use dedicated user-data directories and must not be committed.
+- Treat profile cookies, local storage, and equivalent session state as sensitive authentication material even when DABot never stores the user's password.
+- Remote interactive browser setup must go through Application-level use cases; the Web project must not directly launch or control Playwright.
+- Do not model interactive access as an iframe of the target website. The operator must interact with the real headed browser that owns the selected persistent profile.
+- Keep remote-display/VNC/noVNC/WebSocket implementation details in Infrastructure. Do not expose a public reusable VNC/noVNC credential or require inbound public agent ports in the normal topology.
+- Interactive profile access must use exclusive locking, short-lived authorization, timeout/cleanup, and audit. It must not race a run or observer using the same profile.
+- Credentials and MFA values typed by an operator inside an interactive browser must not be captured into scenario variables, configuration, logs, or audit payloads.
+- A future human **Take control** flow must explicitly coordinate browser-command ownership before accepting operator input; Playwright and a human must not issue commands concurrently.
 - Do not keep `IBrowserAutomation` as a global singleton when session isolation or concurrency is required.
 - Add new generic browser operations as focused abstractions/handlers rather than growing a monolith.
 - Use Playwright synchronization primitives for short browser-local waits.

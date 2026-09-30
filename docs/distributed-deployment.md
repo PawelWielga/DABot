@@ -187,6 +187,63 @@ The scheduler must route a run that requires a node-local profile to the node th
 
 DABot must not place an active Chromium user-data directory on generic shared network storage as a way to move profiles between nodes. Profile migration, backup, or replication is a separate explicit operation.
 
+## Remote interactive browser sessions
+
+Distributed mode must support opening an interactive browser for a node-local persistent profile from the central dashboard without requiring the operator to connect directly to the VM.
+
+The control plane acts as a broker and authorization boundary; the browser itself still runs on the node that owns the profile.
+
+Conceptual flow:
+
+```text
+Administrator browser
+        |
+        v
+DABot Control Plane
+  auth + short-lived session grant
+        |
+        | existing/outbound agent channel
+        v
+DABot Agent / owning node
+  acquire profile lock
+  start headed Chromium
+  start isolated display bridge
+        |
+        +---- streamed display/input ----+
+```
+
+The first implementation may use an isolated virtual display plus VNC/noVNC/WebSocket components on the agent. Those are Infrastructure details. Core/Application contracts should model an interactive browser session and its lifecycle rather than a specific remote-desktop protocol.
+
+A central session record should be sufficient to correlate and audit at least:
+
+```text
+InteractiveSessionId
+ProfileId
+NodeId
+RequestedBy
+CreatedAt
+ExpiresAt
+State
+LeaseToken/version
+```
+
+Required behavior:
+
+- the scheduler/control plane resolves the node that owns the selected persistent profile,
+- the agent acquires the normal exclusive profile lock before launching Chromium,
+- a profile in an interactive session is unavailable to conflicting automation runs and observers,
+- credentials and MFA codes are entered directly into the remote browser and are not sent as DABot scenario/configuration secrets,
+- the browser profile remains node-local after the session and may later be reused by headless runs,
+- interactive-display traffic is authenticated and encrypted,
+- normal deployments do not require a publicly reachable VNC/noVNC port on the agent,
+- the preferred network shape keeps the agent connection outbound toward the control plane,
+- session grants are short-lived and scoped to one node/profile/session,
+- session start, stop, expiry, forced termination, and requesting user are recorded in audit history,
+- abandoned sessions are terminated after configured inactivity and maximum-duration limits,
+- network loss or control-plane loss must result in deterministic cleanup/recovery without allowing a second owner to use the profile concurrently.
+
+A future **Take control** operation may attach an operator to a browser associated with an active run for diagnostics or a human challenge. Before accepting human input, DABot must explicitly coordinate browser-command ownership with the active run. Human control must never race Playwright commands or bypass the run lease/profile lock.
+
 ## Storage strategy
 
 ### Standalone
