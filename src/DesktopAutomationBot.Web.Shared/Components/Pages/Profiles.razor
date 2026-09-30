@@ -1,0 +1,72 @@
+@page "/profiles"
+@inject IBrowserProfileCatalog ProfileCatalog
+@inject ManagementUiEnvironment UiEnvironment
+
+<PageTitle>DABot browser profiles</PageTitle>
+
+<div class="page-heading">
+    <div>
+        <h1>Browser profiles</h1>
+        <p class="lead">Persistent browser profiles available to scenarios and interactive setup.</p>
+    </div>
+    <span class="muted">@UiEnvironment.RuntimeLabel</span>
+</div>
+
+<section class="panel">
+    <div class="panel-heading">
+        <div>
+            <h2>Persistent profiles</h2>
+            <p>Profiles keep browser session data between runs. Listing profiles does not open Chromium or acquire a profile lease.</p>
+        </div>
+        <span class="muted">@(_loading ? "Loading…" : $"{_profiles.Count} profile(s)")</span>
+    </div>
+
+    @if (_loading)
+    {
+        <p>Loading profiles…</p>
+    }
+    else if (_profiles.Count == 0)
+    {
+        <p class="muted">No persistent browser profiles have been created yet.</p>
+    }
+    else
+    {
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Usage</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var profile in _profiles)
+                    {
+                        <tr>
+                            <td><code>@profile.Name</code></td>
+                            <td>Persistent</td>
+                            <td>Set <code>browserProfile</code> in a scenario to use this profile.</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    @if (UiEnvironment.IsDemo)
+    {
+        <p class="muted privacy-note">These are representative demo profiles. The connected runtime reads profile names from its configured browser profile directory.</p>
+    }
+</section>
+
+@code {
+    private bool _loading = true;
+    private IReadOnlyList<BrowserProfileListItem> _profiles = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _profiles = await ProfileCatalog.ListAsync();
+        _loading = false;
+    }
+}
