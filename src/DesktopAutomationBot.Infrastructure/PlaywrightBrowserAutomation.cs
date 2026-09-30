@@ -10,7 +10,7 @@ public sealed class PlaywrightBrowserAutomation : IInteractiveBrowserSession
     private readonly string? _persistentProfileDirectory;
     private readonly IAsyncDisposable? _profileLease;
     private readonly bool? _headlessOverride;
-    private readonly TaskCompletionSource _completion =
+    private readonly TaskCompletionSource<bool> _completion =
         new(TaskCreationOptions.RunContinuationsAsynchronously);
     private IPlaywright? _playwright;
     private IBrowser? _browser;
@@ -371,14 +371,14 @@ public sealed class PlaywrightBrowserAutomation : IInteractiveBrowserSession
                 await _profileLease.DisposeAsync();
             }
 
-            _completion.TrySetResult();
+            _completion.TrySetResult(true);
         }
     }
 
     private void OnContextClosed(
         object? sender,
         IBrowserContext context) =>
-        _completion.TrySetResult();
+        _completion.TrySetResult(true);
 
     private static ILocator CreateLocator(
         IPage page,
