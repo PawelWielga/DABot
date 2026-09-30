@@ -130,6 +130,27 @@
               "default": 60000
             }
           }
+        },
+        "observerWorker": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "pollIntervalMs": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1000
+            },
+            "batchSize": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 50
+            },
+            "maxErrorBackoffMs": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 60000
+            }
+          }
         }
       }
     },
