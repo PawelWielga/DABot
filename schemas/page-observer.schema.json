@@ -43,6 +43,7 @@
         "TextEquals",
         "TextContains",
         "TextChanged",
+        "DomChanged",
         "UrlMatches"
       ]
     },
@@ -104,7 +105,8 @@
               "SelectorHidden",
               "TextEquals",
               "TextContains",
-              "TextChanged"
+              "TextChanged",
+              "DomChanged"
             ]
           }
         },
