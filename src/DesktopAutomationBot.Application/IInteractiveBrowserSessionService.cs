@@ -156,7 +156,6 @@ public sealed class InteractiveBrowserSessionService(
             }
         }
 
-        _gate.Dispose();
     }
 
     private async Task ObserveCompletionAsync(
