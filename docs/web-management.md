@@ -47,6 +47,14 @@ The runs page shows up to the latest 100 durable executions from the SQLite runt
 
 The Application contract is `IRunQueryService`; the Blazor components do not issue SQLite queries directly.
 
+### Scenarios
+
+The scenarios page is read-only and lists top-level JSON files from `bot.storage.scenariosDirectory`.
+
+For each file it shows the scenario name, file name, schema version, step count, browser-profile mode, and validation status. Invalid definitions remain visible with validation diagnostics instead of failing the whole page.
+
+The UI uses `IScenarioCatalogQueryService`; filesystem access and JSON loading stay in Infrastructure.
+
 ## Architecture
 
 The dependency direction is:
@@ -84,4 +92,4 @@ No login/identity provider is enabled yet, so current routes remain anonymous un
 
 The foundation is intentionally read-only.
 
-Scenario editing, run detail/actions, browser-profile management, configuration editing, event history, and authentication UX remain later Sprint 8/9 work.
+Scenario editing, run detail/actions, browser-profile management, configuration editing, event history, and authentication UX remain later Sprint 8/9 work. The scenario catalog itself is now available read-only.
