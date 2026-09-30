@@ -937,7 +937,11 @@ public sealed class DurableScenarioExecutorTests : IDisposable
             Guid runId,
             CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<StepAttempt>>(
-                Attempts.Where(attempt => attempt.RunId == runId).ToArray());
+                Attempts
+                    .Where(attempt => attempt.RunId == runId)
+                    .GroupBy(attempt => attempt.AttemptId)
+                    .Select(group => group.Last())
+                    .ToArray());
 
         public Task<IReadOnlyList<StepAttempt>> MarkStartedAttemptsUnknownAsync(
             Guid runId,
