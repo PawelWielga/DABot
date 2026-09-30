@@ -845,6 +845,56 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
         return items;
     }
 
+    public async Task<IReadOnlyList<ResumeWorkItem>> LoadDeadLetterResumeWorkItemsAsync(
+        int limit = 100,
+        CancellationToken cancellationToken = default)
+    {
+        if (limit <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(limit),
+                limit,
+                "Limit must be greater than zero.");
+        }
+
+        await EnsureInitializedAsync(cancellationToken);
+
+        await using var connection = await OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT
+                WorkItemId,
+                RunId,
+                EventId,
+                Status,
+                CreatedAt,
+                AttemptCount,
+                NextAttemptAt,
+                FinishedAt,
+                ErrorMessage
+            FROM ResumeWorkItems
+            WHERE Status = $deadLetterStatus
+            ORDER BY FinishedAt DESC, CreatedAt, WorkItemId
+            LIMIT $limit;
+            """;
+        command.Parameters.AddWithValue(
+            "$deadLetterStatus",
+            ResumeWorkItemStatus.DeadLetter.ToString());
+        command.Parameters.AddWithValue("$limit", limit);
+
+        var items = new List<ResumeWorkItem>();
+
+        await using var reader =
+            await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            items.Add(ReadResumeWorkItem(reader));
+        }
+
+        return items;
+    }
+
     public async Task MarkResumeWorkItemCompletedAsync(
         Guid workItemId,
         DateTimeOffset finishedAt,
