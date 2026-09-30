@@ -86,7 +86,7 @@ public sealed class BrowserProfileServiceTests
 
     private sealed class RecordingSession : IInteractiveBrowserSession
     {
-        private readonly TaskCompletionSource _completion =
+        private readonly TaskCompletionSource<bool> _completion =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public Task Completion => _completion.Task;
@@ -135,7 +135,7 @@ public sealed class BrowserProfileServiceTests
         public ValueTask DisposeAsync()
         {
             DisposeCount++;
-            _completion.TrySetResult();
+            _completion.TrySetResult(true);
             return ValueTask.CompletedTask;
         }
     }
