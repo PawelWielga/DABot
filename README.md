@@ -172,7 +172,7 @@ Agents should use the README and implementation backlog to distinguish current f
 | Durable run persistence | Planned |
 | Suspend and resume | Planned |
 | External event model | Planned |
-| Generic page observers | Planned |
+| Generic page observers | Available |
 | Web management panel | Planned |
 | MCP server/client integration | Planned |
 | Dynamic reusable tool registry | Planned |
@@ -273,6 +273,9 @@ Durable events can be injected and processed without an external transport adapt
 ```bash
 dotnet run --project src/DesktopAutomationBot.Runner -- event publish --id <guid> --type order.approved --correlation order-123 --payload '{"approved":true}'
 dotnet run --project src/DesktopAutomationBot.Runner -- event-worker
+
+dotnet run --project src/DesktopAutomationBot.Runner -- observer import --file examples/page-observer.json
+dotnet run --project src/DesktopAutomationBot.Runner -- observer-worker
 ```
 
 Event delivery is idempotent by `EventId`; the worker resumes matching persisted `Suspend(reason: Event)` runs from durable work items. Failed resume work items use persisted exponential backoff and move to a durable dead-letter queue after the configured maximum attempts.
