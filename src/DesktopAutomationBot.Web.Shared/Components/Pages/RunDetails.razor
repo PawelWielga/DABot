@@ -74,6 +74,13 @@ else
                     @(_actionBusy && _activeAction == "resume" ? "Resuming…" : "Resume")
                 </button>
 
+                <button class="button secondary"
+                        type="button"
+                        @onclick="RetryNowAsync"
+                        disabled="@(_actionBusy || !CanRetry)">
+                    @(_actionBusy && _activeAction == "retry" ? "Retrying…" : "Retry now")
+                </button>
+
                 @if (_confirmCancel)
                 {
                     <button class="button danger"
@@ -106,7 +113,7 @@ else
             }
             else if (_run.Status == RunStatus.Waiting && _run.WaitReason == RunWaitReason.Retry)
             {
-                <p class="muted action-note">Retry waits stay on the guarded retry path. Manual Retry is a separate Sprint 8 action.</p>
+                <p class="muted action-note">Retry now ignores the scheduled retry time, but still enforces the persisted retry limit and recovery checks.</p>
             }
             else if (_run.Status == RunStatus.Running)
             {
@@ -392,6 +399,10 @@ else
         _run is { Status: RunStatus.Waiting } &&
         _run.WaitReason != RunWaitReason.Retry;
 
+    private bool CanRetry =>
+        !UiEnvironment.IsDemo &&
+        _run is { Status: RunStatus.Waiting, WaitReason: RunWaitReason.Retry };
+
     private bool CanCancel =>
         !UiEnvironment.IsDemo &&
         _run is not null &&
@@ -400,7 +411,7 @@ else
     private string RunActionSummary =>
         _run is null
             ? "Unavailable"
-            : CanResume || CanCancel
+            : CanResume || CanRetry || CanCancel
                 ? "Actions available"
                 : "No safe manual action";
 
@@ -459,6 +470,37 @@ else
         {
             Logger.LogError(exception, "Failed to resume durable run {RunId}.", RunId);
             _actionError = SafeActionError(exception, "Resume");
+        }
+        finally
+        {
+            await ReloadAsync();
+            _activeAction = null;
+            _actionBusy = false;
+        }
+    }
+
+    private async Task RetryNowAsync()
+    {
+        if (!CanRetry || _run is null || _actionBusy)
+        {
+            return;
+        }
+
+        _actionBusy = true;
+        _activeAction = "retry";
+        _confirmCancel = false;
+        _actionMessage = null;
+        _actionError = null;
+
+        try
+        {
+            var result = await RunControl.RetryNowAsync(_run.RunId);
+            _actionMessage = $"Retry finished with run state {result.Run.State.Status}.";
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Failed to retry durable run {RunId}.", RunId);
+            _actionError = SafeActionError(exception, "Retry");
         }
         finally
         {
