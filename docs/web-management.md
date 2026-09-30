@@ -94,7 +94,7 @@ The UI uses `IScenarioCatalogQueryService` for listing and `IScenarioManagementS
 
 The profiles page lists persistent browser profile directories through the Application-level `IBrowserProfileCatalog` contract. The Infrastructure adapter reads only names beneath `bot.storage.browserProfilesDirectory`, ignores internal dot-prefixed directories such as `.locks`, and does not launch Chromium or acquire a profile lease while listing.
 
-The static demo uses representative profile names. The connected runtime can test a profile from the page through the existing `IBrowserProfileService`: the health check acquires the normal exclusive profile lease, starts the persistent profile headlessly, and disposes it immediately after successful launch. The static demo renders the action as unavailable and never starts Chromium. Create/rename/delete, interactive setup, and clear actions remain separate follow-up work.
+The static demo uses representative profile names. The connected runtime can create, rename, and delete profiles through `IBrowserProfileManagementService`, and can test a profile through the existing `IBrowserProfileService`. Filesystem mutations validate profile names, acquire the same exclusive profile lease used by Playwright, require explicit delete confirmation in the UI, and reject symlink/reparse-point profile directories. The health check starts the selected persistent profile headlessly and disposes it immediately after successful launch. The static demo renders all runtime actions as unavailable and never modifies profiles or starts Chromium. Interactive setup and clear actions remain separate follow-up work.
 
 #### Planned interactive browser sessions
 
@@ -161,9 +161,9 @@ No login/identity provider is enabled yet, so current routes remain anonymous un
 
 ## Current scope
 
-The dashboard remains read-only. Run details support guarded manual resume/retry/cancel actions, the run list supports filtering, scenario JSON management supports create/edit/delete and validation, and persistent browser profiles can be listed and health-tested.
+The dashboard remains read-only. Run details support guarded manual resume/retry/cancel actions, the run list supports filtering, scenario JSON management supports create/edit/delete and validation, and persistent browser profiles can be listed, created, renamed, deleted, and health-tested.
 
-Visual scenario editing, synchronized visual/JSON representations, import/export, scenario test runs, clone-run actions, browser-profile mutations/interactive sessions, configuration editing, and authentication UX remain later Sprint 8/9 work.
+Visual scenario editing, synchronized visual/JSON representations, import/export, scenario test runs, clone-run actions, browser-profile interactive sessions/clear, configuration editing, and authentication UX remain later Sprint 8/9 work.
 
 
 ## Static GitHub Pages demo

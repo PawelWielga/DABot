@@ -27,7 +27,7 @@ public sealed class PlaywrightBrowserSessionFactory(
         }
 
         var profileName = request.ProfileName!;
-        ValidateProfileName(profileName);
+        BrowserProfileNameRules.Validate(profileName);
 
         var profilesRoot = Path.GetFullPath(
             options.Storage.BrowserProfilesDirectory);
@@ -38,7 +38,6 @@ public sealed class PlaywrightBrowserSessionFactory(
             profilesRoot,
             ".locks");
 
-        Directory.CreateDirectory(profileDirectory);
         Directory.CreateDirectory(locksDirectory);
 
         var lease = BrowserProfileLease.Acquire(
@@ -46,60 +45,24 @@ public sealed class PlaywrightBrowserSessionFactory(
                 locksDirectory,
                 $"{profileName}.lock"));
 
-        return ValueTask.FromResult<IBrowserSession>(
-            new PlaywrightBrowserAutomation(
-                options,
+        try
+        {
+            Directory.CreateDirectory(profileDirectory);
+            BrowserProfileDirectoryGuard.EnsureNotReparsePoint(
                 profileDirectory,
-                lease,
-                request.Headless));
-    }
+                profileName);
 
-    private static void ValidateProfileName(string profileName)
-    {
-        if (profileName.Length is < 1 or > 64 ||
-            !char.IsLetterOrDigit(profileName[0]) ||
-            profileName.Any(character =>
-                !char.IsLetterOrDigit(character) &&
-                character is not '.' and not '_' and not '-'))
-        {
-            throw new ArgumentException(
-                "Browser profile names must start with an alphanumeric character and contain only alphanumeric characters, '.', '_' or '-' (maximum 64 characters).",
-                nameof(profileName));
+            return ValueTask.FromResult<IBrowserSession>(
+                new PlaywrightBrowserAutomation(
+                    options,
+                    profileDirectory,
+                    lease,
+                    request.Headless));
         }
-    }
-
-    private sealed class BrowserProfileLease : IAsyncDisposable
-    {
-        private readonly FileStream _stream;
-
-        private BrowserProfileLease(FileStream stream)
+        catch
         {
-            _stream = stream;
-        }
-
-        public static BrowserProfileLease Acquire(string lockFilePath)
-        {
-            try
-            {
-                return new BrowserProfileLease(
-                    new FileStream(
-                        lockFilePath,
-                        FileMode.OpenOrCreate,
-                        FileAccess.ReadWrite,
-                        FileShare.None));
-            }
-            catch (IOException exception)
-            {
-                throw new InvalidOperationException(
-                    $"Browser profile '{Path.GetFileNameWithoutExtension(lockFilePath)}' is already in use.",
-                    exception);
-            }
-        }
-
-        public ValueTask DisposeAsync()
-        {
-            _stream.Dispose();
-            return ValueTask.CompletedTask;
+            lease.Dispose();
+            throw;
         }
     }
 }
