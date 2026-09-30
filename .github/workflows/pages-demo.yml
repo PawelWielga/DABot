@@ -1,0 +1,69 @@
+name: Deploy web demo to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "src/DesktopAutomationBot.Web.Shared/**"
+      - "src/DesktopAutomationBot.Web.Demo/**"
+      - ".github/workflows/pages-demo.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore demo
+        run: dotnet restore src/DesktopAutomationBot.Web.Demo/DesktopAutomationBot.Web.Demo.csproj
+
+      - name: Publish demo
+        run: >
+          dotnet publish src/DesktopAutomationBot.Web.Demo/DesktopAutomationBot.Web.Demo.csproj
+          --configuration Release
+          --no-restore
+          --output artifacts/pages
+
+      - name: Prepare GitHub Pages base path
+        shell: bash
+        run: |
+          site="artifacts/pages/wwwroot"
+          sed -i 's|<base href="/" />|<base href="/DABot/" />|' "$site/index.html"
+          cp "$site/index.html" "$site/404.html"
+          touch "$site/.nojekyll"
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: artifacts/pages/wwwroot
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
