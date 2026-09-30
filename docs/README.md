@@ -18,6 +18,7 @@ This directory contains design and implementation documentation. Use this page a
 | Review first public release scope | [v0.1.0 release notes](releases/v0.1.0.md) |
 | Publish and smoke-test DABot on Linux | [Linux publish and smoke test](linux-publish.md) |
 | Understand durable execution design | [Durable workflows](durable-workflows.md) |
+| Understand multi-VM agents and the shared control plane | [Distributed DABot deployment](distributed-deployment.md) |
 | Understand runtime variables and secret handling | [Runtime variables and secrets](secrets-and-variables.md) |
 | Understand browser session ownership and lifetime | [Browser sessions](browser-sessions.md) |
 | Understand durable events, correlation, and idempotency | [Durable events](events.md) |
