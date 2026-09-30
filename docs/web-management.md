@@ -122,7 +122,7 @@ Security requirements:
 - typed credentials, MFA codes, and page contents must not be copied into DABot configuration, scenario variables, logs, or audit payloads,
 - persistent profile contents, including cookies and local storage, must be treated as sensitive authentication material,
 - only one conflicting owner may use a persistent profile at a time; an interactive session must not overlap a run or observer using the same profile,
-- opening, closing, expiring, and force-terminating an interactive session must be auditable,
+- interactive session start/end lifecycle is emitted through `IInteractiveBrowserSessionAuditSink`; the default Infrastructure adapter writes structured log events containing only session ID, profile name, timestamp, and end reason. Initial URLs are used only transiently to navigate the browser and are not retained in `InteractiveBrowserSessionInfo`; page content, credentials, MFA values, and operator keystrokes are deliberately absent from the audit contract. A durable/queryable audit store remains planned,
 - interactive sessions have configurable maximum-duration cleanup; inactivity cleanup is still required before remote streaming is considered complete,
 - the GitHub Pages demo must never create a real remote browser session.
 
@@ -165,7 +165,7 @@ No login/identity provider is enabled yet, so current routes remain anonymous un
 
 The dashboard remains read-only. Run details support guarded manual resume/retry/cancel actions, the run list supports filtering, scenario JSON management supports create/edit/delete and validation, and persistent browser profiles can be listed, created, renamed, cleared, deleted, and health-tested.
 
-Visual scenario editing, synchronized visual/JSON representations, import/export, scenario test runs, clone-run actions, remote browser display/input streaming, interactive-session authorization/timeout/audit, configuration editing, and authentication UX remain later Sprint 8/9 work.
+Visual scenario editing, synchronized visual/JSON representations, import/export, scenario test runs, clone-run actions, remote browser display/input streaming, interactive-session authorization/inactivity cleanup/durable audit storage, configuration editing, and authentication UX remain later Sprint 8/9 work.
 
 
 ## Static GitHub Pages demo
