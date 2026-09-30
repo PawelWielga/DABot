@@ -60,6 +60,8 @@ The web management profile page can also start a headed setup session on the run
 
 `IInteractiveBrowserSession` exposes a transport-neutral completion signal. The Playwright implementation completes it from `BrowserContext.Close`, so manually closing or crashing the headed browser triggers cleanup and releases the profile lease.
 
+Interactive browser sessions also have a configurable absolute lifetime through `bot.interactiveBrowser.maxDurationSeconds` (default 1800 seconds). The Application lifecycle service schedules expiry independently of the UI; when the deadline is reached it removes the active session, closes Chromium, and releases the profile lease.
+
 Use the health command to verify that a profile directory can be leased and launched:
 
 ```bash
@@ -70,4 +72,4 @@ The health check opens the named profile headlessly and disposes it immediately 
 
 ## Remaining profile work
 
-Sprint 3 session/runtime foundations are complete. The web-management layer now supports profile list/create/rename/clear/delete, health testing, and local headed interactive-session lifecycle. Remote display/input streaming, authorization/session grants, timeout cleanup, and audit remain planned.
+Sprint 3 session/runtime foundations are complete. The web-management layer now supports profile list/create/rename/clear/delete, health testing, and local headed interactive-session lifecycle. Remote display/input streaming, authorization/session grants, inactivity cleanup, and audit remain planned. Maximum-duration cleanup is implemented.
