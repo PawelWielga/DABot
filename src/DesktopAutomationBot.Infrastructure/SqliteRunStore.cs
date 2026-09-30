@@ -6,9 +6,9 @@ using Microsoft.Data.Sqlite;
 
 namespace DesktopAutomationBot.Infrastructure;
 
-public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStore, IEventInboxStore
+public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStore, IEventInboxStore, IPageObserverStore
 {
-    private const int StoreSchemaVersion = 5;
+    private const int StoreSchemaVersion = 6;
 
     private readonly string _connectionString;
     private readonly SemaphoreSlim _initializationLock = new(1, 1);
@@ -1266,7 +1266,41 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
             CREATE INDEX IX_ResumeWorkItems_Status_NextAttemptAt
                 ON ResumeWorkItems(Status, NextAttemptAt, CreatedAt);
 
-            PRAGMA user_version = 5;
+            CREATE TABLE PageObservers (
+                ObserverId TEXT NOT NULL PRIMARY KEY,
+                Name TEXT NOT NULL,
+                Url TEXT NOT NULL,
+                BrowserProfile TEXT NULL,
+                Condition TEXT NOT NULL,
+                LocatorJson TEXT NULL,
+                ExpectedValue TEXT NULL,
+                EventType TEXT NOT NULL,
+                CorrelationId TEXT NOT NULL,
+                PollIntervalMs INTEGER NOT NULL CHECK (PollIntervalMs > 0),
+                Enabled INTEGER NOT NULL CHECK (Enabled IN (0, 1))
+            );
+
+            CREATE TABLE PageObserverSnapshots (
+                ObserverId TEXT NOT NULL PRIMARY KEY,
+                LastObservation TEXT NULL,
+                LastMatched INTEGER NULL CHECK (LastMatched IN (0, 1)),
+                LastCheckedAt TEXT NULL,
+                NextCheckAt TEXT NULL,
+                LastEventAt TEXT NULL,
+                FailureCount INTEGER NOT NULL DEFAULT 0 CHECK (FailureCount >= 0),
+                LastError TEXT NULL,
+                FOREIGN KEY (ObserverId)
+                    REFERENCES PageObservers(ObserverId)
+                    ON DELETE CASCADE
+            );
+
+            CREATE INDEX IX_PageObservers_Enabled
+                ON PageObservers(Enabled);
+
+            CREATE INDEX IX_PageObserverSnapshots_NextCheckAt
+                ON PageObserverSnapshots(NextCheckAt);
+
+            PRAGMA user_version = 6;
             """;
 
         await command.ExecuteNonQueryAsync(cancellationToken);
@@ -1302,6 +1336,11 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
                 case 4:
                     await MigrateV4ToV5Async(connection, cancellationToken);
                     version = 5;
+                    break;
+
+                case 5:
+                    await MigrateV5ToV6Async(connection, cancellationToken);
+                    version = 6;
                     break;
 
                 default:
@@ -1464,6 +1503,58 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
                 ON ResumeWorkItems(Status, NextAttemptAt, CreatedAt);
 
             PRAGMA user_version = 5;
+            """;
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    private static async Task MigrateV5ToV6Async(
+        SqliteConnection connection,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction =
+            (SqliteTransaction)await connection.BeginTransactionAsync(
+                cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText =
+            """
+            CREATE TABLE PageObservers (
+                ObserverId TEXT NOT NULL PRIMARY KEY,
+                Name TEXT NOT NULL,
+                Url TEXT NOT NULL,
+                BrowserProfile TEXT NULL,
+                Condition TEXT NOT NULL,
+                LocatorJson TEXT NULL,
+                ExpectedValue TEXT NULL,
+                EventType TEXT NOT NULL,
+                CorrelationId TEXT NOT NULL,
+                PollIntervalMs INTEGER NOT NULL CHECK (PollIntervalMs > 0),
+                Enabled INTEGER NOT NULL CHECK (Enabled IN (0, 1))
+            );
+
+            CREATE TABLE PageObserverSnapshots (
+                ObserverId TEXT NOT NULL PRIMARY KEY,
+                LastObservation TEXT NULL,
+                LastMatched INTEGER NULL CHECK (LastMatched IN (0, 1)),
+                LastCheckedAt TEXT NULL,
+                NextCheckAt TEXT NULL,
+                LastEventAt TEXT NULL,
+                FailureCount INTEGER NOT NULL DEFAULT 0 CHECK (FailureCount >= 0),
+                LastError TEXT NULL,
+                FOREIGN KEY (ObserverId)
+                    REFERENCES PageObservers(ObserverId)
+                    ON DELETE CASCADE
+            );
+
+            CREATE INDEX IX_PageObservers_Enabled
+                ON PageObservers(Enabled);
+
+            CREATE INDEX IX_PageObserverSnapshots_NextCheckAt
+                ON PageObserverSnapshots(NextCheckAt);
+
+            PRAGMA user_version = 6;
             """;
 
         await command.ExecuteNonQueryAsync(cancellationToken);
