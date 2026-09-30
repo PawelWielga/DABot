@@ -6,6 +6,8 @@ public enum RunnerCommand
     RetryWorker,
     EventWorker,
     EventPublish,
+    ObserverWorker,
+    ObserverImport,
     ProfileSetup,
     ProfileTest,
     Resume,
@@ -22,6 +24,7 @@ public sealed record RunnerCommandLine(
     string? EventType,
     string? CorrelationId,
     string? PayloadJson,
+    string? ObserverPath,
     bool ShowHelp)
 {
     public const string Usage =
@@ -31,6 +34,8 @@ public sealed record RunnerCommandLine(
           DesktopAutomationBot.Runner retry-worker
           DesktopAutomationBot.Runner event-worker
           DesktopAutomationBot.Runner event publish --id <guid> --type <type> --correlation <id> [--payload <json>]
+          DesktopAutomationBot.Runner observer-worker
+          DesktopAutomationBot.Runner observer import --file <path>
           DesktopAutomationBot.Runner profile setup --profile <name> [--url <url>]
           DesktopAutomationBot.Runner profile test --profile <name>
           DesktopAutomationBot.Runner resume --run-id <guid>
@@ -46,6 +51,7 @@ public sealed record RunnerCommandLine(
           --type <type>          Event type.
           --correlation <id>     Event correlation ID.
           --payload <json>       Optional structured JSON event payload; defaults to null.
+          --file <path>          JSON definition file for observer import.
           --help, -h             Show this help text.
         """;
 
@@ -66,6 +72,7 @@ public sealed record RunnerCommandLine(
             EventType: null,
             CorrelationId: null,
             PayloadJson: null,
+            ObserverPath: null,
             ShowHelp: false);
         error = null;
 
@@ -88,11 +95,14 @@ public sealed record RunnerCommandLine(
 
         var command = args[0].Trim().ToLowerInvariant();
 
-        if (command is "retry-worker" or "event-worker")
+        if (command is "retry-worker" or "event-worker" or "observer-worker")
         {
-            var workerCommand = command == "retry-worker"
-                ? RunnerCommand.RetryWorker
-                : RunnerCommand.EventWorker;
+            var workerCommand = command switch
+            {
+                "retry-worker" => RunnerCommand.RetryWorker,
+                "event-worker" => RunnerCommand.EventWorker,
+                _ => RunnerCommand.ObserverWorker,
+            };
 
             if (args.Count == 1)
             {
@@ -124,6 +134,38 @@ public sealed record RunnerCommandLine(
                 options,
                 out options,
                 out error);
+        }
+
+        if (command == "observer")
+        {
+            if (args.Count == 4 &&
+                string.Equals(
+                    args[1],
+                    "import",
+                    StringComparison.OrdinalIgnoreCase) &&
+                args[2] == "--file" &&
+                !string.IsNullOrWhiteSpace(args[3]))
+            {
+                options = options with
+                {
+                    Command = RunnerCommand.ObserverImport,
+                    ObserverPath = args[3],
+                };
+                return true;
+            }
+
+            if (args.Count == 2 && IsHelp(args[1]))
+            {
+                options = options with
+                {
+                    Command = RunnerCommand.ObserverImport,
+                    ShowHelp = true,
+                };
+                return true;
+            }
+
+            error = "observer import requires --file <path>.";
+            return false;
         }
 
         if (command == "profile")
