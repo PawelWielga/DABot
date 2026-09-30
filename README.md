@@ -174,7 +174,7 @@ Agents should use the README and implementation backlog to distinguish current f
 | Suspend and resume | Available |
 | External event model | Available |
 | Generic page observers | Available |
-| Web management panel | Dashboard, runs, scenario JSON management, and browser profile management available |
+| Web management panel | Dashboard, runs, scenario JSON management, browser profile management, and local headed interactive profile setup available |
 | MCP server/client integration | Planned |
 | Dynamic reusable tool registry | Planned |
 
@@ -186,7 +186,7 @@ The Blazor management panel is available:
 dotnet run --project src/DesktopAutomationBot.Web
 ```
 
-It reads durable run state through Application services, manages persistent browser-profile metadata through Infrastructure adapters, and does not directly own Playwright. See [web management panel](docs/web-management.md).
+It reads durable run state through Application services, manages persistent browser profiles, and can start/stop a headed interactive profile browser on the runtime node through Application services; the Web project still does not directly own Playwright. See [web management panel](docs/web-management.md).
 
 A static demo of the same management UI, backed only by sample data, is published on GitHub Pages: [DABot web demo](https://pawelwielga.github.io/DABot/). The demo does not execute automation or connect to a runtime.
 
