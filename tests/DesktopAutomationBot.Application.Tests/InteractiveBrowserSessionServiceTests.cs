@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 using DesktopAutomationBot.Application;
 using FluentAssertions;
@@ -45,19 +46,20 @@ public sealed class InteractiveBrowserSessionServiceTests
 
         (await service.StopAsync(started.SessionId)).Should().BeTrue();
 
-        audit.Events.Should().HaveCount(2);
-        audit.Events[0].EventType.Should()
+        var auditEvents = audit.Events.ToArray();
+        auditEvents.Should().HaveCount(2);
+        auditEvents[0].EventType.Should()
             .Be(InteractiveBrowserSessionAuditEventType.Started);
-        audit.Events[0].SessionId.Should().Be(started.SessionId);
-        audit.Events[0].ProfileName.Should().Be("work-profile");
-        audit.Events[0].EndReason.Should().BeNull();
+        auditEvents[0].SessionId.Should().Be(started.SessionId);
+        auditEvents[0].ProfileName.Should().Be("work-profile");
+        auditEvents[0].EndReason.Should().BeNull();
 
-        audit.Events[1].EventType.Should()
+        auditEvents[1].EventType.Should()
             .Be(InteractiveBrowserSessionAuditEventType.Ended);
-        audit.Events[1].EndReason.Should()
+        auditEvents[1].EndReason.Should()
             .Be(InteractiveBrowserSessionEndReason.Manual);
 
-        JsonSerializer.Serialize(audit.Events)
+        JsonSerializer.Serialize(auditEvents)
             .Should()
             .NotContain("do-not-audit");
     }
@@ -114,7 +116,10 @@ public sealed class InteractiveBrowserSessionServiceTests
         await WaitUntilAsync(
             async () =>
                 (await service.ListAsync()).Count == 0 &&
-                session.DisposeCount == 1);
+                session.DisposeCount == 1 &&
+                audit.Events.Any(auditEvent =>
+                    auditEvent.EventType == InteractiveBrowserSessionAuditEventType.Ended &&
+                    auditEvent.EndReason == InteractiveBrowserSessionEndReason.Expired));
 
         session.DisposeCount.Should().Be(1);
         (await service.StopAsync(started.SessionId)).Should().BeFalse();
@@ -186,14 +191,14 @@ public sealed class InteractiveBrowserSessionServiceTests
 
     private sealed class RecordingAuditSink : IInteractiveBrowserSessionAuditSink
     {
-        public List<InteractiveBrowserSessionAuditEvent> Events { get; } = [];
+        public ConcurrentQueue<InteractiveBrowserSessionAuditEvent> Events { get; } = new();
 
         public Task WriteAsync(
             InteractiveBrowserSessionAuditEvent auditEvent,
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            Events.Add(auditEvent);
+            Events.Enqueue(auditEvent);
             return Task.CompletedTask;
         }
     }
