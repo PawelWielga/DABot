@@ -1,3 +1,4 @@
+using DesktopAutomationBot.Application;
 using DesktopAutomationBot.Infrastructure;
 using FluentAssertions;
 
