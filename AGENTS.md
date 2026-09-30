@@ -52,6 +52,10 @@ Planned:
 - `RunId` must be stable and externally passable for durable execution.
 - Resume processing must be idempotent.
 - Multiple workers must use leases/locks for mutable run state and persistent browser profiles.
+- Distributed deployments use a central control plane plus execution agents; keep standalone Web/Runner + SQLite fully supported.
+- Agents should prefer outbound authenticated connectivity to the control plane; do not require inbound public ports on execution nodes.
+- Do not use SQLite on a shared/network filesystem as the coordination database for multiple VMs. Target PostgreSQL for the first supported distributed persistence provider.
+- Persistent Chromium profile directories are node-local by default; scheduling must respect profile ownership/location.
 
 ## Browser rules
 
@@ -149,9 +153,10 @@ A restart between `Suspend` and `Resume` must be supported.
 
 1. Continue the Web management MVP without duplicating Application/domain logic.
 2. Add run details/actions and richer scenario management.
-3. Add worker coordination, leases, and concurrency safety.
-4. Add scheduling and operational hardening.
-5. Add the neutral Action/Tool registry and MCP adapters after the execution/runtime boundaries are stable.
+3. Add distributed worker coordination: node registry, heartbeat, leases/CAS, execution slots, and multi-worker-safe work queues.
+4. Add the shared control-plane deployment path: authenticated agents, capability-aware scheduling, node-local profile ownership, PostgreSQL coordination, and Nodes dashboard.
+5. Add scheduling and operational hardening.
+6. Add the neutral Action/Tool registry and MCP adapters after the execution/runtime boundaries are stable.
 
 ## Testing expectations
 
