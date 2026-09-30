@@ -227,6 +227,85 @@ public sealed class DemoDataService :
             []);
     }
 
+    public Task<RunDetail?> GetRunAsync(
+        Guid runId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var run = Runs.SingleOrDefault(item => item.RunId == runId);
+        if (run is null)
+        {
+            return Task.FromResult<RunDetail?>(null);
+        }
+
+        var scenarioName = run.ScenarioId == ScenarioCheckout
+            ? "Checkout smoke test"
+            : run.ScenarioId == ScenarioInventory
+                ? "Inventory availability watcher"
+                : "Approval workflow";
+
+        IReadOnlyList<RunVariableItem> variables =
+        [
+            new("environment", "String", "demo"),
+            new("customerId", "String", "CUST-1042"),
+            new("attempt", "Number", "2"),
+        ];
+
+        IReadOnlyList<RunStepAttemptItem> attempts =
+        [
+            new()
+            {
+                AttemptId = Guid.Parse("71000000-0000-4000-8000-000000000001"),
+                StepId = "open",
+                StepType = StepType.OpenUrl,
+                AttemptNumber = 1,
+                RetrySafety = StepRetrySafety.Idempotent,
+                Status = StepAttemptStatus.Completed,
+                StartedAt = run.CreatedAt,
+                UpdatedAt = run.CreatedAt.AddMilliseconds(720),
+                FinishedAt = run.CreatedAt.AddMilliseconds(720),
+            },
+            new()
+            {
+                AttemptId = Guid.Parse("71000000-0000-4000-8000-000000000002"),
+                StepId = "read-status",
+                StepType = StepType.ReadText,
+                AttemptNumber = 1,
+                RetrySafety = StepRetrySafety.SafeToRetry,
+                Status = run.Status == RunStatus.Failed
+                    ? StepAttemptStatus.Failed
+                    : StepAttemptStatus.Completed,
+                StartedAt = run.CreatedAt.AddSeconds(1),
+                UpdatedAt = run.CreatedAt.AddSeconds(2),
+                FinishedAt = run.CreatedAt.AddSeconds(2),
+                ErrorMessage = run.Status == RunStatus.Failed
+                    ? "Demo failure: expected page state was not reached."
+                    : null,
+            },
+        ];
+
+        return Task.FromResult<RunDetail?>(
+            new RunDetail
+            {
+                RunId = run.RunId,
+                ScenarioId = run.ScenarioId,
+                ScenarioVersionId = run.ScenarioVersionId,
+                ScenarioVersionNumber = 3,
+                ScenarioName = scenarioName,
+                Status = run.Status,
+                WaitReason = run.WaitReason,
+                RetryNotBefore = run.Status == RunStatus.Waiting &&
+                                 run.WaitReason == RunWaitReason.Retry
+                    ? run.UpdatedAt.AddMinutes(1)
+                    : null,
+                CreatedAt = run.CreatedAt,
+                UpdatedAt = run.UpdatedAt,
+                Variables = variables,
+                StepAttempts = attempts,
+            });
+    }
+
     private static IReadOnlyList<RunListItem> CreateRuns()
     {
         var now = DateTimeOffset.UtcNow;
