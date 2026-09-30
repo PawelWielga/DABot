@@ -18,7 +18,7 @@ else
                 @foreach (var run in Runs)
                 {
                     <tr>
-                        <td><code>@ShortId(run.RunId)</code></td>
+                        <td><a href="@($"runs/{run.RunId:D}")"><code>@ShortId(run.RunId)</code></a></td>
                         <td><span class="status @run.Status.ToString().ToLowerInvariant()">@run.Status</span></td>
                         <td>@(run.WaitReason?.ToString() ?? "—")</td>
                         <td>@run.UpdatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</td>
