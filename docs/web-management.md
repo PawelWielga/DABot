@@ -122,7 +122,7 @@ Security requirements:
 - typed credentials, MFA codes, and page contents must not be copied into DABot configuration, scenario variables, logs, or audit payloads,
 - persistent profile contents, including cookies and local storage, must be treated as sensitive authentication material,
 - only one conflicting owner may use a persistent profile at a time; an interactive session must not overlap a run or observer using the same profile,
-- interactive session start/end lifecycle is emitted through `IInteractiveBrowserSessionAuditSink`; the default Infrastructure adapter writes structured log events containing only session ID, profile name, timestamp, and end reason. Initial URLs, page content, credentials, and MFA values are deliberately absent from the audit contract. A durable/queryable audit store remains planned,
+- interactive session start/end lifecycle is emitted through `IInteractiveBrowserSessionAuditSink`; the default Infrastructure adapter writes structured log events containing only session ID, profile name, timestamp, and end reason. Initial URLs are used only transiently to navigate the browser and are not retained in `InteractiveBrowserSessionInfo`; page content, credentials, MFA values, and operator keystrokes are deliberately absent from the audit contract. A durable/queryable audit store remains planned,
 - interactive sessions have configurable maximum-duration cleanup; inactivity cleanup is still required before remote streaming is considered complete,
 - the GitHub Pages demo must never create a real remote browser session.
 
