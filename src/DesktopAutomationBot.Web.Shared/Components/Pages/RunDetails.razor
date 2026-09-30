@@ -1,5 +1,7 @@
 @page "/runs/{RunId:guid}"
 @inject IRunQueryService RunQueries
+@inject IRunArtifactService RunArtifacts
+@inject ManagementUiEnvironment UiEnvironment
 
 <PageTitle>DABot run details</PageTitle>
 
@@ -74,6 +76,83 @@ else
                 <dd>@(_run.RetryNotBefore is null ? "—" : FormatTime(_run.RetryNotBefore.Value))</dd>
             </div>
         </dl>
+    </section>
+
+    <section class="panel">
+        <div class="panel-heading">
+            <div>
+                <h2>Artifacts</h2>
+                <p>Screenshots and diagnostic files stored for this run.</p>
+            </div>
+            <span class="muted">@_artifacts.Count artifact(s)</span>
+        </div>
+
+        @if (_artifacts.Count == 0)
+        {
+            <p class="muted">No artifacts are available for this run.</p>
+        }
+        else
+        {
+            <div class="artifact-grid">
+                @foreach (var artifact in _artifacts)
+                {
+                    var url = ArtifactUrl(artifact);
+
+                    <article class="artifact-card">
+                        @if (artifact.CanPreview &&
+                             artifact.FileName.EndsWith(".png", StringComparison.OrdinalIgnoreCase) &&
+                             !UiEnvironment.IsDemo)
+                        {
+                            <a href="@url" target="_blank" rel="noopener noreferrer">
+                                <img src="@url"
+                                     alt="Preview of @artifact.FileName"
+                                     loading="lazy" />
+                            </a>
+                        }
+                        else
+                        {
+                            <div class="artifact-placeholder">
+                                <strong>@ArtifactLabel(artifact)</strong>
+                                @if (UiEnvironment.IsDemo)
+                                {
+                                    <span>Sample artifact</span>
+                                }
+                                else if (!artifact.CanPreview)
+                                {
+                                    <span>Download only</span>
+                                }
+                            </div>
+                        }
+
+                        <div class="artifact-meta">
+                            <div>
+                                <strong>@artifact.FileName</strong>
+                                <span>@artifact.Source · @FormatSize(artifact.SizeBytes)</span>
+                            </div>
+
+                            @if (!UiEnvironment.IsDemo)
+                            {
+                                <a class="button secondary"
+                                   href="@url"
+                                   target="_blank"
+                                   rel="noopener noreferrer">
+                                    @(artifact.CanPreview ? "Open" : "Download")
+                                </a>
+                            }
+                        </div>
+                    </article>
+                }
+            </div>
+
+            @if (UiEnvironment.IsDemo)
+            {
+                <p class="muted privacy-note">Artifact names and sizes are sample data in the static demo. File access is available only in a connected DABot runtime.</p>
+            }
+            else
+            {
+                <p class="muted privacy-note">HTML snapshots are forced to download instead of rendering inline to avoid executing captured page content under the management-panel origin.</p>
+            }
+        }
     </section>
 
     <section class="panel">
@@ -224,11 +303,15 @@ else
 
     private bool _loading = true;
     private RunDetail? _run;
+    private IReadOnlyList<RunArtifactItem> _artifacts = [];
 
     protected override async Task OnParametersSetAsync()
     {
         _loading = true;
         _run = await RunQueries.GetRunAsync(RunId);
+        _artifacts = _run is null
+            ? []
+            : await RunArtifacts.ListAsync(RunId);
         _loading = false;
     }
 
@@ -237,6 +320,36 @@ else
 
     private static string FormatTime(DateTimeOffset value) =>
         value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
+
+    private string ArtifactUrl(RunArtifactItem artifact) =>
+        $"api/runs/{RunId:D}/artifacts/{artifact.Source}/{Uri.EscapeDataString(artifact.FileName)}";
+
+    private static string ArtifactLabel(RunArtifactItem artifact) =>
+        artifact.Source == RunArtifactSource.Screenshots
+            ? "Screenshot"
+            : Path.GetExtension(artifact.FileName).ToLowerInvariant() switch
+            {
+                ".json" => "JSON",
+                ".html" or ".htm" => "HTML",
+                ".txt" => "Text",
+                _ => "Artifact",
+            };
+
+    private static string FormatSize(long bytes)
+    {
+        if (bytes < 1024)
+        {
+            return $"{bytes} B";
+        }
+
+        var kilobytes = bytes / 1024d;
+        if (kilobytes < 1024)
+        {
+            return $"{kilobytes:0.#} KB";
+        }
+
+        return $"{kilobytes / 1024d:0.#} MB";
+    }
 
     private static string FormatDuration(RunStepAttemptItem attempt)
     {

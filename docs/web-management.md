@@ -55,11 +55,14 @@ Each run links to a detail page showing:
 - persisted step-attempt history,
 - attempt retry-safety classification and errors,
 - persisted structured variables and their JSON value kinds,
-- matched durable events and resume-work status, retry timing, and errors.
+- matched durable events and resume-work status, retry timing, and errors,
+- screenshots and diagnostic artifacts grouped by run, including inline image previews and downloads.
 
 The Application contract is `IRunQueryService`; the Blazor components do not issue SQLite queries directly. `SqliteRunQueryService` reads the existing durable `Runs`, `ScenarioVersions`, `StepAttempts`, `AutomationEvents`, and `ResumeWorkItems` tables without introducing a second persistence model.
 
 Raw event payloads are intentionally excluded from the web read model. The current panel does not yet have production authentication or a dedicated secret-redaction policy for arbitrary event payloads, so event history exposes operational metadata only.
+
+Run artifact access is provided by `IRunArtifactService` with a filesystem implementation in Infrastructure. Only direct regular files below the configured `screenshots/<runId>` and `artifacts/<runId>` directories can be opened; path segments, traversal, symlinks, and reparse points are rejected. Common raster images can be previewed inline. Captured HTML is always returned as a download rather than rendered under the management-panel origin, preventing captured page scripts from executing as panel content.
 
 ### Scenarios
 
@@ -114,7 +117,7 @@ No login/identity provider is enabled yet, so current routes remain anonymous un
 
 The dashboard and run detail views remain read-only. The run list supports filtering, and scenario JSON management supports create/edit/delete and validation.
 
-Visual scenario editing, synchronized visual/JSON representations, import/export, scenario test runs, run actions, artifact previews, browser-profile management, configuration editing, and authentication UX remain later Sprint 8/9 work.
+Visual scenario editing, synchronized visual/JSON representations, import/export, scenario test runs, run actions, browser-profile management, configuration editing, and authentication UX remain later Sprint 8/9 work.
 
 
 ## Static GitHub Pages demo

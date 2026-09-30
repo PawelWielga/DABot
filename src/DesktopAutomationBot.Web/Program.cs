@@ -47,6 +47,50 @@ app.UseAntiforgery();
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.MapGet(
+    "/api/runs/{runId:guid}/artifacts/{source}/{fileName}",
+    async (
+        Guid runId,
+        string source,
+        string fileName,
+        IRunArtifactService artifacts,
+        CancellationToken cancellationToken) =>
+    {
+        if (!Enum.TryParse<RunArtifactSource>(
+                source,
+                ignoreCase: true,
+                out var artifactSource))
+        {
+            return Results.NotFound();
+        }
+
+        RunArtifactContent? artifact;
+
+        try
+        {
+            artifact = await artifacts.OpenAsync(
+                runId,
+                artifactSource,
+                fileName,
+                cancellationToken);
+        }
+        catch (ArgumentException)
+        {
+            return Results.BadRequest();
+        }
+
+        if (artifact is null)
+        {
+            return Results.NotFound();
+        }
+
+        return Results.File(
+            artifact.Content,
+            artifact.ContentType,
+            fileDownloadName: artifact.Inline ? null : artifact.FileName,
+            enableRangeProcessing: true);
+    });
+
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

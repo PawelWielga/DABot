@@ -328,7 +328,7 @@ The web panel is optional and uses Application services. It must not directly ow
 - [x] Step history. Run details show persisted step attempts with type, retry safety, status, timing, duration, and errors.
 - [x] Variables. Run details show persisted structured variables with JSON value kind and display value.
 - [x] Event history. Run details show matched durable events and resume work-item status/timing without exposing raw event payloads.
-- [ ] Artifact links/previews.
+- [x] Artifact links/previews. Run details list files from the configured screenshot/artifact directories, preview safe image artifacts, and expose diagnostic downloads through path-safe runtime endpoints. Captured HTML is download-only to avoid same-origin execution.
 - [ ] Resume action.
 - [ ] Cancel action.
 - [ ] Retry action.
