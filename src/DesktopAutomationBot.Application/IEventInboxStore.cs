@@ -28,4 +28,15 @@ public interface IEventInboxStore
     Task<IReadOnlyList<ResumeWorkItem>> LoadPendingResumeWorkItemsAsync(
         int limit = 100,
         CancellationToken cancellationToken = default);
+
+    Task MarkResumeWorkItemCompletedAsync(
+        Guid workItemId,
+        DateTimeOffset finishedAt,
+        CancellationToken cancellationToken = default);
+
+    Task MarkResumeWorkItemFailedAsync(
+        Guid workItemId,
+        string errorMessage,
+        DateTimeOffset finishedAt,
+        CancellationToken cancellationToken = default);
 }
