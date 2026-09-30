@@ -69,19 +69,18 @@
     private bool _busy;
     private bool _confirmDelete;
     private string _fileName = string.Empty;
-    private string _json = """
-        {
-          "schemaVersion": 1,
-          "name": "New scenario",
-          "steps": [
-            {
-              "id": "open",
-              "type": "OpenUrl",
-              "url": "https://example.com"
-            }
-          ]
-        }
-        """;
+    private string _json =
+        "{\n" +
+        "  \"schemaVersion\": 1,\n" +
+        "  \"name\": \"New scenario\",\n" +
+        "  \"steps\": [\n" +
+        "    {\n" +
+        "      \"id\": \"open\",\n" +
+        "      \"type\": \"OpenUrl\",\n" +
+        "      \"url\": \"https://example.com\"\n" +
+        "    }\n" +
+        "  ]\n" +
+        "}";
     private string? _message;
     private IReadOnlyList<string> _validationErrors = [];
 
