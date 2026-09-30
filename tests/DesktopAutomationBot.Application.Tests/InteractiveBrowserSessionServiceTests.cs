@@ -1,3 +1,4 @@
+using System.Text.Json;
 using DesktopAutomationBot.Application;
 using FluentAssertions;
 
@@ -27,6 +28,38 @@ public sealed class InteractiveBrowserSessionServiceTests
         (await service.StopAsync(started.SessionId)).Should().BeTrue();
         profiles.Sessions[0].DisposeCount.Should().Be(1);
         (await service.ListAsync()).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task StartAndStop_WritesNonSensitiveAuditEvents()
+    {
+        var profiles = new RecordingProfileService();
+        var audit = new RecordingAuditSink();
+        await using var service = CreateService(
+            profiles,
+            auditSink: audit);
+
+        var started = await service.StartAsync(
+            "work-profile",
+            "https://example.com/login?secret=do-not-audit");
+
+        (await service.StopAsync(started.SessionId)).Should().BeTrue();
+
+        audit.Events.Should().HaveCount(2);
+        audit.Events[0].EventType.Should()
+            .Be(InteractiveBrowserSessionAuditEventType.Started);
+        audit.Events[0].SessionId.Should().Be(started.SessionId);
+        audit.Events[0].ProfileName.Should().Be("work-profile");
+        audit.Events[0].EndReason.Should().BeNull();
+
+        audit.Events[1].EventType.Should()
+            .Be(InteractiveBrowserSessionAuditEventType.Ended);
+        audit.Events[1].EndReason.Should()
+            .Be(InteractiveBrowserSessionEndReason.Manual);
+
+        JsonSerializer.Serialize(audit.Events)
+            .Should()
+            .NotContain("do-not-audit");
     }
 
     [Fact]
@@ -69,9 +102,11 @@ public sealed class InteractiveBrowserSessionServiceTests
     public async Task MaxDuration_ExpiresSessionAndDisposesHandle()
     {
         var profiles = new RecordingProfileService();
+        var audit = new RecordingAuditSink();
         await using var service = CreateService(
             profiles,
-            maxDurationSeconds: 1);
+            maxDurationSeconds: 1,
+            auditSink: audit);
 
         var started = await service.StartAsync("expiring-profile");
         var session = profiles.Sessions.Single();
@@ -83,13 +118,19 @@ public sealed class InteractiveBrowserSessionServiceTests
 
         session.DisposeCount.Should().Be(1);
         (await service.StopAsync(started.SessionId)).Should().BeFalse();
+        audit.Events.Should().ContainSingle(auditEvent =>
+            auditEvent.EventType == InteractiveBrowserSessionAuditEventType.Ended &&
+            auditEvent.EndReason == InteractiveBrowserSessionEndReason.Expired);
     }
 
     [Fact]
     public async Task BrowserCompletion_RemovesSessionAndDisposesHandle()
     {
         var profiles = new RecordingProfileService();
-        await using var service = CreateService(profiles);
+        var audit = new RecordingAuditSink();
+        await using var service = CreateService(
+            profiles,
+            auditSink: audit);
 
         var started = await service.StartAsync("work-profile");
         var session = profiles.Sessions.Single();
@@ -99,15 +140,21 @@ public sealed class InteractiveBrowserSessionServiceTests
         await WaitUntilAsync(
             async () =>
                 (await service.ListAsync()).Count == 0 &&
-                session.DisposeCount == 1);
+                session.DisposeCount == 1 &&
+                audit.Events.Any(auditEvent =>
+                    auditEvent.EventType == InteractiveBrowserSessionAuditEventType.Ended));
 
         session.DisposeCount.Should().Be(1);
         (await service.StopAsync(started.SessionId)).Should().BeFalse();
+        audit.Events.Should().ContainSingle(auditEvent =>
+            auditEvent.EventType == InteractiveBrowserSessionAuditEventType.Ended &&
+            auditEvent.EndReason == InteractiveBrowserSessionEndReason.BrowserClosed);
     }
 
     private static InteractiveBrowserSessionService CreateService(
         RecordingProfileService profiles,
-        int maxDurationSeconds = 1800) =>
+        int maxDurationSeconds = 1800,
+        RecordingAuditSink? auditSink = null) =>
         new(
             profiles,
             TimeProvider.System,
@@ -117,7 +164,8 @@ public sealed class InteractiveBrowserSessionServiceTests
                 {
                     MaxDurationSeconds = maxDurationSeconds,
                 },
-            });
+            },
+            auditSink ?? new RecordingAuditSink());
 
     private static async Task WaitUntilAsync(Func<Task<bool>> condition)
     {
@@ -134,6 +182,20 @@ public sealed class InteractiveBrowserSessionServiceTests
         }
 
         throw new TimeoutException("Condition was not reached before the test timeout.");
+    }
+
+    private sealed class RecordingAuditSink : IInteractiveBrowserSessionAuditSink
+    {
+        public List<InteractiveBrowserSessionAuditEvent> Events { get; } = [];
+
+        public Task WriteAsync(
+            InteractiveBrowserSessionAuditEvent auditEvent,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Events.Add(auditEvent);
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class RecordingProfileService : IBrowserProfileService
