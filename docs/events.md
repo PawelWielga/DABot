@@ -91,13 +91,42 @@ Worker polling is configured through `bot.eventWorker.pollIntervalMs` and `bot.e
 
 This provides a transport-neutral end-to-end path for local and operational testing. Future HTTP, queue, observer, or GitHub adapters should only translate their input into `AutomationEvent` and publish it through the same application service.
 
+## Resume retry and dead-letter policy
+
+Failed resume work items stay durable and are retried with exponential backoff.
+
+Default worker policy:
+
+- maximum attempts: `5`,
+- base retry delay: `1000 ms`,
+- maximum retry delay: `60000 ms`.
+
+The delay doubles after each failed attempt until the configured maximum is reached. A pending item stores `AttemptCount` and `NextAttemptAt`, so restarting the worker does not reset or skip its retry schedule.
+
+After `maxAttempts` is reached, the work item transitions to `DeadLetter`. Dead-letter entries preserve the final error, attempt count, event ID, run ID, and completion timestamp and can be queried through `IEventInboxStore.LoadDeadLetterResumeWorkItemsAsync`.
+
+Configuration:
+
+```json
+{
+  "bot": {
+    "eventWorker": {
+      "pollIntervalMs": 1000,
+      "batchSize": 100,
+      "maxAttempts": 5,
+      "baseRetryDelayMs": 1000,
+      "maxRetryDelayMs": 60000
+    }
+  }
+}
+```
+
 ## Current limits
 
 The event foundation deliberately does not yet provide:
 
 - a concrete HTTP/queue consumer transport,
-- automatic retry/backoff for failed resume work items,
-- dead-letter handling,
+- dead-letter replay/administrative requeue,
 - multi-worker claiming/leases.
 
 Those remain separate concerns so event identity and workflow semantics do not depend on a transport implementation.
