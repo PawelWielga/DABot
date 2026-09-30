@@ -327,7 +327,7 @@ The web panel is optional and uses Application services. It must not directly ow
 - [x] Run detail page. Individual durable runs expose scenario identity/version, state, wait/retry timing, and persisted execution metadata.
 - [x] Step history. Run details show persisted step attempts with type, retry safety, status, timing, duration, and errors.
 - [x] Variables. Run details show persisted structured variables with JSON value kind and display value.
-- [ ] Event history.
+- [x] Event history. Run details show matched durable events and resume work-item status/timing without exposing raw event payloads.
 - [ ] Artifact links/previews.
 - [ ] Resume action.
 - [ ] Cancel action.
