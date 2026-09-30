@@ -587,3 +587,78 @@ select {
     margin: 14px 0 0;
     font-size: .82rem;
 }
+
+
+.artifact-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 14px;
+}
+
+.artifact-card {
+    overflow: hidden;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #ffffff;
+}
+
+.artifact-card img,
+.artifact-placeholder {
+    display: block;
+    width: 100%;
+    height: 180px;
+}
+
+.artifact-card img {
+    object-fit: cover;
+    background: #f3f4f6;
+}
+
+.artifact-placeholder {
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 6px;
+    background: #f8fafc;
+    color: #475569;
+}
+
+.artifact-placeholder span {
+    color: #94a3b8;
+    font-size: .8rem;
+}
+
+.artifact-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px;
+}
+
+.artifact-meta > div {
+    min-width: 0;
+}
+
+.artifact-meta strong,
+.artifact-meta span {
+    display: block;
+}
+
+.artifact-meta strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.artifact-meta span {
+    margin-top: 4px;
+    color: #6b7280;
+    font-size: .8rem;
+}
+
+@media (max-width: 760px) {
+    .artifact-grid {
+        grid-template-columns: 1fr;
+    }
+}
