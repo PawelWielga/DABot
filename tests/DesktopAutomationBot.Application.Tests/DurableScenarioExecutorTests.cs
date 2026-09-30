@@ -819,6 +819,11 @@ public sealed class DurableScenarioExecutorTests : IDisposable
             CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<ResumeWorkItem>>([]);
 
+        public Task<IReadOnlyList<ResumeWorkItem>> LoadDeadLetterResumeWorkItemsAsync(
+            int limit = 100,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<ResumeWorkItem>>([]);
+
         public Task MarkResumeWorkItemCompletedAsync(
             Guid workItemId,
             DateTimeOffset finishedAt,
