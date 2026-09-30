@@ -230,7 +230,90 @@ public sealed class SqliteRunQueryService(
             };
         }
 
+        if (await TableExistsAsync(
+                connection,
+                "AutomationEvents",
+                cancellationToken) &&
+            await TableExistsAsync(
+                connection,
+                "ResumeWorkItems",
+                cancellationToken))
+        {
+            detail = detail with
+            {
+                Events = await LoadEventsAsync(
+                    connection,
+                    runId,
+                    cancellationToken),
+            };
+        }
+
         return detail;
+    }
+
+    private static async Task<IReadOnlyList<RunEventItem>> LoadEventsAsync(
+        SqliteConnection connection,
+        Guid runId,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT
+                e.EventId,
+                e.Type,
+                e.CorrelationId,
+                e.OccurredAt,
+                e.ReceivedAt,
+                w.WorkItemId,
+                w.Status,
+                w.AttemptCount,
+                w.NextAttemptAt,
+                w.FinishedAt,
+                w.ErrorMessage
+            FROM ResumeWorkItems w
+            INNER JOIN AutomationEvents e
+                ON e.EventId = w.EventId
+            WHERE w.RunId = $runId
+            ORDER BY julianday(e.ReceivedAt), e.EventId;
+            """;
+        command.Parameters.AddWithValue(
+            "$runId",
+            runId.ToString("D"));
+
+        var items = new List<RunEventItem>();
+
+        await using var reader =
+            await command.ExecuteReaderAsync(cancellationToken);
+
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            items.Add(
+                new RunEventItem
+                {
+                    EventId = Guid.Parse(reader.GetString(0)),
+                    Type = reader.GetString(1),
+                    CorrelationId = reader.GetString(2),
+                    OccurredAt = ParseTimestamp(reader.GetString(3)),
+                    ReceivedAt = ParseTimestamp(reader.GetString(4)),
+                    WorkItemId = Guid.Parse(reader.GetString(5)),
+                    WorkItemStatus = Enum.Parse<ResumeWorkItemStatus>(
+                        reader.GetString(6),
+                        ignoreCase: false),
+                    AttemptCount = reader.GetInt32(7),
+                    NextAttemptAt = reader.IsDBNull(8)
+                        ? null
+                        : ParseTimestamp(reader.GetString(8)),
+                    FinishedAt = reader.IsDBNull(9)
+                        ? null
+                        : ParseTimestamp(reader.GetString(9)),
+                    ErrorMessage = reader.IsDBNull(10)
+                        ? null
+                        : reader.GetString(10),
+                });
+        }
+
+        return items;
     }
 
     private static async Task<IReadOnlyList<RunStepAttemptItem>> LoadStepAttemptsAsync(

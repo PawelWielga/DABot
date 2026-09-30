@@ -54,9 +54,12 @@ Each run links to a detail page showing:
 - created/updated/retry timing,
 - persisted step-attempt history,
 - attempt retry-safety classification and errors,
-- persisted structured variables and their JSON value kinds.
+- persisted structured variables and their JSON value kinds,
+- matched durable events and resume-work status, retry timing, and errors.
 
-The Application contract is `IRunQueryService`; the Blazor components do not issue SQLite queries directly. `SqliteRunQueryService` joins the existing durable `Runs`, `ScenarioVersions`, and `StepAttempts` tables without introducing a second persistence model.
+The Application contract is `IRunQueryService`; the Blazor components do not issue SQLite queries directly. `SqliteRunQueryService` reads the existing durable `Runs`, `ScenarioVersions`, `StepAttempts`, `AutomationEvents`, and `ResumeWorkItems` tables without introducing a second persistence model.
+
+Raw event payloads are intentionally excluded from the web read model. The current panel does not yet have production authentication or a dedicated secret-redaction policy for arbitrary event payloads, so event history exposes operational metadata only.
 
 ### Scenarios
 
@@ -111,7 +114,7 @@ No login/identity provider is enabled yet, so current routes remain anonymous un
 
 The dashboard and run detail views remain read-only. The run list supports filtering, and scenario JSON management supports create/edit/delete and validation.
 
-Visual scenario editing, synchronized visual/JSON representations, import/export, scenario test runs, run actions, artifact previews, event history, browser-profile management, configuration editing, and authentication UX remain later Sprint 8/9 work.
+Visual scenario editing, synchronized visual/JSON representations, import/export, scenario test runs, run actions, artifact previews, browser-profile management, configuration editing, and authentication UX remain later Sprint 8/9 work.
 
 
 ## Static GitHub Pages demo

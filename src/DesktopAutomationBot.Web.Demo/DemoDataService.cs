@@ -285,6 +285,39 @@ public sealed class DemoDataService :
             },
         ];
 
+        IReadOnlyList<RunEventItem> events =
+            run.Status == RunStatus.Waiting &&
+            run.WaitReason == RunWaitReason.Event
+                ?
+                [
+                    new()
+                    {
+                        EventId = Guid.Parse("72000000-0000-4000-8000-000000000001"),
+                        Type = "approval.completed",
+                        CorrelationId = "approval-123",
+                        OccurredAt = run.UpdatedAt.AddMinutes(-1),
+                        ReceivedAt = run.UpdatedAt.AddSeconds(-40),
+                        WorkItemId = Guid.Parse("73000000-0000-4000-8000-000000000001"),
+                        WorkItemStatus = ResumeWorkItemStatus.Pending,
+                        AttemptCount = 0,
+                    },
+                ]
+                :
+                [
+                    new()
+                    {
+                        EventId = Guid.Parse("72000000-0000-4000-8000-000000000002"),
+                        Type = "order.updated",
+                        CorrelationId = "order-demo-42",
+                        OccurredAt = run.CreatedAt.AddSeconds(4),
+                        ReceivedAt = run.CreatedAt.AddSeconds(5),
+                        WorkItemId = Guid.Parse("73000000-0000-4000-8000-000000000002"),
+                        WorkItemStatus = ResumeWorkItemStatus.Completed,
+                        AttemptCount = 1,
+                        FinishedAt = run.CreatedAt.AddSeconds(6),
+                    },
+                ];
+
         return Task.FromResult<RunDetail?>(
             new RunDetail
             {
@@ -303,6 +336,7 @@ public sealed class DemoDataService :
                 UpdatedAt = run.UpdatedAt,
                 Variables = variables,
                 StepAttempts = attempts,
+                Events = events,
             });
     }
 

@@ -62,6 +62,31 @@ public sealed record RunStepAttemptItem
     public string? ErrorMessage { get; init; }
 }
 
+public sealed record RunEventItem
+{
+    public required Guid EventId { get; init; }
+
+    public required string Type { get; init; }
+
+    public required string CorrelationId { get; init; }
+
+    public required DateTimeOffset OccurredAt { get; init; }
+
+    public required DateTimeOffset ReceivedAt { get; init; }
+
+    public required Guid WorkItemId { get; init; }
+
+    public required ResumeWorkItemStatus WorkItemStatus { get; init; }
+
+    public required int AttemptCount { get; init; }
+
+    public DateTimeOffset? NextAttemptAt { get; init; }
+
+    public DateTimeOffset? FinishedAt { get; init; }
+
+    public string? ErrorMessage { get; init; }
+}
+
 public sealed record RunDetail
 {
     public required Guid RunId { get; init; }
@@ -87,6 +112,8 @@ public sealed record RunDetail
     public IReadOnlyList<RunVariableItem> Variables { get; init; } = [];
 
     public IReadOnlyList<RunStepAttemptItem> StepAttempts { get; init; } = [];
+
+    public IReadOnlyList<RunEventItem> Events { get; init; } = [];
 }
 
 public interface IRunQueryService
