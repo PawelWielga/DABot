@@ -99,6 +99,10 @@ a:hover {
     min-width: 0;
 }
 
+.mobile-navigation {
+    display: none;
+}
+
 .topbar {
     height: 64px;
     padding: 0 28px;
@@ -294,6 +298,33 @@ pre {
 
     .sidebar {
         display: none;
+    }
+
+    .mobile-navigation {
+        display: block;
+        padding: 8px 12px;
+        overflow-x: auto;
+        background: #111827;
+    }
+
+    .mobile-navigation .nav-menu {
+        width: max-content;
+        min-width: 100%;
+        flex-direction: row;
+    }
+
+    .mobile-navigation .brand,
+    .mobile-navigation .nav-section,
+    .mobile-navigation .nav-disabled {
+        display: none;
+    }
+
+    .mobile-navigation .nav-menu > a {
+        flex: 0 0 auto;
+    }
+
+    .topbar {
+        padding: 0 18px;
     }
 
     .page-body {
