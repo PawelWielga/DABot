@@ -168,7 +168,7 @@ public sealed class EventResumeWorker : IEventResumeWorker
         return processed;
     }
 
-    internal static TimeSpan CalculateRetryDelay(
+    public static TimeSpan CalculateRetryDelay(
         int failedAttempt,
         EventWorkerOptions options)
     {
