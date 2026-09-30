@@ -64,6 +64,15 @@ Raw event payloads are intentionally excluded from the web read model. The curre
 
 Run artifact access is provided by `IRunArtifactService` with a filesystem implementation in Infrastructure. Only direct regular files below the configured `screenshots/<runId>` and `artifacts/<runId>` directories can be opened; path segments, traversal, symlinks, and reparse points are rejected. Common raster images can be previewed inline. Captured HTML is always returned as a download rather than rendered under the management-panel origin, preventing captured page scripts from executing as panel content.
 
+Run details also expose guarded manual controls through the existing `IDurableRunControlService`:
+
+- Resume is available for waiting runs except retry waits. Retry waits stay on the dedicated retry path.
+- Cancel is available for queued and waiting runs and requires an explicit confirmation step in the UI.
+- Active running executions are not cancelled from the panel because safe cross-process cancellation requires worker lease/CAS coordination.
+- The GitHub Pages demo renders the controls as unavailable and never executes runtime actions.
+
+These are mutating administrative actions. The current host still has no configured login provider, so the management panel should remain on a trusted/local network until authentication and authorization are enabled.
+
 ### Scenarios
 
 The scenarios page lists top-level JSON files from `bot.storage.scenariosDirectory`.
@@ -115,9 +124,9 @@ No login/identity provider is enabled yet, so current routes remain anonymous un
 
 ## Current scope
 
-The dashboard and run detail views remain read-only. The run list supports filtering, and scenario JSON management supports create/edit/delete and validation.
+The dashboard remains read-only. Run details support guarded manual resume/cancel actions, the run list supports filtering, and scenario JSON management supports create/edit/delete and validation.
 
-Visual scenario editing, synchronized visual/JSON representations, import/export, scenario test runs, run actions, browser-profile management, configuration editing, and authentication UX remain later Sprint 8/9 work.
+Visual scenario editing, synchronized visual/JSON representations, import/export, scenario test runs, retry/clone run actions, browser-profile management, configuration editing, and authentication UX remain later Sprint 8/9 work.
 
 
 ## Static GitHub Pages demo
@@ -130,7 +139,7 @@ Public demo:
 https://pawelwielga.github.io/DABot/
 ```
 
-The demo registers in-memory implementations of `IRunQueryService`, `IScenarioCatalogQueryService`, and `IScenarioManagementService`. It contains representative completed, running, waiting, failed, and cancelled runs plus valid and invalid scenario examples. Scenario edits in the demo exist only in browser memory and disappear after reload.
+The demo registers in-memory implementations of `IRunQueryService`, `IScenarioCatalogQueryService`, and `IScenarioManagementService`, plus disabled runtime stubs for artifact and run-control services. It contains representative completed, running, waiting, failed, and cancelled runs plus valid and invalid scenario examples. Scenario edits in the demo exist only in browser memory and disappear after reload.
 
 The demo is intentionally presentation-only:
 
