@@ -105,6 +105,39 @@ public sealed class FileSystemRunArtifactServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task OpenAsync_RejectsSymbolicLinkOutsideRunDirectory()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var runId = Guid.NewGuid();
+        var options = CreateOptions();
+        var artifactDirectory = Path.Combine(
+            options.Storage.ArtifactsDirectory,
+            runId.ToString("D"));
+        Directory.CreateDirectory(artifactDirectory);
+
+        var outsidePath = Path.Combine(_root, "outside-secret.txt");
+        await File.WriteAllTextAsync(outsidePath, "secret");
+
+        var linkPath = Path.Combine(artifactDirectory, "linked.txt");
+        File.CreateSymbolicLink(linkPath, outsidePath);
+
+        var service = new FileSystemRunArtifactService(options);
+
+        var items = await service.ListAsync(runId);
+        var content = await service.OpenAsync(
+            runId,
+            RunArtifactSource.Artifacts,
+            "linked.txt");
+
+        Assert.DoesNotContain(items, item => item.FileName == "linked.txt");
+        Assert.Null(content);
+    }
+
+    [Fact]
     public async Task ListAsync_ReturnsEmptyWhenRunDirectoriesDoNotExist()
     {
         var service = new FileSystemRunArtifactService(CreateOptions());
