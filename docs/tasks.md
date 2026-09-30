@@ -292,18 +292,18 @@ The web panel is optional and uses Application services. It must not directly ow
 
 ### Project foundation
 
-- [ ] Add `DesktopAutomationBot.Web`.
-- [ ] Add authentication-ready application shell.
-- [ ] Add navigation and error handling.
-- [ ] Add SQLite/EF Core integration required by the panel.
+- [x] Add `DesktopAutomationBot.Web`.
+- [x] Add authentication-ready application shell. The Blazor host wires cookie authentication/authorization and uses `AuthorizeRouteView`; no login provider is enabled yet.
+- [x] Add navigation and error handling. The shell includes primary navigation, not-found handling, an error boundary, and production exception handling.
+- [~] Add SQLite/EF Core integration required by the panel. The first read-only dashboard uses `IRunQueryService` backed by SQLite; EF Core is intentionally deferred until panel-owned write models require it.
 
 ### Dashboard
 
-- [ ] Run status counters.
-- [ ] Recent runs.
-- [ ] Recent failures.
-- [ ] Suspended/waiting runs.
-- [ ] Worker summary placeholder.
+- [x] Run status counters.
+- [x] Recent runs.
+- [x] Recent failures.
+- [x] Suspended/waiting runs.
+- [x] Worker summary placeholder.
 
 ### Scenarios
 
@@ -321,7 +321,7 @@ The web panel is optional and uses Application services. It must not directly ow
 
 ### Runs
 
-- [ ] Run list and filtering.
+- [~] Run list and filtering. The read-only run list is available; UI filtering remains.
 - [ ] Run detail page.
 - [ ] Step history.
 - [ ] Variables.

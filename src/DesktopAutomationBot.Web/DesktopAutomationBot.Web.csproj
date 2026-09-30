@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\DesktopAutomationBot.Core\DesktopAutomationBot.Core.csproj" />
+    <ProjectReference Include="..\DesktopAutomationBot.Application\DesktopAutomationBot.Application.csproj" />
+    <ProjectReference Include="..\DesktopAutomationBot.Infrastructure\DesktopAutomationBot.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+</Project>

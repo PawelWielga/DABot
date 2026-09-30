@@ -163,21 +163,29 @@ Agents should use the README and implementation backlog to distinguish current f
 | Fixed delays | Available |
 | Screenshots and step results | Available |
 | CLI-style .NET runner | Available |
-| Structured logging and failure artifacts | Planned |
+| Structured logging and failure artifacts | Available |
 | HTTP/API scenario steps | Available |
 | Variable interpolation | Available |
-| Durable retry recovery/scheduling | Partial |
-| Conditions and loops | Planned |
+| Durable retry recovery/scheduling | Available (single-worker) |
+| Conditions and loops | Available |
 | Persistent named browser profiles | Available |
-| Durable run persistence | Planned |
-| Suspend and resume | Planned |
-| External event model | Planned |
+| Durable run persistence | Available |
+| Suspend and resume | Available |
+| External event model | Available |
 | Generic page observers | Available |
-| Web management panel | Planned |
+| Web management panel | Foundation available |
 | MCP server/client integration | Planned |
 | Dynamic reusable tool registry | Planned |
 
 The detailed implementation state is tracked in [docs/tasks.md](docs/tasks.md).
+
+The first read-only Blazor management dashboard is available:
+
+```bash
+dotnet run --project src/DesktopAutomationBot.Web
+```
+
+It reads durable run state through Application services and does not directly own Playwright. See [web management panel](docs/web-management.md).
 
 ## Execution model
 
@@ -214,11 +222,11 @@ The current solution is split into:
 - `DesktopAutomationBot.Core` - scenario/domain models and validation,
 - `DesktopAutomationBot.Application` - execution orchestration and step handlers,
 - `DesktopAutomationBot.Infrastructure` - Playwright and infrastructure adapters,
-- `DesktopAutomationBot.Runner` - executable composition root.
+- `DesktopAutomationBot.Runner` - executable composition root,
+- `DesktopAutomationBot.Web` - optional Blazor management client over Application services.
 
 Planned clients and adapters include:
 
-- `DesktopAutomationBot.Web` - optional web management panel,
 - `DesktopAutomationBot.Mcp` - MCP server/client adapter and dynamic tool registry integration.
 
 All clients are intended to converge on the same Application use cases rather than create separate execution engines.

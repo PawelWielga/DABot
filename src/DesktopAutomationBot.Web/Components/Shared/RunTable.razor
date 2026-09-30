@@ -1,0 +1,41 @@
+@if (Runs.Count == 0)
+{
+    <p class="muted">@EmptyMessage</p>
+}
+else
+{
+    <div class="table-scroll">
+        <table>
+            <thead>
+                <tr>
+                    <th>Run</th>
+                    <th>Status</th>
+                    <th>Wait</th>
+                    <th>Updated</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var run in Runs)
+                {
+                    <tr>
+                        <td><code>@ShortId(run.RunId)</code></td>
+                        <td><span class="status @run.Status.ToString().ToLowerInvariant()">@run.Status</span></td>
+                        <td>@(run.WaitReason?.ToString() ?? "—")</td>
+                        <td>@run.UpdatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<RunListItem> Runs { get; set; } = [];
+
+    [Parameter]
+    public string EmptyMessage { get; set; } = "No runs.";
+
+    private static string ShortId(Guid id) =>
+        id.ToString("D")[..8];
+}
