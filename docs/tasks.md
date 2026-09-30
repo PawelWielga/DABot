@@ -244,8 +244,8 @@ Acceptance criteria:
 - [x] Persist processed event IDs.
 - [x] Resume matching runs from events through durable resume work items and `IEventResumeWorker`.
 - [x] Ignore duplicate event delivery safely. Re-delivery of the same `EventId` returns the original acceptance result without scheduling a second continuation.
-- [ ] Add event retry policy.
-- [ ] Add dead-letter/failure handling.
+- [x] Add event retry policy. Failed durable resume work items retry with configurable exponential backoff and a maximum-attempt guardrail.
+- [x] Add dead-letter/failure handling. Exhausted resume work items transition to durable `DeadLetter` state with the final error and remain queryable through the event inbox store.
 - [x] Add integration tests for duplicate events.
 
 Transport implementations remain infrastructure details.
