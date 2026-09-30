@@ -23,7 +23,7 @@ public sealed class FileSystemBrowserProfileCatalog(
             .Select(Path.GetFileName)
             .Where(name =>
                 !string.IsNullOrWhiteSpace(name) &&
-                !name.StartsWith('.', StringComparison.Ordinal))
+                !name.StartsWith(".", StringComparison.Ordinal))
             .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
             .Select(name => new BrowserProfileListItem(name!))
             .ToArray();
