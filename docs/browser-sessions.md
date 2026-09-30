@@ -56,6 +56,10 @@ dotnet run --project src/DesktopAutomationBot.Runner -- profile setup --profile 
 
 The runner forces headed mode for that session even if normal automation is configured as headless. Complete the setup in the browser, then press Enter in the terminal to close the browser cleanly and persist browser-managed state.
 
+The web management profile page can also start a headed setup session on the runtime node. `IInteractiveBrowserSessionService` keeps that browser alive independently of the initiating UI event, lists active sessions, and can close them explicitly. The session uses the normal persistent-profile lease, so it cannot overlap a run, observer, profile health test, or profile mutation for the same profile.
+
+`IInteractiveBrowserSession` exposes a transport-neutral completion signal. The Playwright implementation completes it from `BrowserContext.Close`, so manually closing or crashing the headed browser triggers cleanup and releases the profile lease.
+
 Use the health command to verify that a profile directory can be leased and launched:
 
 ```bash
@@ -66,4 +70,4 @@ The health check opens the named profile headlessly and disposes it immediately 
 
 ## Remaining profile work
 
-Sprint 3 session/runtime foundations are complete. The web-management layer now supports profile list/create/rename/clear/delete and health testing. Remote interactive-session flows remain planned.
+Sprint 3 session/runtime foundations are complete. The web-management layer now supports profile list/create/rename/clear/delete, health testing, and local headed interactive-session lifecycle. Remote display/input streaming, authorization/session grants, timeout cleanup, and audit remain planned.
