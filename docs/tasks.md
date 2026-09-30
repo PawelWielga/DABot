@@ -263,21 +263,21 @@ Do not couple Core to any of them.
 
 Goal: detect page changes independently of scenario execution.
 
-- [ ] Add `PageObserverDefinition`.
-- [ ] Add observer persistence.
-- [ ] Implement polling worker.
-- [ ] Implement `SelectorVisible`.
-- [ ] Implement `SelectorHidden`.
-- [ ] Implement `TextEquals`.
-- [ ] Implement `TextContains`.
-- [ ] Implement `TextChanged`.
-- [ ] Implement `UrlMatches`.
+- [x] Add `PageObserverDefinition`.
+- [x] Add observer persistence. Definitions and durable polling snapshots are stored in SQLite schema v6.
+- [x] Implement polling worker. `observer-worker` loads due observers and polls them independently of scenario execution.
+- [x] Implement `SelectorVisible`.
+- [x] Implement `SelectorHidden`.
+- [x] Implement `TextEquals`.
+- [x] Implement `TextContains`.
+- [x] Implement `TextChanged` with a persisted baseline.
+- [x] Implement `UrlMatches` using a configured regular expression.
 - [ ] Add optional DOM-fragment change detection.
-- [ ] Emit an `AutomationEvent` on match.
-- [ ] Support persistent browser profiles.
-- [ ] Prevent duplicate events for an unchanged condition.
-- [ ] Recover active observers after process restart.
-- [ ] Add configurable polling interval and backoff.
+- [x] Emit an `AutomationEvent` on match through the existing transport-neutral event publisher.
+- [x] Support persistent browser profiles through `IBrowserSessionFactory`.
+- [x] Prevent duplicate events for an unchanged condition. Boolean conditions are edge-triggered; text changes compare against the persisted observation baseline.
+- [x] Recover active observers after process restart from durable observer definitions and snapshots.
+- [x] Add configurable polling interval and backoff. Each observer has its own poll interval; failures use persisted exponential backoff capped by worker configuration.
 
 Acceptance criteria:
 
