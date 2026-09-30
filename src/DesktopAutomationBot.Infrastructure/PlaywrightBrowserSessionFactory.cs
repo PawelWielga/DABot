@@ -48,6 +48,9 @@ public sealed class PlaywrightBrowserSessionFactory(
         try
         {
             Directory.CreateDirectory(profileDirectory);
+            BrowserProfileDirectoryGuard.EnsureNotReparsePoint(
+                profileDirectory,
+                profileName);
 
             return ValueTask.FromResult<IBrowserSession>(
                 new PlaywrightBrowserAutomation(
