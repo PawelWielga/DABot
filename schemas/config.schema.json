@@ -131,6 +131,18 @@
             }
           }
         },
+        "interactiveBrowser": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "maxDurationSeconds": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1800,
+              "description": "Maximum lifetime of one headed interactive browser-profile session before DABot closes it automatically."
+            }
+          }
+        },
         "observerWorker": {
           "type": "object",
           "additionalProperties": false,
