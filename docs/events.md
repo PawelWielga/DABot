@@ -67,9 +67,33 @@ An exact `{{event.payload}}` reference preserves the structured JSON value.
 
 Because the work item is durable, a process can stop after accepting an event and continue processing the scheduled resume after restart.
 
+## Local CLI workflow
+
+Publish an event with a stable ID:
+
+```bash
+dotnet run --project src/DesktopAutomationBot.Runner -- event publish \
+  --id 11111111-1111-1111-1111-111111111111 \
+  --type order.approved \
+  --correlation order-123 \
+  --payload '{"approved":true}'
+```
+
+The same `EventId` can be delivered again safely; the inbox returns it as a duplicate and does not schedule another continuation.
+
+Run the durable resume worker in a separate process:
+
+```bash
+dotnet run --project src/DesktopAutomationBot.Runner -- event-worker
+```
+
+Worker polling is configured through `bot.eventWorker.pollIntervalMs` and `bot.eventWorker.batchSize`.
+
+This provides a transport-neutral end-to-end path for local and operational testing. Future HTTP, queue, observer, or GitHub adapters should only translate their input into `AutomationEvent` and publish it through the same application service.
+
 ## Current limits
 
-The first event foundation deliberately does not yet provide:
+The event foundation deliberately does not yet provide:
 
 - a concrete HTTP/queue consumer transport,
 - automatic retry/backoff for failed resume work items,
