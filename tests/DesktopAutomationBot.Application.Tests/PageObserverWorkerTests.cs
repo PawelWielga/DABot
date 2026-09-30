@@ -282,6 +282,8 @@ public sealed class PageObserverWorkerTests
 
         public Queue<string> TextValues { get; } = new();
 
+        public Queue<string> HtmlValues { get; } = new();
+
         public List<BrowserSessionRequest> Requests { get; } = [];
 
         public ValueTask<IBrowserSession> CreateAsync(
