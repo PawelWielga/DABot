@@ -331,7 +331,7 @@ The web panel is optional and uses Application services. It must not directly ow
 - [x] Artifact links/previews. Run details list files from the configured screenshot/artifact directories, preview safe image artifacts, and expose diagnostic downloads through path-safe runtime endpoints. Captured HTML is download-only to avoid same-origin execution.
 - [x] Resume action. Run details invoke the existing `IDurableRunControlService` for non-retry waiting runs and refresh persisted state after the action.
 - [x] Cancel action. Run details can cancel queued/waiting runs with an explicit confirmation step; active `Running` cancellation remains blocked until lease/CAS coordination exists.
-- [ ] Retry action.
+- [x] Retry action. Run details expose guarded `Retry now` for `Waiting / Retry` runs; manual retry bypasses `RetryNotBefore` while preserving retry limits and recovery checks.
 - [ ] Clone run.
 
 ### Browser profiles

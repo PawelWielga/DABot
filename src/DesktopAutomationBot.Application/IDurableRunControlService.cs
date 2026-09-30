@@ -8,6 +8,10 @@ public interface IDurableRunControlService
         Guid runId,
         CancellationToken cancellationToken = default);
 
+    Task<DurableScenarioExecutionResult> RetryNowAsync(
+        Guid runId,
+        CancellationToken cancellationToken = default);
+
     Task<AutomationRun> CancelAsync(
         Guid runId,
         CancellationToken cancellationToken = default);

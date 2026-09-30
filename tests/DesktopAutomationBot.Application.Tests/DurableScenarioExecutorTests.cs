@@ -159,6 +159,74 @@ public sealed class DurableScenarioExecutorTests : IDisposable
     }
 
     [Fact]
+    public async Task RetryNowAsync_WhenRetryDelayHasNotElapsed_RunsImmediately()
+    {
+        var events = new List<string>();
+        var runStore = new RecordingRunStore(events);
+        var attemptStore = new RecordingStepAttemptStore(events);
+        var browser = new RecordingBrowserAutomation(events);
+        var callCount = 0;
+
+        var handler = new RecordingStepHandler(
+            StepType.OpenUrl,
+            events,
+            (step, _, index, _) =>
+            {
+                callCount++;
+
+                if (callCount == 1)
+                {
+                    throw new InvalidOperationException("temporary");
+                }
+
+                return Task.FromResult(
+                    new StepExecutionResult
+                    {
+                        Index = index,
+                        Type = step.Type,
+                        Success = true,
+                    });
+            });
+
+        var executor = CreateExecutor(
+            [handler],
+            browser,
+            runStore,
+            attemptStore);
+
+        var suspended = await executor.ExecuteAsync(
+            new ScenarioRunRequest
+            {
+                ScenarioVersion = CreateVersion(
+                    new ScenarioStep
+                    {
+                        Id = "open",
+                        Type = StepType.OpenUrl,
+                        Url = "https://example.com",
+                        RetryCount = 1,
+                        RetryDelayMs = 60000,
+                    }),
+            });
+
+        suspended.Outcome.Should().Be(DurableExecutionOutcome.Suspended);
+        suspended.Run.State.Status.Should().Be(RunStatus.Waiting);
+        suspended.Run.State.WaitReason.Should().Be(RunWaitReason.Retry);
+        suspended.Run.RetryNotBefore.Should().NotBeNull();
+
+        var retried = await executor.RetryNowAsync(
+            suspended.Run.RunId);
+
+        retried.Outcome.Should().Be(DurableExecutionOutcome.Completed);
+        retried.Run.State.Status.Should().Be(RunStatus.Completed);
+        retried.Run.Cursor.IsCompleted.Should().BeTrue();
+        callCount.Should().Be(2);
+        attemptStore.Attempts
+            .Where(attempt => attempt.Status == StepAttemptStatus.Completed)
+            .Should()
+            .ContainSingle(attempt => attempt.StepId == "open");
+    }
+
+    [Fact]
     public async Task ExecuteAsync_WhenUnsafeRetryableHandlerFails_WaitsForHuman()
     {
         var events = new List<string>();
@@ -869,7 +937,11 @@ public sealed class DurableScenarioExecutorTests : IDisposable
             Guid runId,
             CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<StepAttempt>>(
-                Attempts.Where(attempt => attempt.RunId == runId).ToArray());
+                Attempts
+                    .Where(attempt => attempt.RunId == runId)
+                    .GroupBy(attempt => attempt.AttemptId)
+                    .Select(group => group.Last())
+                    .ToArray());
 
         public Task<IReadOnlyList<StepAttempt>> MarkStartedAttemptsUnknownAsync(
             Guid runId,

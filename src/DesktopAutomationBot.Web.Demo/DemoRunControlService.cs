@@ -13,6 +13,11 @@ public sealed class DemoRunControlService : IDurableRunControlService
         CancellationToken cancellationToken = default) =>
         throw new NotSupportedException(Message);
 
+    public Task<DurableScenarioExecutionResult> RetryNowAsync(
+        Guid runId,
+        CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException(Message);
+
     public Task<AutomationRun> CancelAsync(
         Guid runId,
         CancellationToken cancellationToken = default) =>

@@ -93,9 +93,26 @@ public sealed class DurableScenarioExecutor :
             cancellationToken);
     }
 
-    public async Task<DurableScenarioExecutionResult> ResumeAsync(
+    public Task<DurableScenarioExecutionResult> ResumeAsync(
         Guid runId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        ResumeRetryAsync(
+            runId,
+            ignoreRetryNotBefore: false,
+            cancellationToken);
+
+    public Task<DurableScenarioExecutionResult> RetryNowAsync(
+        Guid runId,
+        CancellationToken cancellationToken = default) =>
+        ResumeRetryAsync(
+            runId,
+            ignoreRetryNotBefore: true,
+            cancellationToken);
+
+    private async Task<DurableScenarioExecutionResult> ResumeRetryAsync(
+        Guid runId,
+        bool ignoreRetryNotBefore,
+        CancellationToken cancellationToken)
     {
         if (runId == Guid.Empty)
         {
@@ -121,7 +138,7 @@ public sealed class DurableScenarioExecutor :
             run.State.WaitReason != RunWaitReason.Retry)
         {
             throw new InvalidOperationException(
-                $"Run '{runId}' can be resumed automatically only from 'Waiting / Retry'. " +
+                $"Run '{runId}' can be retried only from 'Waiting / Retry'. " +
                 $"Current state is '{run.State.Status}'" +
                 (run.State.WaitReason is null
                     ? "."
@@ -131,7 +148,7 @@ public sealed class DurableScenarioExecutor :
         if (run.Cursor.IsCompleted)
         {
             throw new InvalidOperationException(
-                $"Run '{runId}' cannot resume because its execution cursor is already completed.");
+                $"Run '{runId}' cannot retry because its execution cursor is already completed.");
         }
 
         var attempts = await _stepAttemptStore.LoadStepAttemptsAsync(
@@ -142,7 +159,7 @@ public sealed class DurableScenarioExecutor :
         {
             throw new InvalidOperationException(
                 $"Run '{runId}' still contains a started step attempt. " +
-                "Crash recovery must reconcile started attempts before resume.");
+                "Crash recovery must reconcile started attempts before retry.");
         }
 
         var scenario = scenarioVersion.MaterializeDefinition();
@@ -176,7 +193,8 @@ public sealed class DurableScenarioExecutor :
                 errorMessage);
         }
 
-        if (run.RetryNotBefore is { } retryNotBefore &&
+        if (!ignoreRetryNotBefore &&
+            run.RetryNotBefore is { } retryNotBefore &&
             _timeProvider.GetUtcNow() < retryNotBefore)
         {
             return CreateResult(
