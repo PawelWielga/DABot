@@ -1,7 +1,9 @@
 @page "/runs/{RunId:guid}"
 @inject IRunQueryService RunQueries
 @inject IRunArtifactService RunArtifacts
+@inject IDurableRunControlService RunControl
 @inject ManagementUiEnvironment UiEnvironment
+@inject ILogger<RunDetails> Logger
 
 <PageTitle>DABot run details</PageTitle>
 
@@ -46,6 +48,80 @@ else
             <span>Updated</span>
             <strong>@FormatTime(_run.UpdatedAt)</strong>
         </article>
+    </section>
+
+    <section class="panel">
+        <div class="panel-heading">
+            <div>
+                <h2>Run actions</h2>
+                <p>Manual control uses the same durable Application services as the CLI.</p>
+            </div>
+            <span class="muted">@RunActionSummary</span>
+        </div>
+
+        @if (UiEnvironment.IsDemo)
+        {
+            <p class="muted">Run actions are disabled in the static demo. Connect the management panel to a DABot runtime to execute them.</p>
+        }
+        else
+        {
+            <div class="button-row run-action-buttons">
+                <button class="button primary"
+                        type="button"
+                        @onclick="ResumeAsync"
+                        disabled="@(_actionBusy || !CanResume)">
+                    @(_actionBusy && _activeAction == "resume" ? "Resuming…" : "Resume")
+                </button>
+
+                @if (_confirmCancel)
+                {
+                    <button class="button danger"
+                            type="button"
+                            @onclick="CancelAsync"
+                            disabled="@_actionBusy">
+                        @(_actionBusy && _activeAction == "cancel" ? "Cancelling…" : "Confirm cancel")
+                    </button>
+                    <button class="button secondary"
+                            type="button"
+                            @onclick="DismissCancel"
+                            disabled="@_actionBusy">
+                        Keep run
+                    </button>
+                }
+                else
+                {
+                    <button class="button danger"
+                            type="button"
+                            @onclick="RequestCancel"
+                            disabled="@(_actionBusy || !CanCancel)">
+                        Cancel
+                    </button>
+                }
+            </div>
+
+            @if (_confirmCancel)
+            {
+                <p class="action-warning">Cancel this queued or waiting run? This changes its durable state to Cancelled.</p>
+            }
+            else if (_run.Status == RunStatus.Waiting && _run.WaitReason == RunWaitReason.Retry)
+            {
+                <p class="muted action-note">Retry waits stay on the guarded retry path. Manual Retry is a separate Sprint 8 action.</p>
+            }
+            else if (_run.Status == RunStatus.Running)
+            {
+                <p class="muted action-note">Active runs cannot be cancelled safely until worker lease/CAS coordination is implemented.</p>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(_actionMessage))
+            {
+                <p class="action-message">@_actionMessage</p>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(_actionError))
+            {
+                <p class="action-error">@_actionError</p>
+            }
+        }
     </section>
 
     <section class="panel">
@@ -302,18 +378,132 @@ else
     public Guid RunId { get; set; }
 
     private bool _loading = true;
+    private bool _actionBusy;
+    private bool _confirmCancel;
+    private string? _activeAction;
+    private string? _actionMessage;
+    private string? _actionError;
     private RunDetail? _run;
     private IReadOnlyList<RunArtifactItem> _artifacts = [];
+
+    private bool CanResume =>
+        !UiEnvironment.IsDemo &&
+        _run is { Status: RunStatus.Waiting } &&
+        _run.WaitReason != RunWaitReason.Retry;
+
+    private bool CanCancel =>
+        !UiEnvironment.IsDemo &&
+        _run is not null &&
+        _run.Status is RunStatus.Queued or RunStatus.Waiting;
+
+    private string RunActionSummary =>
+        _run is null
+            ? "Unavailable"
+            : CanResume || CanCancel
+                ? "Actions available"
+                : "No safe manual action";
 
     protected override async Task OnParametersSetAsync()
     {
         _loading = true;
+        _confirmCancel = false;
+        _actionMessage = null;
+        _actionError = null;
+        await ReloadAsync();
+        _loading = false;
+    }
+
+    private async Task ReloadAsync()
+    {
         _run = await RunQueries.GetRunAsync(RunId);
         _artifacts = _run is null
             ? []
             : await RunArtifacts.ListAsync(RunId);
-        _loading = false;
     }
+
+    private void RequestCancel()
+    {
+        if (!CanCancel || _actionBusy)
+        {
+            return;
+        }
+
+        _confirmCancel = true;
+        _actionMessage = null;
+        _actionError = null;
+    }
+
+    private void DismissCancel() =>
+        _confirmCancel = false;
+
+    private async Task ResumeAsync()
+    {
+        if (!CanResume || _run is null || _actionBusy)
+        {
+            return;
+        }
+
+        _actionBusy = true;
+        _activeAction = "resume";
+        _confirmCancel = false;
+        _actionMessage = null;
+        _actionError = null;
+
+        try
+        {
+            var result = await RunControl.ResumeManuallyAsync(_run.RunId);
+            _actionMessage = $"Resume finished with run state {result.Run.State.Status}.";
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Failed to resume durable run {RunId}.", RunId);
+            _actionError = SafeActionError(exception, "Resume");
+        }
+        finally
+        {
+            await ReloadAsync();
+            _activeAction = null;
+            _actionBusy = false;
+        }
+    }
+
+    private async Task CancelAsync()
+    {
+        if (!CanCancel || _run is null || _actionBusy)
+        {
+            return;
+        }
+
+        _actionBusy = true;
+        _activeAction = "cancel";
+        _actionMessage = null;
+        _actionError = null;
+
+        try
+        {
+            var cancelled = await RunControl.CancelAsync(_run.RunId);
+            _actionMessage = $"Run state is now {cancelled.State.Status}.";
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Failed to cancel durable run {RunId}.", RunId);
+            _actionError = SafeActionError(exception, "Cancel");
+        }
+        finally
+        {
+            _confirmCancel = false;
+            await ReloadAsync();
+            _activeAction = null;
+            _actionBusy = false;
+        }
+    }
+
+    private static string SafeActionError(
+        Exception exception,
+        string action) =>
+        exception is InvalidOperationException or KeyNotFoundException or ArgumentException
+            ? exception.Message
+            : $"{action} failed. The run details were refreshed; check server logs for diagnostics.";
 
     private static string ShortId(Guid id) =>
         id.ToString("D")[..8];
