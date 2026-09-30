@@ -577,7 +577,7 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
             );
 
             CREATE UNIQUE INDEX UX_EventWaits_Correlation
-                ON EventWaits(CorrelationId, IFNULL(EventType, ''));
+                ON EventWaits(CorrelationId);
 
             CREATE TABLE ResumeWorkItems (
                 WorkItemId TEXT NOT NULL PRIMARY KEY,
@@ -740,7 +740,7 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
             );
 
             CREATE UNIQUE INDEX UX_EventWaits_Correlation
-                ON EventWaits(CorrelationId, IFNULL(EventType, ''));
+                ON EventWaits(CorrelationId);
 
             CREATE TABLE ResumeWorkItems (
                 WorkItemId TEXT NOT NULL PRIMARY KEY,
