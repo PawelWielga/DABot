@@ -338,9 +338,9 @@ The web panel is optional and uses Application services. It must not directly ow
 
 - [x] Profile list. The management panel lists persistent profile directories through `IBrowserProfileCatalog`; the filesystem adapter ignores internal `.locks` state and the static demo uses representative sample profiles.
 - [x] Create/rename/delete profile metadata. The web panel uses `IBrowserProfileManagementService`; filesystem mutations validate path-safe names, share the normal profile lease, require delete confirmation in the UI, and reject symlink/reparse-point profile directories.
-- [ ] Open interactive session from the profile page using a headed browser on the runtime node.
+- [x] Open interactive session from the profile page using a headed browser on the runtime node. `IInteractiveBrowserSessionService` owns the session beyond the web request, exposes active-session state, and supports explicit close.
 - [ ] Stream the real runtime browser display and keyboard/mouse input to the management panel; do not rely on embedding the target site in an iframe.
-- [ ] Add an exclusive profile/session lease so interactive login cannot overlap a run or observer using the same persistent profile.
+- [x] Add an exclusive profile/session lease so interactive login cannot overlap a run or observer using the same persistent profile. Interactive setup opens the profile through the normal `IBrowserSessionFactory`, so it holds the same cross-process `.locks/<profile>.lock` lease as runs, observers, tests, and profile mutations.
 - [ ] Add administrator-only authorization, short-lived session grants, inactivity/max-duration cleanup, and audit entries for interactive sessions.
 - [ ] Ensure usernames/passwords/MFA values typed in the interactive browser are not captured as DABot configuration, scenario variables, or logs.
 - [ ] Add an optional later **Take control** flow for diagnostics, gated by explicit browser-command ownership coordination with the active run.
