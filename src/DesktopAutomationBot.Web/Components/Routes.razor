@@ -1,5 +1,6 @@
 <CascadingAuthenticationState>
-    <Router AppAssembly="@typeof(App).Assembly">
+    <Router AppAssembly="@typeof(App).Assembly"
+            AdditionalAssemblies="@_additionalAssemblies">
         <Found Context="routeData">
             <ErrorBoundary>
                 <ChildContent>
@@ -39,3 +40,10 @@
         </NotFound>
     </Router>
 </CascadingAuthenticationState>
+
+@code {
+    private static readonly System.Reflection.Assembly[] _additionalAssemblies =
+    [
+        typeof(ManagementUiEnvironment).Assembly,
+    ];
+}
