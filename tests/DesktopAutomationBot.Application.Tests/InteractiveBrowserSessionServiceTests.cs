@@ -97,7 +97,9 @@ public sealed class InteractiveBrowserSessionServiceTests
         session.SignalBrowserClosed();
 
         await WaitUntilAsync(
-            async () => (await service.ListAsync()).Count == 0);
+            async () =>
+                (await service.ListAsync()).Count == 0 &&
+                session.DisposeCount == 1);
 
         session.DisposeCount.Should().Be(1);
         (await service.StopAsync(started.SessionId)).Should().BeFalse();
