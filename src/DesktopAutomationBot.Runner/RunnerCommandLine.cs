@@ -4,6 +4,8 @@ public enum RunnerCommand
 {
     Run,
     RetryWorker,
+    EventWorker,
+    EventPublish,
     ProfileSetup,
     ProfileTest,
     Resume,
@@ -16,6 +18,10 @@ public sealed record RunnerCommandLine(
     string? ProfileName,
     string? Url,
     Guid? RunId,
+    Guid? EventId,
+    string? EventType,
+    string? CorrelationId,
+    string? PayloadJson,
     bool ShowHelp)
 {
     public const string Usage =
@@ -23,6 +29,8 @@ public sealed record RunnerCommandLine(
         Usage:
           DesktopAutomationBot.Runner [run] [--scenario <path>]
           DesktopAutomationBot.Runner retry-worker
+          DesktopAutomationBot.Runner event-worker
+          DesktopAutomationBot.Runner event publish --id <guid> --type <type> --correlation <id> [--payload <json>]
           DesktopAutomationBot.Runner profile setup --profile <name> [--url <url>]
           DesktopAutomationBot.Runner profile test --profile <name>
           DesktopAutomationBot.Runner resume --run-id <guid>
@@ -34,6 +42,10 @@ public sealed record RunnerCommandLine(
           --profile, -p <name>   Select a named persistent browser profile.
           --url <url>            Optional initial URL for interactive profile setup.
           --run-id <guid>        Select a persisted durable run.
+          --id <guid>            Stable event ID used for idempotent event delivery.
+          --type <type>          Event type.
+          --correlation <id>     Event correlation ID.
+          --payload <json>       Optional structured JSON event payload; defaults to null.
           --help, -h             Show this help text.
         """;
 
@@ -50,6 +62,10 @@ public sealed record RunnerCommandLine(
             ProfileName: null,
             Url: null,
             RunId: null,
+            EventId: null,
+            EventType: null,
+            CorrelationId: null,
+            PayloadJson: null,
             ShowHelp: false);
         error = null;
 
@@ -72,13 +88,17 @@ public sealed record RunnerCommandLine(
 
         var command = args[0].Trim().ToLowerInvariant();
 
-        if (command == "retry-worker")
+        if (command is "retry-worker" or "event-worker")
         {
+            var workerCommand = command == "retry-worker"
+                ? RunnerCommand.RetryWorker
+                : RunnerCommand.EventWorker;
+
             if (args.Count == 1)
             {
                 options = options with
                 {
-                    Command = RunnerCommand.RetryWorker,
+                    Command = workerCommand,
                 };
                 return true;
             }
@@ -87,14 +107,23 @@ public sealed record RunnerCommandLine(
             {
                 options = options with
                 {
-                    Command = RunnerCommand.RetryWorker,
+                    Command = workerCommand,
                     ShowHelp = true,
                 };
                 return true;
             }
 
-            error = "retry-worker does not accept additional arguments.";
+            error = $"{command} does not accept additional arguments.";
             return false;
+        }
+
+        if (command == "event")
+        {
+            return TryParseEvent(
+                args,
+                options,
+                out options,
+                out error);
         }
 
         if (command == "profile")
@@ -166,6 +195,132 @@ public sealed record RunnerCommandLine(
 
         error = "Invalid run arguments.";
         return false;
+    }
+
+    private static bool TryParseEvent(
+        IReadOnlyList<string> args,
+        RunnerCommandLine defaults,
+        out RunnerCommandLine options,
+        out string? error)
+    {
+        options = defaults;
+        error = null;
+
+        if (args.Count < 2)
+        {
+            error = "event requires the publish subcommand.";
+            return false;
+        }
+
+        if (IsHelp(args[1]))
+        {
+            options = options with { ShowHelp = true };
+            return true;
+        }
+
+        if (!string.Equals(
+                args[1],
+                "publish",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            error = $"Unknown event subcommand '{args[1]}'.";
+            return false;
+        }
+
+        Guid? eventId = null;
+        string? eventType = null;
+        string? correlationId = null;
+        string? payloadJson = null;
+
+        for (var index = 2; index < args.Count; index++)
+        {
+            var argument = args[index];
+
+            if (IsHelp(argument))
+            {
+                options = options with
+                {
+                    Command = RunnerCommand.EventPublish,
+                    ShowHelp = true,
+                };
+                return true;
+            }
+
+            if (argument == "--id")
+            {
+                if (++index >= args.Count ||
+                    !Guid.TryParse(args[index], out var parsedEventId) ||
+                    parsedEventId == Guid.Empty)
+                {
+                    error = "--id requires a non-empty GUID.";
+                    return false;
+                }
+
+                eventId = parsedEventId;
+                continue;
+            }
+
+            if (argument == "--type")
+            {
+                if (++index >= args.Count ||
+                    string.IsNullOrWhiteSpace(args[index]))
+                {
+                    error = "--type requires a non-empty value.";
+                    return false;
+                }
+
+                eventType = args[index];
+                continue;
+            }
+
+            if (argument == "--correlation")
+            {
+                if (++index >= args.Count ||
+                    string.IsNullOrWhiteSpace(args[index]))
+                {
+                    error = "--correlation requires a non-empty value.";
+                    return false;
+                }
+
+                correlationId = args[index];
+                continue;
+            }
+
+            if (argument == "--payload")
+            {
+                if (++index >= args.Count ||
+                    string.IsNullOrWhiteSpace(args[index]))
+                {
+                    error = "--payload requires a non-empty JSON value.";
+                    return false;
+                }
+
+                payloadJson = args[index];
+                continue;
+            }
+
+            error = $"Unknown event argument '{argument}'.";
+            return false;
+        }
+
+        if (eventId is null ||
+            string.IsNullOrWhiteSpace(eventType) ||
+            string.IsNullOrWhiteSpace(correlationId))
+        {
+            error =
+                "event publish requires --id <guid>, --type <type>, and --correlation <id>.";
+            return false;
+        }
+
+        options = options with
+        {
+            Command = RunnerCommand.EventPublish,
+            EventId = eventId,
+            EventType = eventType,
+            CorrelationId = correlationId,
+            PayloadJson = payloadJson,
+        };
+        return true;
     }
 
     private static bool TryParseProfile(
