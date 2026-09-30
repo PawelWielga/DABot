@@ -51,6 +51,32 @@ public sealed class EventResumeWorkerTests
         inbox.FailedWorkItems[0].ErrorMessage.Should().Be("resume failed");
     }
 
+
+    [Theory]
+    [InlineData(0, 100, "pollIntervalMs")]
+    [InlineData(1000, 0, "batchSize")]
+    public async Task RunAsync_WhenOptionsAreInvalid_Throws(
+        int pollIntervalMs,
+        int batchSize,
+        string expectedSetting)
+    {
+        var worker = new EventResumeWorker(
+            new RecordingInboxStore(),
+            new RecordingRunControlService(),
+            new FixedTimeProvider(DateTimeOffset.UtcNow));
+
+        var action = () => worker.RunAsync(
+            new EventWorkerOptions
+            {
+                PollIntervalMs = pollIntervalMs,
+                BatchSize = batchSize,
+            });
+
+        await action.Should()
+            .ThrowAsync<InvalidOperationException>()
+            .WithMessage($"*{expectedSetting}*");
+    }
+
     private static ResumeWorkItem CreateWorkItem(Guid runId) =>
         new()
         {

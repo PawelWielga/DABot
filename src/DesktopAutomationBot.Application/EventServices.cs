@@ -25,6 +25,10 @@ public interface IEventResumeWorker
     Task<int> RunOnceAsync(
         int limit = 100,
         CancellationToken cancellationToken = default);
+
+    Task RunAsync(
+        EventWorkerOptions options,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed class EventResumeWorker(
@@ -32,6 +36,57 @@ public sealed class EventResumeWorker(
     IDurableRunControlService runControlService,
     TimeProvider timeProvider) : IEventResumeWorker
 {
+    public async Task RunAsync(
+        EventWorkerOptions options,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        if (options.PollIntervalMs <= 0)
+        {
+            throw new InvalidOperationException(
+                "Event worker pollIntervalMs must be greater than zero.");
+        }
+
+        if (options.BatchSize <= 0)
+        {
+            throw new InvalidOperationException(
+                "Event worker batchSize must be greater than zero.");
+        }
+
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            try
+            {
+                await RunOnceAsync(
+                    options.BatchSize,
+                    cancellationToken);
+            }
+            catch (OperationCanceledException)
+                when (cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
+
+            if (cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
+
+            try
+            {
+                await Task.Delay(
+                    TimeSpan.FromMilliseconds(options.PollIntervalMs),
+                    cancellationToken);
+            }
+            catch (OperationCanceledException)
+                when (cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
+        }
+    }
+
     public async Task<int> RunOnceAsync(
         int limit = 100,
         CancellationToken cancellationToken = default)

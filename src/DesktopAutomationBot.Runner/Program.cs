@@ -94,6 +94,75 @@ try
     }
 
 
+    if (commandLine.Command == RunnerCommand.EventWorker)
+    {
+        var worker = provider.GetRequiredService<IEventResumeWorker>();
+        var workerOptions = provider.GetRequiredService<BotOptions>();
+
+        using var cancellation = new CancellationTokenSource();
+        ConsoleCancelEventHandler cancelHandler = (_, eventArgs) =>
+        {
+            eventArgs.Cancel = true;
+            cancellation.Cancel();
+        };
+
+        Console.CancelKeyPress += cancelHandler;
+
+        try
+        {
+            Console.WriteLine(
+                $"Event worker started. Poll interval: {workerOptions.EventWorker.PollIntervalMs} ms; " +
+                $"batch size: {workerOptions.EventWorker.BatchSize}. Press Ctrl+C to stop.");
+
+            await worker.RunAsync(
+                workerOptions.EventWorker,
+                cancellation.Token);
+            return RunnerExitCodes.Success;
+        }
+        finally
+        {
+            Console.CancelKeyPress -= cancelHandler;
+        }
+    }
+
+    if (commandLine.Command == RunnerCommand.EventPublish)
+    {
+        var publisher = provider.GetRequiredService<IEventPublisher>();
+        var timeProvider = provider.GetRequiredService<TimeProvider>();
+        var payload = ScenarioVariableValue.ParseJson(
+            commandLine.PayloadJson ?? "null");
+
+        var automationEvent = AutomationEvent.Create(
+            commandLine.EventId!.Value,
+            commandLine.EventType!,
+            commandLine.CorrelationId!,
+            payload,
+            timeProvider.GetUtcNow());
+
+        var acceptance = await publisher.PublishAsync(
+            automationEvent);
+
+        Console.WriteLine(
+            $"Event {automationEvent.EventId}: " +
+            $"{(acceptance.IsDuplicate ? "duplicate" : "accepted")}");
+
+        if (acceptance.MatchedWaitingRun)
+        {
+            Console.WriteLine(
+                $"Matched run: {acceptance.RunId}");
+            Console.WriteLine(
+                $"Resume work item: {acceptance.ResumeWorkItemId}");
+        }
+        else
+        {
+            Console.WriteLine(
+                "No active waiting run matched this event.");
+        }
+
+        return RunnerExitCodes.Success;
+    }
+
+
     if (commandLine.Command is RunnerCommand.ProfileSetup or RunnerCommand.ProfileTest)
     {
         var profileService = provider.GetRequiredService<IBrowserProfileService>();
