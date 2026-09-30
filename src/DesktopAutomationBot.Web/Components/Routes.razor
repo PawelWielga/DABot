@@ -1,0 +1,41 @@
+<CascadingAuthenticationState>
+    <Router AppAssembly="@typeof(Program).Assembly">
+        <Found Context="routeData">
+            <ErrorBoundary>
+                <ChildContent>
+                    <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+                        <NotAuthorized>
+                            <LayoutView Layout="@typeof(MainLayout)">
+                                <section class="panel">
+                                    <h1>Access required</h1>
+                                    <p>This route is protected and requires an authenticated web session.</p>
+                                </section>
+                            </LayoutView>
+                        </NotAuthorized>
+                    </AuthorizeRouteView>
+                    <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+                </ChildContent>
+                <ErrorContent Context="error">
+                    <LayoutView Layout="@typeof(MainLayout)">
+                        <section class="panel error-panel">
+                            <h1>Something went wrong</h1>
+                            <p>The management UI could not complete this request.</p>
+                            <details>
+                                <summary>Technical details</summary>
+                                <pre>@error.Message</pre>
+                            </details>
+                        </section>
+                    </LayoutView>
+                </ErrorContent>
+            </ErrorBoundary>
+        </Found>
+        <NotFound>
+            <LayoutView Layout="@typeof(MainLayout)">
+                <section class="panel">
+                    <h1>Not found</h1>
+                    <p>The requested management page does not exist.</p>
+                </section>
+            </LayoutView>
+        </NotFound>
+    </Router>
+</CascadingAuthenticationState>
