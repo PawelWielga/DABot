@@ -7,6 +7,7 @@ public enum PageObserverConditionKind
     TextEquals,
     TextContains,
     TextChanged,
+    DomChanged,
     UrlMatches,
 }
 
@@ -83,7 +84,8 @@ public sealed record PageObserverDefinition
                 PageObserverConditionKind.SelectorHidden or
                 PageObserverConditionKind.TextEquals or
                 PageObserverConditionKind.TextContains or
-                PageObserverConditionKind.TextChanged;
+                PageObserverConditionKind.TextChanged or
+                PageObserverConditionKind.DomChanged;
 
         if (needsLocator)
         {
