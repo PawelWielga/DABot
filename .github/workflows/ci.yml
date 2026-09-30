@@ -61,6 +61,13 @@ jobs:
             exit 1
           fi
 
+      - name: Publish web management host
+        run: >
+          dotnet publish src/DesktopAutomationBot.Web/DesktopAutomationBot.Web.csproj
+          --configuration Release
+          --no-restore
+          --output artifacts/publish/web
+
       - name: Publish Linux runner
         run: >
           dotnet publish src/DesktopAutomationBot.Runner/DesktopAutomationBot.Runner.csproj
