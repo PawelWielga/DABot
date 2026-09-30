@@ -35,8 +35,8 @@
                         <tr>
                             <td>@scenario.Name</td>
                             <td><code>@scenario.FileName</code></td>
-                            <td>@(scenario.IsValid ? scenario.SchemaVersion : "-")</td>
-                            <td>@(scenario.IsValid ? scenario.StepCount : "-")</td>
+                            <td>@(scenario.IsValid ? scenario.SchemaVersion.ToString() : "-")</td>
+                            <td>@(scenario.IsValid ? scenario.StepCount.ToString() : "-")</td>
                             <td>@(string.IsNullOrWhiteSpace(scenario.BrowserProfile) ? "Ephemeral" : scenario.BrowserProfile)</td>
                             <td>
                                 @if (scenario.IsValid)
