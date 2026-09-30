@@ -9,14 +9,13 @@ public sealed class InteractiveBrowserSessionServiceTests
     public async Task StartAsync_KeepsSessionActiveUntilStopped()
     {
         var profiles = new RecordingProfileService();
-        await using var service = new InteractiveBrowserSessionService(
-            profiles,
-            TimeProvider.System);
+        await using var service = CreateService(profiles);
 
         var started = await service.StartAsync("work-profile");
 
         started.ProfileName.Should().Be("work-profile");
         started.SessionId.Should().NotBeEmpty();
+        started.ExpiresAt.Should().BeAfter(started.StartedAt);
         profiles.OpenedProfiles.Should().Equal("work-profile");
         profiles.Sessions.Should().ContainSingle();
         profiles.Sessions[0].DisposeCount.Should().Be(0);
@@ -34,9 +33,7 @@ public sealed class InteractiveBrowserSessionServiceTests
     public async Task StartAsync_WhenProfileAlreadyInteractive_RejectsDuplicateSession()
     {
         var profiles = new RecordingProfileService();
-        await using var service = new InteractiveBrowserSessionService(
-            profiles,
-            TimeProvider.System);
+        await using var service = CreateService(profiles);
 
         await service.StartAsync("work-profile");
 
@@ -51,12 +48,28 @@ public sealed class InteractiveBrowserSessionServiceTests
     }
 
     [Fact]
+    public async Task MaxDuration_ExpiresSessionAndDisposesHandle()
+    {
+        var profiles = new RecordingProfileService();
+        await using var service = CreateService(
+            profiles,
+            maxDurationSeconds: 1);
+
+        var started = await service.StartAsync("expiring-profile");
+        var session = profiles.Sessions.Single();
+
+        await WaitUntilAsync(
+            async () => (await service.ListAsync()).Count == 0);
+
+        session.DisposeCount.Should().Be(1);
+        (await service.StopAsync(started.SessionId)).Should().BeFalse();
+    }
+
+    [Fact]
     public async Task BrowserCompletion_RemovesSessionAndDisposesHandle()
     {
         var profiles = new RecordingProfileService();
-        await using var service = new InteractiveBrowserSessionService(
-            profiles,
-            TimeProvider.System);
+        await using var service = CreateService(profiles);
 
         var started = await service.StartAsync("work-profile");
         var session = profiles.Sessions.Single();
@@ -69,6 +82,20 @@ public sealed class InteractiveBrowserSessionServiceTests
         session.DisposeCount.Should().Be(1);
         (await service.StopAsync(started.SessionId)).Should().BeFalse();
     }
+
+    private static InteractiveBrowserSessionService CreateService(
+        RecordingProfileService profiles,
+        int maxDurationSeconds = 1800) =>
+        new(
+            profiles,
+            TimeProvider.System,
+            new BotOptions
+            {
+                InteractiveBrowser = new InteractiveBrowserOptions
+                {
+                    MaxDurationSeconds = maxDurationSeconds,
+                },
+            });
 
     private static async Task WaitUntilAsync(Func<Task<bool>> condition)
     {
