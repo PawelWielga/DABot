@@ -323,10 +323,10 @@ The web panel is optional and uses Application services. It must not directly ow
 
 ### Runs
 
-- [~] Run list and filtering. The read-only run list is available; UI filtering remains.
-- [ ] Run detail page.
-- [ ] Step history.
-- [ ] Variables.
+- [x] Run list and filtering. The run list supports client-side status and run-ID filtering over the latest persisted runs.
+- [x] Run detail page. Individual durable runs expose scenario identity/version, state, wait/retry timing, and persisted execution metadata.
+- [x] Step history. Run details show persisted step attempts with type, retry safety, status, timing, duration, and errors.
+- [x] Variables. Run details show persisted structured variables with JSON value kind and display value.
 - [ ] Event history.
 - [ ] Artifact links/previews.
 - [ ] Resume action.
