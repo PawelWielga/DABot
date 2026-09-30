@@ -4,7 +4,7 @@ namespace DesktopAutomationBot.Web.Demo;
 
 public sealed class DemoBrowserProfileService : IBrowserProfileService
 {
-    public ValueTask<IBrowserSession> OpenInteractiveAsync(
+    public ValueTask<IInteractiveBrowserSession> OpenInteractiveAsync(
         string profileName,
         string? url = null,
         CancellationToken cancellationToken = default) =>
