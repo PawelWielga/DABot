@@ -12,6 +12,13 @@ public sealed class SqliteRunQueryService(
     {
         await using var connection =
             await OpenConnectionAsync(cancellationToken);
+        if (!await RunsTableExistsAsync(
+                connection,
+                cancellationToken))
+        {
+            return new RunDashboardSummary();
+        }
+
         await using var command = connection.CreateCommand();
         command.CommandText =
             """
@@ -59,6 +66,13 @@ public sealed class SqliteRunQueryService(
 
         await using var connection =
             await OpenConnectionAsync(cancellationToken);
+        if (!await RunsTableExistsAsync(
+                connection,
+                cancellationToken))
+        {
+            return [];
+        }
+
         await using var command = connection.CreateCommand();
 
         command.CommandText =
@@ -115,6 +129,24 @@ public sealed class SqliteRunQueryService(
         }
 
         return items;
+    }
+
+    private static async Task<bool> RunsTableExistsAsync(
+        SqliteConnection connection,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT 1
+            FROM sqlite_master
+            WHERE type = 'table'
+              AND name = 'Runs'
+            LIMIT 1;
+            """;
+
+        return await command.ExecuteScalarAsync(
+            cancellationToken) is not null;
     }
 
     private async Task<SqliteConnection> OpenConnectionAsync(
