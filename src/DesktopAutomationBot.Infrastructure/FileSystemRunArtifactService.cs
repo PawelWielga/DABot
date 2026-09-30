@@ -56,7 +56,10 @@ public sealed class FileSystemRunArtifactService(
         var runDirectory = GetRunDirectory(root, runId);
         var fullPath = Path.GetFullPath(Path.Combine(runDirectory, fileName));
 
-        if (!IsDirectChild(runDirectory, fullPath) || !File.Exists(fullPath))
+        if (!IsDirectChild(runDirectory, fullPath) ||
+            !File.Exists(fullPath) ||
+            IsReparsePoint(runDirectory) ||
+            IsReparsePoint(fullPath))
         {
             return Task.FromResult<RunArtifactContent?>(null);
         }
@@ -85,7 +88,7 @@ public sealed class FileSystemRunArtifactService(
         string root)
     {
         var directory = GetRunDirectory(root, runId);
-        if (!Directory.Exists(directory))
+        if (!Directory.Exists(directory) || IsReparsePoint(directory))
         {
             return;
         }
@@ -95,6 +98,11 @@ public sealed class FileSystemRunArtifactService(
                      "*",
                      SearchOption.TopDirectoryOnly))
         {
+            if (IsReparsePoint(path))
+            {
+                continue;
+            }
+
             var info = new FileInfo(path);
             var (_, canPreview) = GetContentMetadata(path);
             items.Add(
@@ -128,6 +136,9 @@ public sealed class FileSystemRunArtifactService(
                        ? StringComparison.OrdinalIgnoreCase
                        : StringComparison.Ordinal);
     }
+
+    private static bool IsReparsePoint(string path) =>
+        (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
 
     private static void ValidateRunId(Guid runId)
     {
