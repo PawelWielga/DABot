@@ -13,6 +13,11 @@ public interface IBrowserSession : IBrowserAutomation
 {
 }
 
+public interface IInteractiveBrowserSession : IBrowserSession
+{
+    Task Completion { get; }
+}
+
 public interface IBrowserSessionFactory
 {
     ValueTask<IBrowserSession> CreateAsync(
