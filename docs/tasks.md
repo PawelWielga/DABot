@@ -336,7 +336,7 @@ The web panel is optional and uses Application services. It must not directly ow
 
 ### Browser profiles
 
-- [ ] Profile list.
+- [x] Profile list. The management panel lists persistent profile directories through `IBrowserProfileCatalog`; the filesystem adapter ignores internal `.locks` state and the static demo uses representative sample profiles.
 - [ ] Create/rename/delete profile metadata.
 - [ ] Open interactive session.
 - [ ] Clear profile.
