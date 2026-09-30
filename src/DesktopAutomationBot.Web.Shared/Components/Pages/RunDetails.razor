@@ -1,0 +1,197 @@
+@page "/runs/{RunId:guid}"
+@inject IRunQueryService RunQueries
+
+<PageTitle>DABot run details</PageTitle>
+
+@if (_loading)
+{
+    <p>Loading run…</p>
+}
+else if (_run is null)
+{
+    <div class="page-heading">
+        <div>
+            <h1>Run not found</h1>
+            <p class="lead">The requested durable run does not exist.</p>
+        </div>
+        <a class="button secondary" href="runs">Back to runs</a>
+    </div>
+}
+else
+{
+    <div class="page-heading">
+        <div>
+            <h1>Run @ShortId(_run.RunId)</h1>
+            <p class="lead">@_run.ScenarioName</p>
+        </div>
+        <a class="button secondary" href="runs">Back to runs</a>
+    </div>
+
+    <section class="detail-grid">
+        <article class="detail-card">
+            <span>Status</span>
+            <strong><span class="status @_run.Status.ToString().ToLowerInvariant()">@_run.Status</span></strong>
+        </article>
+        <article class="detail-card">
+            <span>Wait reason</span>
+            <strong>@(_run.WaitReason?.ToString() ?? "—")</strong>
+        </article>
+        <article class="detail-card">
+            <span>Scenario version</span>
+            <strong>v@_run.ScenarioVersionNumber</strong>
+        </article>
+        <article class="detail-card">
+            <span>Updated</span>
+            <strong>@FormatTime(_run.UpdatedAt)</strong>
+        </article>
+    </section>
+
+    <section class="panel">
+        <h2>Run metadata</h2>
+        <dl class="metadata-grid">
+            <div>
+                <dt>Run ID</dt>
+                <dd><code>@_run.RunId</code></dd>
+            </div>
+            <div>
+                <dt>Scenario ID</dt>
+                <dd><code>@_run.ScenarioId</code></dd>
+            </div>
+            <div>
+                <dt>Scenario version ID</dt>
+                <dd><code>@_run.ScenarioVersionId</code></dd>
+            </div>
+            <div>
+                <dt>Created</dt>
+                <dd>@FormatTime(_run.CreatedAt)</dd>
+            </div>
+            <div>
+                <dt>Updated</dt>
+                <dd>@FormatTime(_run.UpdatedAt)</dd>
+            </div>
+            <div>
+                <dt>Retry not before</dt>
+                <dd>@(_run.RetryNotBefore is null ? "—" : FormatTime(_run.RetryNotBefore.Value))</dd>
+            </div>
+        </dl>
+    </section>
+
+    <section class="panel">
+        <div class="panel-heading">
+            <div>
+                <h2>Step history</h2>
+                <p>Persisted attempts for this durable run.</p>
+            </div>
+            <span class="muted">@_run.StepAttempts.Count attempt(s)</span>
+        </div>
+
+        @if (_run.StepAttempts.Count == 0)
+        {
+            <p class="muted">No persisted step attempts.</p>
+        }
+        else
+        {
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Step</th>
+                            <th>Type</th>
+                            <th>Attempt</th>
+                            <th>Retry safety</th>
+                            <th>Status</th>
+                            <th>Started</th>
+                            <th>Duration</th>
+                            <th>Error</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var attempt in _run.StepAttempts)
+                        {
+                            <tr>
+                                <td><code>@attempt.StepId</code></td>
+                                <td>@attempt.StepType</td>
+                                <td>@attempt.AttemptNumber</td>
+                                <td>@attempt.RetrySafety</td>
+                                <td><span class="status @attempt.Status.ToString().ToLowerInvariant()">@attempt.Status</span></td>
+                                <td>@FormatTime(attempt.StartedAt)</td>
+                                <td>@FormatDuration(attempt)</td>
+                                <td class="error-cell">@(attempt.ErrorMessage ?? "—")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
+    <section class="panel">
+        <div class="panel-heading">
+            <div>
+                <h2>Variables</h2>
+                <p>Structured persisted run variables.</p>
+            </div>
+            <span class="muted">@_run.Variables.Count variable(s)</span>
+        </div>
+
+        @if (_run.Variables.Count == 0)
+        {
+            <p class="muted">No persisted variables.</p>
+        }
+        else
+        {
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var variable in _run.Variables)
+                        {
+                            <tr>
+                                <td><code>@variable.Name</code></td>
+                                <td>@variable.Kind</td>
+                                <td class="value-cell"><code>@variable.Value</code></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+}
+
+@code {
+    [Parameter]
+    public Guid RunId { get; set; }
+
+    private bool _loading = true;
+    private RunDetail? _run;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        _run = await RunQueries.GetRunAsync(RunId);
+        _loading = false;
+    }
+
+    private static string ShortId(Guid id) =>
+        id.ToString("D")[..8];
+
+    private static string FormatTime(DateTimeOffset value) =>
+        value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
+
+    private static string FormatDuration(RunStepAttemptItem attempt)
+    {
+        var end = attempt.FinishedAt ?? attempt.UpdatedAt;
+        var duration = end - attempt.StartedAt;
+
+        return duration.TotalSeconds >= 1
+            ? $"{duration.TotalSeconds:0.###} s"
+            : $"{duration.TotalMilliseconds:0} ms";
+    }
+}
