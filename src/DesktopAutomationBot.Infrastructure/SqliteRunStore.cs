@@ -6,9 +6,9 @@ using Microsoft.Data.Sqlite;
 
 namespace DesktopAutomationBot.Infrastructure;
 
-public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStore
+public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStore, IEventInboxStore
 {
-    private const int StoreSchemaVersion = 3;
+    private const int StoreSchemaVersion = 4;
 
     private readonly string _connectionString;
     private readonly SemaphoreSlim _initializationLock = new(1, 1);
@@ -554,7 +554,52 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
             CREATE INDEX IX_StepAttempts_RunId_Status
                 ON StepAttempts(RunId, Status);
 
-            PRAGMA user_version = 3;
+            CREATE TABLE AutomationEvents (
+                EventId TEXT NOT NULL PRIMARY KEY,
+                Type TEXT NOT NULL,
+                CorrelationId TEXT NOT NULL,
+                PayloadJson TEXT NOT NULL,
+                OccurredAt TEXT NOT NULL,
+                ReceivedAt TEXT NOT NULL
+            );
+
+            CREATE INDEX IX_AutomationEvents_CorrelationId
+                ON AutomationEvents(CorrelationId);
+
+            CREATE TABLE EventWaits (
+                RunId TEXT NOT NULL PRIMARY KEY,
+                CorrelationId TEXT NOT NULL,
+                EventType TEXT NULL,
+                CreatedAt TEXT NOT NULL,
+                FOREIGN KEY (RunId)
+                    REFERENCES Runs(RunId)
+                    ON DELETE CASCADE
+            );
+
+            CREATE UNIQUE INDEX UX_EventWaits_Correlation
+                ON EventWaits(CorrelationId, IFNULL(EventType, ''));
+
+            CREATE TABLE ResumeWorkItems (
+                WorkItemId TEXT NOT NULL PRIMARY KEY,
+                RunId TEXT NOT NULL,
+                EventId TEXT NOT NULL,
+                Status TEXT NOT NULL,
+                CreatedAt TEXT NOT NULL,
+                FinishedAt TEXT NULL,
+                ErrorMessage TEXT NULL,
+                UNIQUE (EventId),
+                FOREIGN KEY (RunId)
+                    REFERENCES Runs(RunId)
+                    ON DELETE CASCADE,
+                FOREIGN KEY (EventId)
+                    REFERENCES AutomationEvents(EventId)
+                    ON DELETE CASCADE
+            );
+
+            CREATE INDEX IX_ResumeWorkItems_Status_CreatedAt
+                ON ResumeWorkItems(Status, CreatedAt);
+
+            PRAGMA user_version = 4;
             """;
 
         await command.ExecuteNonQueryAsync(cancellationToken);
@@ -580,6 +625,11 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
                 case 2:
                     await MigrateV2ToV3Async(connection, cancellationToken);
                     version = 3;
+                    break;
+
+                case 3:
+                    await MigrateV3ToV4Async(connection, cancellationToken);
+                    version = 4;
                     break;
 
                 default:
@@ -650,6 +700,69 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
               AND RetryNotBefore IS NULL;
 
             PRAGMA user_version = 3;
+            """;
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    private static async Task MigrateV3ToV4Async(
+        SqliteConnection connection,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction =
+            (SqliteTransaction)await connection.BeginTransactionAsync(
+                cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText =
+            """
+            CREATE TABLE AutomationEvents (
+                EventId TEXT NOT NULL PRIMARY KEY,
+                Type TEXT NOT NULL,
+                CorrelationId TEXT NOT NULL,
+                PayloadJson TEXT NOT NULL,
+                OccurredAt TEXT NOT NULL,
+                ReceivedAt TEXT NOT NULL
+            );
+
+            CREATE INDEX IX_AutomationEvents_CorrelationId
+                ON AutomationEvents(CorrelationId);
+
+            CREATE TABLE EventWaits (
+                RunId TEXT NOT NULL PRIMARY KEY,
+                CorrelationId TEXT NOT NULL,
+                EventType TEXT NULL,
+                CreatedAt TEXT NOT NULL,
+                FOREIGN KEY (RunId)
+                    REFERENCES Runs(RunId)
+                    ON DELETE CASCADE
+            );
+
+            CREATE UNIQUE INDEX UX_EventWaits_Correlation
+                ON EventWaits(CorrelationId, IFNULL(EventType, ''));
+
+            CREATE TABLE ResumeWorkItems (
+                WorkItemId TEXT NOT NULL PRIMARY KEY,
+                RunId TEXT NOT NULL,
+                EventId TEXT NOT NULL,
+                Status TEXT NOT NULL,
+                CreatedAt TEXT NOT NULL,
+                FinishedAt TEXT NULL,
+                ErrorMessage TEXT NULL,
+                UNIQUE (EventId),
+                FOREIGN KEY (RunId)
+                    REFERENCES Runs(RunId)
+                    ON DELETE CASCADE,
+                FOREIGN KEY (EventId)
+                    REFERENCES AutomationEvents(EventId)
+                    ON DELETE CASCADE
+            );
+
+            CREATE INDEX IX_ResumeWorkItems_Status_CreatedAt
+                ON ResumeWorkItems(Status, CreatedAt);
+
+            PRAGMA user_version = 4;
             """;
 
         await command.ExecuteNonQueryAsync(cancellationToken);
