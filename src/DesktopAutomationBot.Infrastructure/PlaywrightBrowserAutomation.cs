@@ -4,16 +4,20 @@ using Microsoft.Playwright;
 
 namespace DesktopAutomationBot.Infrastructure;
 
-public sealed class PlaywrightBrowserAutomation : IBrowserSession
+public sealed class PlaywrightBrowserAutomation : IInteractiveBrowserSession
 {
     private readonly BotOptions _options;
     private readonly string? _persistentProfileDirectory;
     private readonly IAsyncDisposable? _profileLease;
     private readonly bool? _headlessOverride;
+    private readonly TaskCompletionSource _completion =
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
     private IPlaywright? _playwright;
     private IBrowser? _browser;
     private IBrowserContext? _context;
     private IPage? _page;
+
+    public Task Completion => _completion.Task;
 
     public PlaywrightBrowserAutomation(BotOptions options)
         : this(
@@ -86,6 +90,8 @@ public sealed class PlaywrightBrowserAutomation : IBrowserSession
                     },
                 }).WaitAsync(cancellationToken);
 
+            _context.Close += OnContextClosed;
+
             _page = _context.Pages.FirstOrDefault() ??
                 await _context.NewPageAsync()
                     .WaitAsync(cancellationToken);
@@ -103,6 +109,8 @@ public sealed class PlaywrightBrowserAutomation : IBrowserSession
                 Height = _options.Browser.ViewportHeight,
             },
         }).WaitAsync(cancellationToken);
+
+        _context.Close += OnContextClosed;
 
         _page = await _context.NewPageAsync()
             .WaitAsync(cancellationToken);
@@ -323,32 +331,54 @@ public sealed class PlaywrightBrowserAutomation : IBrowserSession
 
     public async ValueTask DisposeAsync()
     {
-        if (_page is not null)
+        try
         {
-            await _page.CloseAsync();
+            if (_context is { IsClosed: false })
+            {
+                try
+                {
+                    await _context.CloseAsync();
+                }
+                catch (PlaywrightException) when (_context.IsClosed)
+                {
+                    // The headed browser may have been closed manually
+                    // between the state check and CloseAsync.
+                }
+            }
+
+            if (_browser is { IsConnected: true })
+            {
+                try
+                {
+                    await _browser.CloseAsync();
+                }
+                catch (PlaywrightException) when (!_browser.IsConnected)
+                {
+                    // The browser may have disconnected while closing.
+                }
+            }
         }
-
-        if (_context is not null)
+        finally
         {
-            await _context.CloseAsync();
-        }
+            _playwright?.Dispose();
+            _page = null;
+            _context = null;
+            _browser = null;
+            _playwright = null;
 
-        if (_browser is not null)
-        {
-            await _browser.CloseAsync();
-        }
+            if (_profileLease is not null)
+            {
+                await _profileLease.DisposeAsync();
+            }
 
-        _playwright?.Dispose();
-        _page = null;
-        _context = null;
-        _browser = null;
-        _playwright = null;
-
-        if (_profileLease is not null)
-        {
-            await _profileLease.DisposeAsync();
+            _completion.TrySetResult();
         }
     }
+
+    private void OnContextClosed(
+        object? sender,
+        IBrowserContext context) =>
+        _completion.TrySetResult();
 
     private static ILocator CreateLocator(
         IPage page,
