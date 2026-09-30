@@ -207,7 +207,7 @@ public sealed class SqliteRunQueryServiceTests : IDisposable
         item.Type.Should().Be("order.approved");
         item.CorrelationId.Should().Be("order-42");
         item.WorkItemId.Should()
-            .Be(acceptance.ResumeWorkItemId);
+            .Be(acceptance.ResumeWorkItemId!.Value);
         item.WorkItemStatus.Should()
             .Be(ResumeWorkItemStatus.Pending);
         item.AttemptCount.Should().Be(0);
