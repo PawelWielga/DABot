@@ -114,6 +114,8 @@ public sealed record PageObserverSnapshot
 
     public DateTimeOffset? LastEventAt { get; init; }
 
+    public int FailureCount { get; init; }
+
     public string? LastError { get; init; }
 }
 
