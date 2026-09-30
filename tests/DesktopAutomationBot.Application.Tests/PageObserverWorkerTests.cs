@@ -78,6 +78,49 @@ public sealed class PageObserverWorkerTests
             .Be("published");
     }
 
+
+    [Fact]
+    public async Task RunOnceAsync_DomChanged_BuildsHashBaselineThenEmitsOnChange()
+    {
+        var now = DateTimeOffset.Parse(
+            "2026-09-30T11:15:00+02:00");
+        var time = new MutableTimeProvider(now);
+        var observer = CreateObserver(
+            PageObserverConditionKind.DomChanged);
+        var store = new InMemoryObserverStore(observer);
+        var sessions = new RecordingSessionFactory();
+        sessions.HtmlValues.Enqueue("<div id=\"status\"><span>draft</span></div>");
+        sessions.HtmlValues.Enqueue("<div id=\"status\"><span>published</span></div>");
+        var publisher = new RecordingEventPublisher();
+        var worker = new PageObserverWorker(
+            store,
+            sessions,
+            publisher,
+            time);
+
+        await worker.RunOnceAsync();
+
+        publisher.Events.Should().BeEmpty();
+        store.Snapshot.LastObservation.Should()
+            .NotBeNullOrWhiteSpace()
+            .And.HaveLength(64);
+
+        var firstHash = store.Snapshot.LastObservation;
+
+        time.Advance(TimeSpan.FromSeconds(2));
+        await worker.RunOnceAsync();
+
+        publisher.Events.Should().ContainSingle();
+        store.Snapshot.LastObservation.Should()
+            .NotBe(firstHash);
+        publisher.Events[0].Payload
+            .ToJsonElement()
+            .GetProperty("observation")
+            .GetString()
+            .Should()
+            .Be(store.Snapshot.LastObservation);
+    }
+
     [Fact]
     public async Task RunOnceAsync_WhenBrowserFails_PersistsErrorBackoff()
     {
@@ -284,6 +327,14 @@ public sealed class PageObserverWorkerTests
             public Task<string> GetCurrentUrlAsync(
                 CancellationToken cancellationToken = default) =>
                 Task.FromResult("https://example.test/status");
+
+            public Task<string> ReadHtmlAsync(
+                ScenarioLocator locator,
+                CancellationToken cancellationToken = default) =>
+                Task.FromResult(
+                    owner.HtmlValues.Count > 0
+                        ? owner.HtmlValues.Dequeue()
+                        : string.Empty);
 
             public Task<string> ReadTextAsync(
                 string selector,
