@@ -14,6 +14,10 @@ public interface IBrowserProfileManagementService
     Task DeleteAsync(
         string profileName,
         CancellationToken cancellationToken = default);
+
+    Task ClearAsync(
+        string profileName,
+        CancellationToken cancellationToken = default);
 }
 
 public static class BrowserProfileNameRules
