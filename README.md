@@ -275,7 +275,7 @@ dotnet run --project src/DesktopAutomationBot.Runner -- event publish --id <guid
 dotnet run --project src/DesktopAutomationBot.Runner -- event-worker
 ```
 
-Event delivery is idempotent by `EventId`; the worker resumes matching persisted `Suspend(reason: Event)` runs from durable work items.
+Event delivery is idempotent by `EventId`; the worker resumes matching persisted `Suspend(reason: Event)` runs from durable work items. Failed resume work items use persisted exponential backoff and move to a durable dead-letter queue after the configured maximum attempts.
 ```
 
 The retry worker polls SQLite using `bot.retryWorker.pollIntervalMs` and processes at most `bot.retryWorker.batchSize` due runs per sweep. Ctrl+C requests a graceful stop: an active durable retry is allowed to finish, then the worker stops before starting the next run.
