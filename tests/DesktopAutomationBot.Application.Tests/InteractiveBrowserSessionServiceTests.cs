@@ -114,7 +114,7 @@ public sealed class InteractiveBrowserSessionServiceTests
 
     private sealed class RecordingInteractiveSession : IInteractiveBrowserSession
     {
-        private readonly TaskCompletionSource _completion =
+        private readonly TaskCompletionSource<bool> _completion =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public Task Completion => _completion.Task;
@@ -122,7 +122,7 @@ public sealed class InteractiveBrowserSessionServiceTests
         public int DisposeCount { get; private set; }
 
         public void SignalBrowserClosed() =>
-            _completion.TrySetResult();
+            _completion.TrySetResult(true);
 
         public Task OpenAsync(
             CancellationToken cancellationToken = default) =>
@@ -192,7 +192,7 @@ public sealed class InteractiveBrowserSessionServiceTests
         public ValueTask DisposeAsync()
         {
             DisposeCount++;
-            _completion.TrySetResult();
+            _completion.TrySetResult(true);
             return ValueTask.CompletedTask;
         }
     }
