@@ -31,28 +31,30 @@ public interface IEventResumeWorker
         CancellationToken cancellationToken = default);
 }
 
-public sealed class EventResumeWorker(
-    IEventInboxStore eventInboxStore,
-    IDurableRunControlService runControlService,
-    TimeProvider timeProvider) : IEventResumeWorker
+public sealed class EventResumeWorker : IEventResumeWorker
 {
+    private readonly IEventInboxStore _eventInboxStore;
+    private readonly IDurableRunControlService _runControlService;
+    private readonly TimeProvider _timeProvider;
+    private readonly EventWorkerOptions _defaultOptions;
+
+    public EventResumeWorker(
+        IEventInboxStore eventInboxStore,
+        IDurableRunControlService runControlService,
+        TimeProvider timeProvider,
+        BotOptions? options = null)
+    {
+        _eventInboxStore = eventInboxStore;
+        _runControlService = runControlService;
+        _timeProvider = timeProvider;
+        _defaultOptions = options?.EventWorker ?? new EventWorkerOptions();
+    }
+
     public async Task RunAsync(
         EventWorkerOptions options,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(options);
-
-        if (options.PollIntervalMs <= 0)
-        {
-            throw new InvalidOperationException(
-                "Event worker pollIntervalMs must be greater than zero.");
-        }
-
-        if (options.BatchSize <= 0)
-        {
-            throw new InvalidOperationException(
-                "Event worker batchSize must be greater than zero.");
-        }
+        ValidateOptions(options);
 
         while (!cancellationToken.IsCancellationRequested)
         {
@@ -60,6 +62,7 @@ public sealed class EventResumeWorker(
             {
                 await RunOnceAsync(
                     options.BatchSize,
+                    options,
                     cancellationToken);
             }
             catch (OperationCanceledException)
@@ -87,12 +90,26 @@ public sealed class EventResumeWorker(
         }
     }
 
-    public async Task<int> RunOnceAsync(
+    public Task<int> RunOnceAsync(
         int limit = 100,
         CancellationToken cancellationToken = default)
     {
+        ValidateOptions(_defaultOptions);
+        return RunOnceAsync(
+            limit,
+            _defaultOptions,
+            cancellationToken);
+    }
+
+    private async Task<int> RunOnceAsync(
+        int limit,
+        EventWorkerOptions options,
+        CancellationToken cancellationToken)
+    {
+        var now = _timeProvider.GetUtcNow();
         var items =
-            await eventInboxStore.LoadPendingResumeWorkItemsAsync(
+            await _eventInboxStore.LoadPendingResumeWorkItemsAsync(
+                now,
                 limit,
                 cancellationToken);
 
@@ -104,13 +121,13 @@ public sealed class EventResumeWorker(
 
             try
             {
-                await runControlService.ResumeManuallyAsync(
+                await _runControlService.ResumeManuallyAsync(
                     item.RunId,
                     cancellationToken);
 
-                await eventInboxStore.MarkResumeWorkItemCompletedAsync(
+                await _eventInboxStore.MarkResumeWorkItemCompletedAsync(
                     item.WorkItemId,
-                    timeProvider.GetUtcNow(),
+                    _timeProvider.GetUtcNow(),
                     cancellationToken);
             }
             catch (OperationCanceledException)
@@ -120,16 +137,98 @@ public sealed class EventResumeWorker(
             }
             catch (Exception exception)
             {
-                await eventInboxStore.MarkResumeWorkItemFailedAsync(
-                    item.WorkItemId,
-                    exception.Message,
-                    timeProvider.GetUtcNow(),
-                    CancellationToken.None);
+                var failedAttempt = item.AttemptCount + 1;
+                var failedAt = _timeProvider.GetUtcNow();
+
+                if (failedAttempt >= options.MaxAttempts)
+                {
+                    await _eventInboxStore.DeadLetterResumeWorkItemAsync(
+                        item.WorkItemId,
+                        exception.Message,
+                        failedAt,
+                        CancellationToken.None);
+                }
+                else
+                {
+                    var delay = CalculateRetryDelay(
+                        failedAttempt,
+                        options);
+
+                    await _eventInboxStore.ScheduleResumeWorkItemRetryAsync(
+                        item.WorkItemId,
+                        exception.Message,
+                        failedAt.Add(delay),
+                        CancellationToken.None);
+                }
             }
 
             processed++;
         }
 
         return processed;
+    }
+
+    internal static TimeSpan CalculateRetryDelay(
+        int failedAttempt,
+        EventWorkerOptions options)
+    {
+        if (failedAttempt <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(failedAttempt));
+        }
+
+        ValidateOptions(options);
+
+        if (options.BaseRetryDelayMs == 0)
+        {
+            return TimeSpan.Zero;
+        }
+
+        var exponent = Math.Min(
+            failedAttempt - 1,
+            30);
+        var multiplier = 1L << exponent;
+        var delayMs = Math.Min(
+            (long)options.MaxRetryDelayMs,
+            (long)options.BaseRetryDelayMs * multiplier);
+
+        return TimeSpan.FromMilliseconds(delayMs);
+    }
+
+    private static void ValidateOptions(
+        EventWorkerOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        if (options.PollIntervalMs <= 0)
+        {
+            throw new InvalidOperationException(
+                "Event worker pollIntervalMs must be greater than zero.");
+        }
+
+        if (options.BatchSize <= 0)
+        {
+            throw new InvalidOperationException(
+                "Event worker batchSize must be greater than zero.");
+        }
+
+        if (options.MaxAttempts <= 0)
+        {
+            throw new InvalidOperationException(
+                "Event worker maxAttempts must be greater than zero.");
+        }
+
+        if (options.BaseRetryDelayMs < 0)
+        {
+            throw new InvalidOperationException(
+                "Event worker baseRetryDelayMs must not be negative.");
+        }
+
+        if (options.MaxRetryDelayMs < options.BaseRetryDelayMs)
+        {
+            throw new InvalidOperationException(
+                "Event worker maxRetryDelayMs must be greater than or equal to baseRetryDelayMs.");
+        }
     }
 }
