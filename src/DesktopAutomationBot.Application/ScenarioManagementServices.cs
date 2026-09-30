@@ -33,6 +33,31 @@ public sealed record ScenarioWriteResult(
     bool Success,
     IReadOnlyList<string> Errors);
 
+public static class ScenarioFileName
+{
+    public static void Validate(string fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            throw new ArgumentException(
+                "Scenario file name is required.",
+                nameof(fileName));
+        }
+
+        if (!string.Equals(
+                Path.GetFileName(fileName),
+                fileName,
+                StringComparison.Ordinal) ||
+            fileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 ||
+            !fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException(
+                "Scenario file name must be a simple .json file name without directory segments.",
+                nameof(fileName));
+        }
+    }
+}
+
 public static class ScenarioJsonValidation
 {
     private static readonly JsonSerializerOptions SerializerOptions = new()
