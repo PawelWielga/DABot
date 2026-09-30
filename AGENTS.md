@@ -68,7 +68,7 @@ Planned:
 - Remote interactive browser setup must go through Application-level use cases; the Web project must not directly launch or control Playwright.
 - Do not model interactive access as an iframe of the target website. The operator must interact with the real headed browser that owns the selected persistent profile.
 - Keep remote-display/VNC/noVNC/WebSocket implementation details in Infrastructure. Do not expose a public reusable VNC/noVNC credential or require inbound public agent ports in the normal topology.
-- Interactive profile access must use exclusive locking, short-lived authorization, timeout/cleanup, and audit. It must not race a run or observer using the same profile.
+- Interactive profile access must use exclusive locking, short-lived authorization, bounded lifetime/cleanup, and audit. The local lifecycle enforces configurable maximum duration through `bot.interactiveBrowser.maxDurationSeconds`; remote streaming still needs inactivity cleanup and short-lived grants. It must not race a run or observer using the same profile.
 - Credentials and MFA values typed by an operator inside an interactive browser must not be captured into scenario variables, configuration, logs, or audit payloads.
 - A future human **Take control** flow must explicitly coordinate browser-command ownership before accepting operator input; Playwright and a human must not issue commands concurrently.
 - Do not keep `IBrowserAutomation` as a global singleton when session isolation or concurrency is required.
@@ -104,7 +104,7 @@ The web panel currently provides a dashboard, run list/details and guarded run a
 
 - visual scenario editing synchronized with JSON,
 - scenario import/export and test runs,
-- remote interactive-browser display/input streaming with authorization, timeout/cleanup, and audit,
+- remote interactive-browser display/input streaming with authorization, inactivity cleanup, and audit,
 - configuration.
 
 Later features may include:
