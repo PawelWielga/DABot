@@ -660,6 +660,67 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
         Guid? workItemId = null;
         if (runId is { } matchedRunId)
         {
+            await using (var loadVariables = connection.CreateCommand())
+            {
+                loadVariables.Transaction = transaction;
+                loadVariables.CommandText =
+                    """
+                    SELECT VariablesJson
+                    FROM Runs
+                    WHERE RunId = $runId;
+                    """;
+                loadVariables.Parameters.AddWithValue(
+                    "$runId",
+                    matchedRunId.ToString("D"));
+
+                var rawVariables =
+                    await loadVariables.ExecuteScalarAsync(cancellationToken)
+                    as string
+                    ?? throw new InvalidOperationException(
+                        $"Matched run '{matchedRunId}' no longer exists.");
+
+                var eventVariables =
+                    DeserializeVariables(rawVariables);
+                eventVariables["event.id"] =
+                    ScenarioVariableValue.FromString(
+                        validated.EventId.ToString("D"));
+                eventVariables["event.type"] =
+                    ScenarioVariableValue.FromString(validated.Type);
+                eventVariables["event.correlationId"] =
+                    ScenarioVariableValue.FromString(
+                        validated.CorrelationId);
+                eventVariables["event.payload"] =
+                    ScenarioVariableValue.FromJsonElement(
+                        validated.Payload.ToJsonElement());
+                eventVariables["event.occurredAt"] =
+                    ScenarioVariableValue.FromString(
+                        FormatTimestamp(validated.OccurredAt));
+
+                await using var updateVariables =
+                    connection.CreateCommand();
+                updateVariables.Transaction = transaction;
+                updateVariables.CommandText =
+                    """
+                    UPDATE Runs
+                    SET
+                        VariablesJson = $variablesJson,
+                        UpdatedAt = $updatedAt
+                    WHERE RunId = $runId;
+                    """;
+                updateVariables.Parameters.AddWithValue(
+                    "$variablesJson",
+                    SerializeVariables(eventVariables));
+                updateVariables.Parameters.AddWithValue(
+                    "$updatedAt",
+                    FormatTimestamp(DateTimeOffset.UtcNow));
+                updateVariables.Parameters.AddWithValue(
+                    "$runId",
+                    matchedRunId.ToString("D"));
+
+                await updateVariables.ExecuteNonQueryAsync(
+                    cancellationToken);
+            }
+
             workItemId = Guid.NewGuid();
 
             await using (var insertWork = connection.CreateCommand())
