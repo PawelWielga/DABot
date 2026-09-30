@@ -407,7 +407,7 @@ public sealed class SqliteRunStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task ExistingVersion1Database_IsMigratedToVersion3()
+    public async Task ExistingVersion1Database_IsMigratedToVersion4()
     {
         var databasePath = Path.Combine(_tempDirectory, "schema-v1.db");
         await CreateVersion1DatabaseAsync(databasePath);
@@ -439,11 +439,11 @@ public sealed class SqliteRunStoreTests : IDisposable
         command.CommandText = "PRAGMA user_version;";
         var rawVersion = await command.ExecuteScalarAsync();
 
-        Convert.ToInt32(rawVersion).Should().Be(3);
+        Convert.ToInt32(rawVersion).Should().Be(4);
     }
 
     [Fact]
-    public async Task ExistingVersion2RetryWait_IsMigratedAndBackfilledToVersion3()
+    public async Task ExistingVersion2RetryWait_IsMigratedAndBackfilledToVersion4()
     {
         var databasePath = Path.Combine(_tempDirectory, "schema-v2.db");
         var version = CreateScenarioVersion();
@@ -479,7 +479,7 @@ public sealed class SqliteRunStoreTests : IDisposable
         command.CommandText = "PRAGMA user_version;";
         var rawVersion = await command.ExecuteScalarAsync();
 
-        Convert.ToInt32(rawVersion).Should().Be(3);
+        Convert.ToInt32(rawVersion).Should().Be(4);
     }
 
     [Fact]
@@ -541,6 +541,187 @@ public sealed class SqliteRunStoreTests : IDisposable
 
         allDue.Should().Equal(oldestDue.RunId, newestDue.RunId);
         firstDue.Should().Equal(oldestDue.RunId);
+    }
+
+
+    [Fact]
+    public async Task AcceptAsync_MatchingEvent_SchedulesExactlyOneResumeAndPersistsPayload()
+    {
+        var databasePath = Path.Combine(
+            _tempDirectory,
+            "event-inbox.db");
+        var store = new SqliteRunStore(
+            CreateOptions(databasePath));
+        var version = CreateScenarioVersion();
+        var createdAt =
+            DateTimeOffset.Parse("2026-09-30T08:00:00+02:00");
+        var waiting = CreateRun(
+            version,
+            RunState.Restore(
+                RunStatus.Waiting,
+                RunWaitReason.Event),
+            createdAt,
+            createdAt.AddSeconds(1));
+
+        await store.ArmEventWaitAsync(
+            waiting,
+            version,
+            new EventWaitRegistration
+            {
+                RunId = waiting.RunId,
+                CorrelationId = "order-123",
+                EventType = "order.approved",
+                CreatedAt = waiting.UpdatedAt,
+            });
+
+        var automationEvent = AutomationEvent.Create(
+            Guid.NewGuid(),
+            "order.approved",
+            "order-123",
+            ScenarioVariableValue.ParseJson(
+                """{"approved":true,"amount":42}"""),
+            createdAt.AddMinutes(1));
+
+        var first = await store.AcceptAsync(
+            automationEvent);
+        var duplicate = await store.AcceptAsync(
+            automationEvent);
+        var workItems =
+            await store.LoadPendingResumeWorkItemsAsync();
+        var loaded = await store.LoadAsync(waiting.RunId);
+
+        first.IsDuplicate.Should().BeFalse();
+        first.MatchedWaitingRun.Should().BeTrue();
+        first.RunId.Should().Be(waiting.RunId);
+        first.ResumeWorkItemId.Should().NotBeNull();
+
+        duplicate.IsDuplicate.Should().BeTrue();
+        duplicate.RunId.Should().Be(waiting.RunId);
+        duplicate.ResumeWorkItemId.Should()
+            .Be(first.ResumeWorkItemId);
+
+        workItems.Should().ContainSingle();
+        workItems[0].RunId.Should().Be(waiting.RunId);
+        workItems[0].EventId.Should()
+            .Be(automationEvent.EventId);
+
+        loaded.Should().NotBeNull();
+        loaded!.Run.Variables["event.id"]
+            .ToInterpolationString()
+            .Should()
+            .Be(automationEvent.EventId.ToString("D"));
+        loaded.Run.Variables["event.type"]
+            .ToInterpolationString()
+            .Should()
+            .Be("order.approved");
+        loaded.Run.Variables["event.correlationId"]
+            .ToInterpolationString()
+            .Should()
+            .Be("order-123");
+        loaded.Run.Variables["event.payload"]
+            .ToJsonElement()
+            .GetProperty("approved")
+            .GetBoolean()
+            .Should()
+            .BeTrue();
+    }
+
+    [Fact]
+    public async Task AcceptAsync_NonMatchingEvent_IsPersistedWithoutSchedulingResume()
+    {
+        var databasePath = Path.Combine(
+            _tempDirectory,
+            "unmatched-event.db");
+        var store = new SqliteRunStore(
+            CreateOptions(databasePath));
+        var version = CreateScenarioVersion();
+        var createdAt =
+            DateTimeOffset.Parse("2026-09-30T08:30:00+02:00");
+        var waiting = CreateRun(
+            version,
+            RunState.Restore(
+                RunStatus.Waiting,
+                RunWaitReason.Event),
+            createdAt,
+            createdAt.AddSeconds(1));
+
+        await store.ArmEventWaitAsync(
+            waiting,
+            version,
+            new EventWaitRegistration
+            {
+                RunId = waiting.RunId,
+                CorrelationId = "order-456",
+                EventType = "order.approved",
+                CreatedAt = waiting.UpdatedAt,
+            });
+
+        var result = await store.AcceptAsync(
+            AutomationEvent.Create(
+                Guid.NewGuid(),
+                "order.rejected",
+                "order-456",
+                ScenarioVariableValue.FromNull(),
+                createdAt.AddMinutes(1)));
+
+        result.IsDuplicate.Should().BeFalse();
+        result.MatchedWaitingRun.Should().BeFalse();
+
+        var workItems =
+            await store.LoadPendingResumeWorkItemsAsync();
+        workItems.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ArmEventWaitAsync_WhenCorrelationIsAlreadyActive_RejectsSecondRun()
+    {
+        var databasePath = Path.Combine(
+            _tempDirectory,
+            "event-correlation-unique.db");
+        var store = new SqliteRunStore(
+            CreateOptions(databasePath));
+        var version = CreateScenarioVersion();
+        var createdAt =
+            DateTimeOffset.Parse("2026-09-30T09:00:00+02:00");
+
+        var first = CreateRun(
+            version,
+            RunState.Restore(
+                RunStatus.Waiting,
+                RunWaitReason.Event),
+            createdAt,
+            createdAt.AddSeconds(1));
+        var second = CreateRun(
+            version,
+            RunState.Restore(
+                RunStatus.Waiting,
+                RunWaitReason.Event),
+            createdAt.AddSeconds(2),
+            createdAt.AddSeconds(3));
+
+        await store.ArmEventWaitAsync(
+            first,
+            version,
+            new EventWaitRegistration
+            {
+                RunId = first.RunId,
+                CorrelationId = "shared-correlation",
+                CreatedAt = first.UpdatedAt,
+            });
+
+        var action = () => store.ArmEventWaitAsync(
+            second,
+            version,
+            new EventWaitRegistration
+            {
+                RunId = second.RunId,
+                CorrelationId = "shared-correlation",
+                CreatedAt = second.UpdatedAt,
+            });
+
+        await action.Should()
+            .ThrowAsync<InvalidOperationException>()
+            .WithMessage("*already used*");
     }
 
     public void Dispose()
