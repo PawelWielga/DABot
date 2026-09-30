@@ -76,6 +76,19 @@ public interface IBrowserAutomation : IAsyncDisposable
 
     Task WaitForLoadStateAsync(string loadState, int? timeoutMs = null, CancellationToken cancellationToken = default);
 
+    Task<bool> IsVisibleAsync(
+        ScenarioLocator locator,
+        CancellationToken cancellationToken = default) =>
+        Task.FromException<bool>(
+            new NotSupportedException(
+                "Visibility checks are not supported by this browser automation implementation."));
+
+    Task<string> GetCurrentUrlAsync(
+        CancellationToken cancellationToken = default) =>
+        Task.FromException<string>(
+            new NotSupportedException(
+                "Reading the current URL is not supported by this browser automation implementation."));
+
     Task<string> TakeScreenshotAsync(string filePath, CancellationToken cancellationToken = default);
 
     Task<string> SaveHtmlSnapshotAsync(
