@@ -345,7 +345,7 @@ The web panel is optional and uses Application services. It must not directly ow
 - [ ] Ensure usernames/passwords/MFA values typed in the interactive browser are not captured as DABot configuration, scenario variables, or logs.
 - [ ] Add an optional later **Take control** flow for diagnostics, gated by explicit browser-command ownership coordination with the active run.
 - [ ] Clear profile.
-- [ ] Test profile.
+- [x] Test profile. The profiles page invokes the existing Application-level headless profile health check, which acquires the normal exclusive profile lease before launching Chromium.
 
 ### Configuration
 
