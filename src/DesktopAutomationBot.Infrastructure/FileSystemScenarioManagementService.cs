@@ -105,24 +105,7 @@ public sealed class FileSystemScenarioManagementService : IScenarioManagementSer
 
     private string ResolveFilePath(string fileName)
     {
-        if (string.IsNullOrWhiteSpace(fileName))
-        {
-            throw new ArgumentException(
-                "Scenario file name is required.",
-                nameof(fileName));
-        }
-
-        if (!string.Equals(
-                Path.GetFileName(fileName),
-                fileName,
-                StringComparison.Ordinal) ||
-            fileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 ||
-            !fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
-        {
-            throw new ArgumentException(
-                "Scenario file name must be a simple .json file name without directory segments.",
-                nameof(fileName));
-        }
+        ScenarioFileName.Validate(fileName);
 
         var path = Path.GetFullPath(
             Path.Combine(_scenariosDirectory, fileName));
