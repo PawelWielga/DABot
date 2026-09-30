@@ -1,9 +1,10 @@
+@using Microsoft.Extensions.Logging
 @page "/runs/{RunId:guid}"
 @inject IRunQueryService RunQueries
 @inject IRunArtifactService RunArtifacts
 @inject IDurableRunControlService RunControl
 @inject ManagementUiEnvironment UiEnvironment
-@inject Microsoft.Extensions.Logging.ILogger<RunDetails> Logger
+@inject ILogger<RunDetails> Logger
 
 <PageTitle>DABot run details</PageTitle>
 
