@@ -11,7 +11,7 @@ public sealed record BrowserProfileTestResult
 
 public interface IBrowserProfileService
 {
-    ValueTask<IBrowserSession> OpenInteractiveAsync(
+    ValueTask<IInteractiveBrowserSession> OpenInteractiveAsync(
         string profileName,
         string? url = null,
         CancellationToken cancellationToken = default);
@@ -24,7 +24,7 @@ public interface IBrowserProfileService
 public sealed class BrowserProfileService(
     IBrowserSessionFactory sessionFactory) : IBrowserProfileService
 {
-    public async ValueTask<IBrowserSession> OpenInteractiveAsync(
+    public async ValueTask<IInteractiveBrowserSession> OpenInteractiveAsync(
         string profileName,
         string? url = null,
         CancellationToken cancellationToken = default)
@@ -37,22 +37,29 @@ public sealed class BrowserProfileService(
             },
             cancellationToken);
 
+        if (session is not IInteractiveBrowserSession interactiveSession)
+        {
+            await session.DisposeAsync();
+            throw new NotSupportedException(
+                "The configured browser session does not expose interactive-session lifetime events.");
+        }
+
         try
         {
-            await session.OpenAsync(cancellationToken);
+            await interactiveSession.OpenAsync(cancellationToken);
 
             if (!string.IsNullOrWhiteSpace(url))
             {
-                await session.NavigateAsync(
+                await interactiveSession.NavigateAsync(
                     url,
                     cancellationToken: cancellationToken);
             }
 
-            return session;
+            return interactiveSession;
         }
         catch
         {
-            await session.DisposeAsync();
+            await interactiveSession.DisposeAsync();
             throw;
         }
     }
