@@ -107,7 +107,8 @@ The current local lifecycle is:
 3. the normal profile lease prevents a run, observer, health test, mutation, or second interactive session from using that profile concurrently,
 4. `IInteractiveBrowserSessionService` retains the session beyond the initiating web request and exposes active-session state to the page,
 5. **Close browser** disposes the session and releases the lease,
-6. if the Chromium window is closed manually or crashes, Playwright's browser-context close signal completes the session lifetime and DABot automatically removes/disposes the active-session handle.
+6. if the Chromium window is closed manually or crashes, Playwright's browser-context close signal completes the session lifetime and DABot automatically removes/disposes the active-session handle,
+7. every interactive session has an absolute maximum lifetime from `bot.interactiveBrowser.maxDurationSeconds` (default 1800 seconds); expiry closes the browser and releases the lease even when the operator leaves the panel.
 
 The next stage is remote interaction: stream the browser display and keyboard/mouse input to the management panel through an authenticated remote-display bridge so the operator does not need access to the runtime node's desktop.
 
@@ -122,7 +123,7 @@ Security requirements:
 - persistent profile contents, including cookies and local storage, must be treated as sensitive authentication material,
 - only one conflicting owner may use a persistent profile at a time; an interactive session must not overlap a run or observer using the same profile,
 - opening, closing, expiring, and force-terminating an interactive session must be auditable,
-- interactive sessions require inactivity/maximum-duration cleanup so abandoned browser processes and profile locks do not remain indefinitely,
+- interactive sessions have configurable maximum-duration cleanup; inactivity cleanup is still required before remote streaming is considered complete,
 - the GitHub Pages demo must never create a real remote browser session.
 
 A later diagnostic extension may offer **Take control** for a browser already involved in a run. That must first coordinate ownership with the runtime so automation and a human cannot issue browser commands concurrently. It must not bypass run leases, profile locks, or audit rules.
