@@ -793,6 +793,16 @@ public sealed class SqliteRunStoreTests : IDisposable
                 DateTimeOffset.MaxValue);
         afterDeadLetter.Should().BeEmpty();
 
+        var deadLetters =
+            await store.LoadDeadLetterResumeWorkItemsAsync();
+        deadLetters.Should().ContainSingle();
+        deadLetters[0].WorkItemId.Should().Be(workItemId);
+        deadLetters[0].Status.Should().Be(
+            ResumeWorkItemStatus.DeadLetter);
+        deadLetters[0].AttemptCount.Should().Be(2);
+        deadLetters[0].ErrorMessage.Should().Be(
+            "permanent failure");
+
         await using var connection = new SqliteConnection(
             new SqliteConnectionStringBuilder
             {
