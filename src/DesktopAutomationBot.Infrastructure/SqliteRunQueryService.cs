@@ -263,7 +263,6 @@ public sealed class SqliteRunQueryService(
                 e.EventId,
                 e.Type,
                 e.CorrelationId,
-                e.PayloadJson,
                 e.OccurredAt,
                 e.ReceivedAt,
                 w.WorkItemId,
@@ -289,33 +288,28 @@ public sealed class SqliteRunQueryService(
 
         while (await reader.ReadAsync(cancellationToken))
         {
-            var payload = ScenarioVariableValue.ParseJson(
-                reader.GetString(3));
-
             items.Add(
                 new RunEventItem
                 {
                     EventId = Guid.Parse(reader.GetString(0)),
                     Type = reader.GetString(1),
                     CorrelationId = reader.GetString(2),
-                    PayloadKind = payload.Kind.ToString(),
-                    Payload = FormatVariableValue(payload),
-                    OccurredAt = ParseTimestamp(reader.GetString(4)),
-                    ReceivedAt = ParseTimestamp(reader.GetString(5)),
-                    WorkItemId = Guid.Parse(reader.GetString(6)),
+                    OccurredAt = ParseTimestamp(reader.GetString(3)),
+                    ReceivedAt = ParseTimestamp(reader.GetString(4)),
+                    WorkItemId = Guid.Parse(reader.GetString(5)),
                     WorkItemStatus = Enum.Parse<ResumeWorkItemStatus>(
-                        reader.GetString(7),
+                        reader.GetString(6),
                         ignoreCase: false),
-                    AttemptCount = reader.GetInt32(8),
-                    NextAttemptAt = reader.IsDBNull(9)
+                    AttemptCount = reader.GetInt32(7),
+                    NextAttemptAt = reader.IsDBNull(8)
+                        ? null
+                        : ParseTimestamp(reader.GetString(8)),
+                    FinishedAt = reader.IsDBNull(9)
                         ? null
                         : ParseTimestamp(reader.GetString(9)),
-                    FinishedAt = reader.IsDBNull(10)
+                    ErrorMessage = reader.IsDBNull(10)
                         ? null
-                        : ParseTimestamp(reader.GetString(10)),
-                    ErrorMessage = reader.IsDBNull(11)
-                        ? null
-                        : reader.GetString(11),
+                        : reader.GetString(10),
                 });
         }
 
