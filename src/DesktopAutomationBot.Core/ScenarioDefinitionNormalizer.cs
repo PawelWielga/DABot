@@ -36,6 +36,9 @@ public static class ScenarioDefinitionNormalizer
             normalized.Add(step with
             {
                 Id = id,
+                Enabled = step.Enabled == true
+                    ? null
+                    : step.Enabled,
                 Children = NormalizeSteps(step.Children, structuralId, reservedIds),
             });
         }
