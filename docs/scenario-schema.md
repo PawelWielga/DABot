@@ -61,7 +61,7 @@ Every step may define an optional `enabled` flag:
 }
 ```
 
-Omitting `enabled`, or setting it to `true`, keeps the existing behavior. Setting it to `false` makes the execution engine skip the step without invoking a handler or creating a durable step attempt. Disabled `If` and `Loop` steps skip their entire child subtree.
+Omitting `enabled`, or setting it to `true`, keeps the existing behavior. Normalization treats explicit `true` the same as omission, so both produce the same canonical scenario-version JSON and hash. Setting it to `false` makes the execution engine skip the step without invoking a handler or creating a durable step attempt. Disabled `If` and `Loop` steps skip their entire child subtree.
 
 Disabled steps remain part of the scenario definition and immutable scenario-version hash. They must still be structurally valid according to the schema and domain validation, which keeps saved definitions deterministic and allows the step to be re-enabled without changing its shape.
 
