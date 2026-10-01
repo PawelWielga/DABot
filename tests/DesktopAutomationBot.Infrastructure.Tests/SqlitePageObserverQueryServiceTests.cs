@@ -29,11 +29,7 @@ public sealed class SqlitePageObserverQueryServiceTests : IDisposable
                 Url = "https://example.test/inventory",
                 BrowserProfile = "shop",
                 Condition = PageObserverConditionKind.TextChanged,
-                Locator = new ScenarioLocator
-                {
-                    Strategy = ScenarioLocatorStrategy.Selector,
-                    Value = "#stock",
-                },
+                Locator = ScenarioLocator.FromSelector("#stock"),
                 EventType = "inventory.changed",
                 CorrelationId = "sku-42",
                 PollIntervalMs = 15000,
