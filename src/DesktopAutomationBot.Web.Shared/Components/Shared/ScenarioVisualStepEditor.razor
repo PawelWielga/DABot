@@ -1,0 +1,312 @@
+@foreach (var _ in new[] { Model })
+{
+    <article class="scenario-step-card" style="@($"--step-depth:{Depth}")">
+        <div class="scenario-step-heading">
+            <div>
+                <strong>Step @(Index + 1)</strong>
+                <span class="muted">@Model.Type</span>
+            </div>
+            <button class="button danger compact"
+                    type="button"
+                    @onclick="RemoveAsync">
+                Remove
+            </button>
+        </div>
+
+        <div class="scenario-step-grid">
+            <label>
+                <span>Step ID</span>
+                <input @bind="Model.Id"
+                       @bind:after="NotifyChanged"
+                       placeholder="Generated when omitted" />
+            </label>
+
+            <label>
+                <span>Type</span>
+                <select @bind="Model.Type"
+                        @bind:after="TypeChangedAsync">
+                    @foreach (var type in Enum.GetValues<StepType>())
+                    {
+                        <option value="@type">@type</option>
+                    }
+                </select>
+            </label>
+
+            @if (Model.SupportsUrl)
+            {
+                <label class="scenario-step-wide">
+                    <span>URL</span>
+                    <input @bind="Model.Url"
+                           @bind:after="NotifyChanged"
+                           placeholder="https://…" />
+                </label>
+            }
+
+            @if (Model.SupportsValue)
+            {
+                <label class="scenario-step-wide">
+                    <span>Value</span>
+                    <input @bind="Model.Value"
+                           @bind:after="NotifyChanged"
+                           placeholder="@ValuePlaceholder" />
+                </label>
+            }
+
+            @if (Model.SupportsOutput)
+            {
+                <label>
+                    <span>Output variable</span>
+                    <input @bind="Model.Output"
+                           @bind:after="NotifyChanged"
+                           placeholder="result" />
+                </label>
+            }
+
+            <label>
+                <span>Timeout (ms)</span>
+                <input type="number"
+                       @bind="Model.TimeoutMs"
+                       @bind:after="NotifyChanged"
+                       min="0"
+                       placeholder="Default" />
+            </label>
+
+            <label>
+                <span>Retry count</span>
+                <input type="number"
+                       @bind="Model.RetryCount"
+                       @bind:after="NotifyChanged"
+                       min="0"
+                       placeholder="0" />
+            </label>
+
+            <label>
+                <span>Retry delay (ms)</span>
+                <input type="number"
+                       @bind="Model.RetryDelayMs"
+                       @bind:after="NotifyChanged"
+                       min="0"
+                       placeholder="0" />
+            </label>
+
+            <label>
+                <span>Retry safety</span>
+                <select @bind="Model.RetrySafety"
+                        @bind:after="NotifyChanged">
+                    <option value="">Automatic</option>
+                    @foreach (var safety in Enum.GetValues<StepRetrySafety>())
+                    {
+                        <option value="@safety">@safety</option>
+                    }
+                </select>
+            </label>
+        </div>
+
+        @if (Model.SupportsLocator)
+        {
+            <div class="scenario-step-subsection">
+                <div class="scenario-step-subheading">
+                    <strong>Target</strong>
+                    <button class="button secondary compact"
+                            type="button"
+                            @onclick="ToggleLocatorAsync">
+                        @(Model.UsesStructuredLocator ? "Use selector" : "Use structured locator")
+                    </button>
+                </div>
+
+                @if (Model.UsesStructuredLocator)
+                {
+                    <div class="scenario-step-grid">
+                        <label>
+                            <span>Locator kind</span>
+                            <select @bind="Model.LocatorKind"
+                                    @bind:after="NotifyChanged">
+                                @foreach (var kind in Enum.GetValues<ScenarioLocatorKind>())
+                                {
+                                    <option value="@kind">@kind</option>
+                                }
+                            </select>
+                        </label>
+
+                        <label class="scenario-step-wide">
+                            <span>Locator value</span>
+                            <input @bind="Model.LocatorValue"
+                                   @bind:after="NotifyChanged"
+                                   placeholder="Target value" />
+                        </label>
+
+                        <label class="scenario-checkbox">
+                            <input type="checkbox"
+                                   @bind="Model.LocatorExact"
+                                   @bind:after="NotifyChanged" />
+                            <span>Exact match</span>
+                        </label>
+                    </div>
+                }
+                else
+                {
+                    <label>
+                        <span>Selector</span>
+                        <input @bind="Model.Selector"
+                               @bind:after="NotifyChanged"
+                               placeholder="#submit" />
+                    </label>
+                }
+            </div>
+        }
+
+        @if (Model.SupportsParameters)
+        {
+            <div class="scenario-step-subsection">
+                <label>
+                    <span>Parameters JSON</span>
+                    <textarea class="scenario-parameters-editor"
+                              value="@_parametersJson"
+                              @onchange="ParametersChanged"
+                              spellcheck="false"
+                              placeholder="{ }"></textarea>
+                </label>
+
+                @if (!string.IsNullOrWhiteSpace(_parametersError))
+                {
+                    <div class="scenario-errors">
+                        <div>@_parametersError</div>
+                    </div>
+                }
+            </div>
+        }
+
+        @if (Model.SupportsChildren)
+        {
+            <div class="scenario-step-subsection scenario-children">
+                <div class="scenario-step-subheading">
+                    <strong>Child steps</strong>
+                    <button class="button secondary compact"
+                            type="button"
+                            @onclick="AddChildAsync">
+                        Add child
+                    </button>
+                </div>
+
+                @if (Model.Children.Count == 0)
+                {
+                    <p class="muted">No child steps yet.</p>
+                }
+                else
+                {
+                    @for (var childIndex = 0; childIndex < Model.Children.Count; childIndex++)
+                    {
+                        var child = Model.Children[childIndex];
+
+                        <ScenarioVisualStepEditor @key="child"
+                                                  Model="child"
+                                                  Index="childIndex"
+                                                  Depth="@(Depth + 1)"
+                                                  OnChanged="OnChanged"
+                                                  OnRemove="@(() => RemoveChildAsync(child))" />
+                    }
+                }
+            </div>
+        }
+    </article>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public ScenarioVisualStepModel Model { get; set; } = null!;
+
+    [Parameter]
+    public int Index { get; set; }
+
+    [Parameter]
+    public int Depth { get; set; }
+
+    [Parameter]
+    public EventCallback OnChanged { get; set; }
+
+    [Parameter]
+    public EventCallback OnRemove { get; set; }
+
+    private ScenarioVisualStepModel? _loadedModel;
+    private string _parametersJson = string.Empty;
+    private string? _parametersError;
+
+    private string ValuePlaceholder =>
+        Model.Type switch
+        {
+            StepType.Delay => "Milliseconds or {{variable}}",
+            StepType.If => "true, false or {{variable}}",
+            StepType.Loop => "Count or {{variable}}",
+            StepType.CallApi => "Optional request body",
+            _ => "Value",
+        };
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(_loadedModel, Model))
+        {
+            return;
+        }
+
+        _loadedModel = Model;
+        _parametersJson = Model.GetParametersJson();
+        _parametersError = null;
+    }
+
+    private Task NotifyChanged() =>
+        OnChanged.InvokeAsync();
+
+    private async Task TypeChangedAsync()
+    {
+        _parametersJson = Model.GetParametersJson();
+        _parametersError = null;
+        await NotifyChanged();
+    }
+
+    private async Task ToggleLocatorAsync()
+    {
+        if (Model.UsesStructuredLocator)
+        {
+            Model.UseSelector();
+        }
+        else
+        {
+            Model.UseStructuredLocator();
+        }
+
+        await NotifyChanged();
+    }
+
+    private async Task ParametersChanged(ChangeEventArgs args)
+    {
+        _parametersJson = args.Value?.ToString() ?? string.Empty;
+
+        if (!Model.TrySetParametersJson(
+                _parametersJson,
+                out var error))
+        {
+            _parametersError = error;
+            return;
+        }
+
+        _parametersError = null;
+        _parametersJson = Model.GetParametersJson();
+        await NotifyChanged();
+    }
+
+    private async Task AddChildAsync()
+    {
+        Model.AddChild();
+        await NotifyChanged();
+    }
+
+    private async Task RemoveChildAsync(
+        ScenarioVisualStepModel child)
+    {
+        Model.RemoveChild(child);
+        await NotifyChanged();
+    }
+
+    private Task RemoveAsync() =>
+        OnRemove.InvokeAsync();
+}
