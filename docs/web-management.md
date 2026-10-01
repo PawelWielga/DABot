@@ -229,7 +229,7 @@ No login/identity provider is enabled yet, so current routes remain anonymous un
 
 ## Current scope
 
-The dashboard remains read-only. Run details support guarded manual resume/retry/cancel actions, the run list supports filtering, scenario JSON management supports create/edit/delete and validation, and persistent browser profiles can be listed, created, renamed, cleared, deleted, and health-tested.
+The dashboard remains read-only. Run details support guarded manual resume/retry/cancel actions, the run list supports filtering, scenario JSON management supports create/edit/delete and validation, persistent browser profiles can be listed, created, renamed, cleared, deleted, and health-tested, and page observers can be monitored, created, and edited.
 
 Remote browser display/input streaming, interactive-session authorization/inactivity cleanup/durable audit storage, safely redacted secret-backed configuration, and authentication UX remain later Sprint 8/9 work.
 
@@ -244,7 +244,7 @@ Public demo:
 https://pawelwielga.github.io/DABot/
 ```
 
-The demo registers in-memory implementations of `IRunQueryService`, `IScenarioCatalogQueryService`, and `IScenarioManagementService`, plus disabled runtime stubs for artifact and run-control services. It contains representative completed, running, waiting, failed, and cancelled runs plus valid and invalid scenario examples. Scenario edits in the demo exist only in browser memory and disappear after reload.
+The demo registers in-memory implementations for run/scenario queries and scenario management, plus observer query/management storage wired through the same `PageObserverManagementService` used by the runtime. It also provides disabled runtime stubs for artifact and run-control services. It contains representative completed, running, waiting, failed, and cancelled runs plus valid and invalid scenario examples. Scenario edits in the demo exist only in browser memory and disappear after reload.
 
 The demo is intentionally presentation-only:
 
