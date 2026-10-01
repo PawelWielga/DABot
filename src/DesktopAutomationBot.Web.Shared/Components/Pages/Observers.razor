@@ -1,0 +1,163 @@
+@page "/observers"
+@inject IPageObserverQueryService ObserverQueries
+
+<PageTitle>DABot observers</PageTitle>
+
+<div class="page-heading">
+    <div>
+        <h1>Observers</h1>
+        <p class="lead">Persistent page observers and their latest polling state.</p>
+    </div>
+    <span class="muted">@FilteredObservers.Count observer(s)</span>
+</div>
+
+<section class="panel">
+    @if (_loading)
+    {
+        <p>Loading observers…</p>
+    }
+    else
+    {
+        <div class="filters">
+            <label>
+                <span>Status</span>
+                <select @bind="_statusFilter">
+                    <option value="">All</option>
+                    <option value="enabled">Enabled</option>
+                    <option value="disabled">Disabled</option>
+                    <option value="errors">With errors</option>
+                </select>
+            </label>
+
+            <label>
+                <span>Search</span>
+                <input @bind="_search"
+                       @bind:event="oninput"
+                       placeholder="Name, URL, event or correlation" />
+            </label>
+        </div>
+
+        @if (FilteredObservers.Count == 0)
+        {
+            <p class="muted">No observers match the current filters.</p>
+        }
+        else
+        {
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Observer</th>
+                            <th>Status</th>
+                            <th>Condition</th>
+                            <th>Profile</th>
+                            <th>Polling</th>
+                            <th>Last check</th>
+                            <th>Last event</th>
+                            <th>Event</th>
+                            <th>Health</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var observer in FilteredObservers)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@observer.Name</strong>
+                                    <div class="muted compact-text">@observer.Url</div>
+                                </td>
+                                <td>
+                                    <span class="status @(observer.Enabled ? "completed" : "cancelled")">
+                                        @(observer.Enabled ? "Enabled" : "Disabled")
+                                    </span>
+                                </td>
+                                <td>@observer.Condition</td>
+                                <td>@(observer.BrowserProfile ?? "Ephemeral")</td>
+                                <td>
+                                    @FormatInterval(observer.PollIntervalMs)
+                                    @if (observer.NextCheckAt is not null)
+                                    {
+                                        <div class="muted compact-text">
+                                            next @FormatTimestamp(observer.NextCheckAt)
+                                        </div>
+                                    }
+                                </td>
+                                <td>@FormatTimestamp(observer.LastCheckedAt)</td>
+                                <td>@FormatTimestamp(observer.LastEventAt)</td>
+                                <td>
+                                    <strong>@observer.EventType</strong>
+                                    <div class="muted compact-text">@observer.CorrelationId</div>
+                                </td>
+                                <td class="error-cell">
+                                    @if (observer.FailureCount == 0)
+                                    {
+                                        <span class="status completed">Healthy</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="status failed">@observer.FailureCount failure(s)</span>
+                                        @if (!string.IsNullOrWhiteSpace(observer.LastError))
+                                        {
+                                            <div class="muted compact-text">@observer.LastError</div>
+                                        }
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    }
+</section>
+
+@code {
+    private bool _loading = true;
+    private string _statusFilter = string.Empty;
+    private string _search = string.Empty;
+    private IReadOnlyList<PageObserverListItem> _observers = [];
+
+    private IReadOnlyList<PageObserverListItem> FilteredObservers =>
+        _observers
+            .Where(MatchesStatus)
+            .Where(MatchesSearch)
+            .ToArray();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _observers = await ObserverQueries.ListAsync();
+        _loading = false;
+    }
+
+    private bool MatchesStatus(PageObserverListItem observer) =>
+        _statusFilter switch
+        {
+            "enabled" => observer.Enabled,
+            "disabled" => !observer.Enabled,
+            "errors" => observer.FailureCount > 0,
+            _ => true,
+        };
+
+    private bool MatchesSearch(PageObserverListItem observer)
+    {
+        var value = _search.Trim();
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return true;
+        }
+
+        return observer.Name.Contains(value, StringComparison.OrdinalIgnoreCase) ||
+               observer.Url.Contains(value, StringComparison.OrdinalIgnoreCase) ||
+               observer.EventType.Contains(value, StringComparison.OrdinalIgnoreCase) ||
+               observer.CorrelationId.Contains(value, StringComparison.OrdinalIgnoreCase) ||
+               (observer.BrowserProfile?.Contains(value, StringComparison.OrdinalIgnoreCase) ?? false);
+    }
+
+    private static string FormatTimestamp(DateTimeOffset? value) =>
+        value?.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss") ?? "Never";
+
+    private static string FormatInterval(int milliseconds) =>
+        milliseconds % 1000 == 0
+            ? $"{milliseconds / 1000}s"
+            : $"{milliseconds}ms";
+}
