@@ -100,7 +100,7 @@ These rules describe the durable execution architecture. Durable execution, susp
 
 ## Web panel rules
 
-The web panel currently provides a dashboard, run list/details and guarded run actions, scenario list/JSON management, browser-profile list/create/rename/clear/delete/test operations, and local headed interactive-profile session lifecycle. Continue toward:
+The web panel currently provides a dashboard, run list/details and guarded run actions, scenario list/JSON import/export/validation/editing with one-shot test runs, browser-profile list/create/rename/clear/delete/test operations, and local headed interactive-profile session lifecycle. Continue toward:
 
 - visual scenario editing synchronized with JSON,
 - scenario import/export and test runs,
