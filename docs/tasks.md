@@ -355,7 +355,7 @@ The web panel is optional and uses Application services. It must not directly ow
 
 ## Sprint 9 - Observers and events in the web panel
 
-- [ ] Observer list.
+- [x] Observer list. The shared web panel lists persisted observer definitions and polling snapshots through `IPageObserverQueryService`, including enabled state, condition, profile, event correlation, polling times, and current error state; the static demo uses representative observer data.
 - [ ] Observer editor.
 - [ ] Condition editor.
 - [ ] Poll interval configuration.

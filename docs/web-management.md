@@ -110,6 +110,23 @@ Editor test runs go through `IScenarioTestRunService` in Application and then th
 
 The UI uses `IScenarioCatalogQueryService` for listing and `IScenarioManagementService` for document operations. The filesystem implementation accepts only simple `.json` file names, rejects directory traversal, writes through a temporary file, and keeps all file IO in Infrastructure.
 
+### Observers
+
+The Observers page is a read-only operational view over persisted page-observer definitions and snapshots.
+
+It shows:
+
+- observer name and target URL,
+- enabled/disabled state,
+- condition type,
+- persistent browser profile or ephemeral-session mode,
+- polling interval and next scheduled check,
+- last check and last emitted event,
+- event type and correlation ID,
+- current failure count and last error.
+
+The page uses `IPageObserverQueryService`; the Blazor component does not query SQLite directly. The runtime implementation joins the existing `PageObservers` and `PageObserverSnapshots` tables, while the GitHub Pages demo uses representative in-memory data. Editing definitions, condition configuration, and administrative event operations remain later Sprint 9 work.
+
 ### Configuration
 
 The shared Configuration page manages non-secret general runtime settings through `IGeneralRuntimeSettingsService` and storage locations through `IStorageRuntimeSettingsService`.
