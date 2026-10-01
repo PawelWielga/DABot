@@ -4,6 +4,10 @@ namespace DesktopAutomationBot.Application;
 
 public interface IDurableRunControlService
 {
+    Task<DurableScenarioExecutionResult> CloneAsync(
+        Guid runId,
+        CancellationToken cancellationToken = default);
+
     Task<DurableScenarioExecutionResult> ResumeManuallyAsync(
         Guid runId,
         CancellationToken cancellationToken = default);

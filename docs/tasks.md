@@ -332,7 +332,7 @@ The web panel is optional and uses Application services. It must not directly ow
 - [x] Resume action. Run details invoke the existing `IDurableRunControlService` for non-retry waiting runs and refresh persisted state after the action.
 - [x] Cancel action. Run details can cancel queued/waiting runs with an explicit confirmation step; active `Running` cancellation remains blocked until lease/CAS coordination exists.
 - [x] Retry action. Run details expose guarded `Retry now` for `Waiting / Retry` runs; manual retry bypasses `RetryNotBefore` while preserving retry limits and recovery checks.
-- [ ] Clone run.
+- [x] Clone run. Run details can create a fresh durable execution from the same immutable scenario version. The clone starts from the beginning with a new run ID and reconstructed source inputs; prior run-derived outputs and `runId` are not carried forward.
 
 ### Browser profiles
 

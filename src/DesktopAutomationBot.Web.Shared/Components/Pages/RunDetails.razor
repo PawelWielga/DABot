@@ -4,6 +4,7 @@
 @inject IRunArtifactService RunArtifacts
 @inject IDurableRunControlService RunControl
 @inject ManagementUiEnvironment UiEnvironment
+@inject NavigationManager Navigation
 @inject ILogger<RunDetails> Logger
 
 <PageTitle>DABot run details</PageTitle>
@@ -81,6 +82,31 @@ else
                     @(_actionBusy && _activeAction == "retry" ? "Retrying…" : "Retry now")
                 </button>
 
+                @if (_confirmClone)
+                {
+                    <button class="button primary"
+                            type="button"
+                            @onclick="CloneAsync"
+                            disabled="@_actionBusy">
+                        @(_actionBusy && _activeAction == "clone" ? "Cloning…" : "Confirm clone")
+                    </button>
+                    <button class="button secondary"
+                            type="button"
+                            @onclick="DismissClone"
+                            disabled="@_actionBusy">
+                        Keep run
+                    </button>
+                }
+                else
+                {
+                    <button class="button secondary"
+                            type="button"
+                            @onclick="RequestClone"
+                            disabled="@(_actionBusy || !CanClone)">
+                        Clone run
+                    </button>
+                }
+
                 @if (_confirmCancel)
                 {
                     <button class="button danger"
@@ -107,7 +133,11 @@ else
                 }
             </div>
 
-            @if (_confirmCancel)
+            @if (_confirmClone)
+            {
+                <p class="action-warning">Clone this run? A new durable run will start from the beginning using the same immutable scenario version and the source run's original input variables. External side effects may be repeated.</p>
+            }
+            else if (_confirmCancel)
             {
                 <p class="action-warning">Cancel this queued or waiting run? This changes its durable state to Cancelled.</p>
             }
@@ -387,6 +417,7 @@ else
 
     private bool _loading = true;
     private bool _actionBusy;
+    private bool _confirmClone;
     private bool _confirmCancel;
     private string? _activeAction;
     private string? _actionMessage;
@@ -408,16 +439,21 @@ else
         _run is not null &&
         _run.Status is RunStatus.Queued or RunStatus.Waiting;
 
+    private bool CanClone =>
+        !UiEnvironment.IsDemo &&
+        _run is not null;
+
     private string RunActionSummary =>
         _run is null
             ? "Unavailable"
-            : CanResume || CanRetry || CanCancel
+            : CanResume || CanRetry || CanCancel || CanClone
                 ? "Actions available"
                 : "No safe manual action";
 
     protected override async Task OnParametersSetAsync()
     {
         _loading = true;
+        _confirmClone = false;
         _confirmCancel = false;
         _actionMessage = null;
         _actionError = null;
@@ -433,6 +469,22 @@ else
             : await RunArtifacts.ListAsync(RunId);
     }
 
+    private void RequestClone()
+    {
+        if (!CanClone || _actionBusy)
+        {
+            return;
+        }
+
+        _confirmClone = true;
+        _confirmCancel = false;
+        _actionMessage = null;
+        _actionError = null;
+    }
+
+    private void DismissClone() =>
+        _confirmClone = false;
+
     private void RequestCancel()
     {
         if (!CanCancel || _actionBusy)
@@ -441,6 +493,7 @@ else
         }
 
         _confirmCancel = true;
+        _confirmClone = false;
         _actionMessage = null;
         _actionError = null;
     }
@@ -457,6 +510,7 @@ else
 
         _actionBusy = true;
         _activeAction = "resume";
+        _confirmClone = false;
         _confirmCancel = false;
         _actionMessage = null;
         _actionError = null;
@@ -488,6 +542,7 @@ else
 
         _actionBusy = true;
         _activeAction = "retry";
+        _confirmClone = false;
         _confirmCancel = false;
         _actionMessage = null;
         _actionError = null;
@@ -510,6 +565,48 @@ else
         }
     }
 
+    private async Task CloneAsync()
+    {
+        if (!CanClone || _run is null || _actionBusy)
+        {
+            return;
+        }
+
+        _actionBusy = true;
+        _activeAction = "clone";
+        _confirmClone = false;
+        _confirmCancel = false;
+        _actionMessage = null;
+        _actionError = null;
+        Guid? clonedRunId = null;
+
+        try
+        {
+            var result = await RunControl.CloneAsync(_run.RunId);
+            clonedRunId = result.Run.RunId;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Failed to clone durable run {RunId}.", RunId);
+            _actionError = SafeActionError(exception, "Clone");
+        }
+        finally
+        {
+            if (clonedRunId is null)
+            {
+                await ReloadAsync();
+            }
+
+            _activeAction = null;
+            _actionBusy = false;
+        }
+
+        if (clonedRunId is not null)
+        {
+            Navigation.NavigateTo($"runs/{clonedRunId:D}");
+        }
+    }
+
     private async Task CancelAsync()
     {
         if (!CanCancel || _run is null || _actionBusy)
@@ -519,6 +616,7 @@ else
 
         _actionBusy = true;
         _activeAction = "cancel";
+        _confirmClone = false;
         _actionMessage = null;
         _actionError = null;
 
