@@ -6,7 +6,7 @@ using Microsoft.Data.Sqlite;
 
 namespace DesktopAutomationBot.Infrastructure;
 
-public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStore, IEventInboxStore, IPageObserverStore
+public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStore, IEventInboxStore, IPageObserverStore, IPageObserverManagementStore
 {
     private const int StoreSchemaVersion = 6;
 
@@ -1092,9 +1092,104 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
         };
 
 
-    public async Task SaveAsync(
+    public Task SaveAsync(
         PageObserverDefinition definition,
+        CancellationToken cancellationToken = default) =>
+        SaveObserverDefinitionAsync(
+            definition,
+            resetSnapshot: false,
+            cancellationToken);
+
+    public async Task<PageObserverDefinition?> GetDefinitionAsync(
+        Guid observerId,
         CancellationToken cancellationToken = default)
+    {
+        if (observerId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Observer ID must not be empty.",
+                nameof(observerId));
+        }
+
+        await EnsureInitializedAsync(cancellationToken);
+
+        await using var connection = await OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT
+                ObserverId,
+                Name,
+                Url,
+                BrowserProfile,
+                Condition,
+                LocatorJson,
+                ExpectedValue,
+                EventType,
+                CorrelationId,
+                PollIntervalMs,
+                Enabled
+            FROM PageObservers
+            WHERE ObserverId = $observerId
+            LIMIT 1;
+            """;
+        command.Parameters.AddWithValue(
+            "$observerId",
+            observerId.ToString("D"));
+
+        await using var reader =
+            await command.ExecuteReaderAsync(cancellationToken);
+
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return null;
+        }
+
+        ScenarioLocator? locator = null;
+        if (!reader.IsDBNull(5))
+        {
+            locator = JsonSerializer.Deserialize<ScenarioLocator>(
+                reader.GetString(5))
+                ?? throw new InvalidOperationException(
+                    $"Stored observer '{observerId}' contains an invalid locator.");
+        }
+
+        return PageObserverDefinition.Validate(
+            new PageObserverDefinition
+            {
+                ObserverId = Guid.Parse(reader.GetString(0)),
+                Name = reader.GetString(1),
+                Url = reader.GetString(2),
+                BrowserProfile = reader.IsDBNull(3)
+                    ? null
+                    : reader.GetString(3),
+                Condition = Enum.Parse<PageObserverConditionKind>(
+                    reader.GetString(4),
+                    ignoreCase: false),
+                Locator = locator,
+                ExpectedValue = reader.IsDBNull(6)
+                    ? null
+                    : reader.GetString(6),
+                EventType = reader.GetString(7),
+                CorrelationId = reader.GetString(8),
+                PollIntervalMs = reader.GetInt32(9),
+                Enabled = reader.GetInt32(10) != 0,
+            });
+    }
+
+    public Task SaveDefinitionAsync(
+        PageObserverDefinition definition,
+        bool resetSnapshot,
+        CancellationToken cancellationToken = default) =>
+        SaveObserverDefinitionAsync(
+            definition,
+            resetSnapshot,
+            cancellationToken);
+
+    private async Task SaveObserverDefinitionAsync(
+        PageObserverDefinition definition,
+        bool resetSnapshot,
+        CancellationToken cancellationToken)
     {
         var validated = PageObserverDefinition.Validate(definition);
 
@@ -1215,6 +1310,30 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
                 validated.ObserverId.ToString("D"));
 
             await ensureSnapshot.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        if (resetSnapshot)
+        {
+            await using var reset = connection.CreateCommand();
+            reset.Transaction = transaction;
+            reset.CommandText =
+                """
+                UPDATE PageObserverSnapshots
+                SET
+                    LastObservation = NULL,
+                    LastMatched = NULL,
+                    LastCheckedAt = NULL,
+                    NextCheckAt = NULL,
+                    LastEventAt = NULL,
+                    FailureCount = 0,
+                    LastError = NULL
+                WHERE ObserverId = $observerId;
+                """;
+            reset.Parameters.AddWithValue(
+                "$observerId",
+                validated.ObserverId.ToString("D"));
+
+            await reset.ExecuteNonQueryAsync(cancellationToken);
         }
 
         await transaction.CommitAsync(cancellationToken);
