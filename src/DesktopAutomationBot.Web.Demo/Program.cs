@@ -14,6 +14,7 @@ builder.Services.AddSingleton(
         RuntimeLabel: "Demo data",
         IsDemo: true));
 builder.Services.AddSingleton<DemoDataService>();
+builder.Services.AddSingleton<IEventHistoryQueryService, DemoEventHistoryQueryService>();
 builder.Services.AddSingleton<IGeneralRuntimeSettingsService, DemoGeneralRuntimeSettingsService>();
 builder.Services.AddSingleton<IStorageRuntimeSettingsService, DemoStorageRuntimeSettingsService>();
 builder.Services.AddSingleton<DemoPageObserverQueryService>();
