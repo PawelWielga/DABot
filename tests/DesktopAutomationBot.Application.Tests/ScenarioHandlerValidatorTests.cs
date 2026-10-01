@@ -97,4 +97,37 @@ public sealed class ScenarioHandlerValidatorTests
 
         action.Should().NotThrow();
     }
+    [Fact]
+    public void Validate_DisabledUnsupportedStepAndChildren_AreIgnored()
+    {
+        var scenario = new ScenarioDefinition
+        {
+            Name = "disabled handler",
+            Steps =
+            [
+                new ScenarioStep
+                {
+                    Type = StepType.If,
+                    Enabled = false,
+                    Value = "true",
+                    Children =
+                    [
+                        new ScenarioStep
+                        {
+                            Type = StepType.Click,
+                            Selector = "#never-used",
+                        },
+                    ],
+                },
+            ],
+        };
+
+        var result = ScenarioHandlerValidator.Validate(
+            scenario,
+            []);
+
+        result.IsValid.Should().BeTrue();
+        result.Errors.Should().BeEmpty();
+    }
+
 }
