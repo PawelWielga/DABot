@@ -15,6 +15,7 @@ builder.Services.AddSingleton(
         IsDemo: true));
 builder.Services.AddSingleton<DemoDataService>();
 builder.Services.AddSingleton<IGeneralRuntimeSettingsService, DemoGeneralRuntimeSettingsService>();
+builder.Services.AddSingleton<IStorageRuntimeSettingsService, DemoStorageRuntimeSettingsService>();
 builder.Services.AddSingleton<IBrowserProfileCatalog, DemoBrowserProfileCatalog>();
 builder.Services.AddSingleton<IBrowserProfileManagementService, DemoBrowserProfileManagementService>();
 builder.Services.AddSingleton<IBrowserProfileService, DemoBrowserProfileService>();
