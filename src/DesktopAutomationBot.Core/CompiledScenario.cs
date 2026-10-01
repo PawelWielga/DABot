@@ -22,6 +22,8 @@ public abstract record CompiledStep
 
     public required StepType Type { get; init; }
 
+    public bool? Enabled { get; init; }
+
     public int? TimeoutMs { get; init; }
 
     public int RetryCount { get; init; }
@@ -107,6 +109,7 @@ public static class ScenarioCompiler
         {
             Id = step.Id!,
             Type = step.Type,
+            step.Enabled,
             step.TimeoutMs,
             RetryCount = step.RetryCount ?? 0,
             RetryDelayMs = step.RetryDelayMs ?? 0,
@@ -120,6 +123,7 @@ public static class ScenarioCompiler
             {
                 Id = common.Id,
                 Type = common.Type,
+                Enabled = common.Enabled,
                 TimeoutMs = common.TimeoutMs,
                 RetryCount = common.RetryCount,
                 RetryDelayMs = common.RetryDelayMs,
@@ -132,6 +136,7 @@ public static class ScenarioCompiler
             {
                 Id = common.Id,
                 Type = common.Type,
+                Enabled = common.Enabled,
                 TimeoutMs = common.TimeoutMs,
                 RetryCount = common.RetryCount,
                 RetryDelayMs = common.RetryDelayMs,
@@ -144,6 +149,7 @@ public static class ScenarioCompiler
             {
                 Id = common.Id,
                 Type = common.Type,
+                Enabled = common.Enabled,
                 TimeoutMs = common.TimeoutMs,
                 RetryCount = common.RetryCount,
                 RetryDelayMs = common.RetryDelayMs,
@@ -164,6 +170,7 @@ public static class ScenarioCompiler
         {
             Id = step.Id,
             Type = step.Type,
+            Enabled = step.Enabled,
             TimeoutMs = step.TimeoutMs,
             RetryCount = step.RetryCount,
             RetryDelayMs = step.RetryDelayMs,
