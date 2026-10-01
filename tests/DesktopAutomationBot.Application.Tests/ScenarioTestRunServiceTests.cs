@@ -50,6 +50,37 @@ public sealed class ScenarioTestRunServiceTests
     }
 
     [Fact]
+    public async Task RunAsync_DisabledSuspend_DoesNotTriggerDurableGuardrail()
+    {
+        var executor = new RecordingScenarioExecutor();
+        var service = new ScenarioTestRunService(executor);
+
+        var result = await service.RunAsync(
+            """
+            {
+              "schemaVersion": 1,
+              "name": "Disabled suspend",
+              "steps": [
+                {
+                  "id": "wait",
+                  "type": "Suspend",
+                  "enabled": false,
+                  "parameters": {
+                    "reason": "Human"
+                  }
+                }
+              ]
+            }
+            """);
+
+        result.Executed.Should().BeTrue();
+        result.Success.Should().BeTrue();
+        result.Errors.Should().BeEmpty();
+        executor.Executions.Should().ContainSingle();
+        executor.Executions[0].Steps[0].IsEnabled.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task RunAsync_ValidScenario_ExecutesCurrentDefinition()
     {
         var executor = new RecordingScenarioExecutor();
