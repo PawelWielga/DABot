@@ -319,7 +319,7 @@ The web panel is optional and uses Application services. It must not directly ow
 - [ ] Synchronized visual/JSON representations.
 - [x] Import JSON. The shared scenario editor loads a local `.json` file into the editor, applies the existing validation rules, and adopts a safe file name for new scenarios.
 - [x] Export JSON. The shared scenario editor downloads the current JSON buffer directly, so export works in both the runtime host and the static GitHub Pages demo.
-- [ ] Test run.
+- [x] Test run. The shared scenario editor can execute the current unsaved JSON through an Application-level one-shot test service, show step results, and cancel an active test; durable `Suspend` scenarios are explicitly rejected from this one-shot path.
 
 ### Runs
 
