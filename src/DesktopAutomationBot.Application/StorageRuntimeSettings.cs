@@ -189,6 +189,11 @@ public static class StorageRuntimeSettingsValidator
             errors.Add($"{label} must not be a filesystem root.");
         }
 
+        if (File.Exists(fullPath))
+        {
+            errors.Add($"{label} must identify a directory, but an existing file is present at that path.");
+        }
+
         return fullPath;
     }
 
@@ -226,6 +231,11 @@ public static class StorageRuntimeSettingsValidator
         if (string.IsNullOrWhiteSpace(Path.GetFileName(fullPath)))
         {
             errors.Add("Database path must identify a file.");
+        }
+
+        if (Directory.Exists(fullPath))
+        {
+            errors.Add("Database path must identify a file, but an existing directory is present at that path.");
         }
 
         return fullPath;
