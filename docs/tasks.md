@@ -317,8 +317,8 @@ The web panel is optional and uses Application services. It must not directly ow
 - [x] Validation UI. The JSON editor validates syntax and the existing scenario domain rules before saving and can validate on demand.
 - [x] JSON editor. A shared raw JSON editor is available in both the real management host and the GitHub Pages demo.
 - [ ] Synchronized visual/JSON representations.
-- [ ] Import JSON.
-- [ ] Export JSON.
+- [x] Import JSON. The shared scenario editor loads a local `.json` file into the editor, applies the existing validation rules, and adopts a safe file name for new scenarios.
+- [x] Export JSON. The shared scenario editor downloads the current JSON buffer directly, so export works in both the runtime host and the static GitHub Pages demo.
 - [ ] Test run.
 
 ### Runs

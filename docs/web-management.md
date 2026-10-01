@@ -84,9 +84,13 @@ Each scenario can be opened in the shared raw JSON editor. The editor supports:
 
 - create,
 - edit,
+- import a local `.json` definition into the editor with a 1 MiB size limit,
+- export the current JSON buffer as a local `.json` download,
 - explicit validation,
 - save only when JSON syntax and scenario-domain validation pass,
 - delete.
+
+Import does not bypass the normal save rules. Imported content is validated immediately, and saving still uses `IScenarioManagementService` with the existing path-safe file-name checks. Export is generated from the current editor buffer and does not require a runtime endpoint, so the same behavior is available in the static GitHub Pages demo.
 
 The UI uses `IScenarioCatalogQueryService` for listing and `IScenarioManagementService` for document operations. The filesystem implementation accepts only simple `.json` file names, rejects directory traversal, writes through a temporary file, and keeps all file IO in Infrastructure.
 

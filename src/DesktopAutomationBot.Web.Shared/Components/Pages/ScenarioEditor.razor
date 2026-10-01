@@ -1,5 +1,6 @@
 @page "/scenarios/new"
 @page "/scenarios/{FileName}"
+@using Microsoft.AspNetCore.Components.Forms
 @inject IScenarioManagementService ScenarioManagement
 @inject NavigationManager Navigation
 
@@ -43,6 +44,15 @@
     }
 
     <div class="button-row">
+        <label class="button secondary file-button">
+            Import JSON
+            <InputFile OnChange="ImportAsync"
+                       accept=".json,application/json"
+                       disabled="@_busy" />
+        </label>
+        <a class="button secondary"
+           href="@ExportHref"
+           download="@ExportFileName">Export JSON</a>
         <button class="button secondary" @onclick="ValidateAsync" disabled="@_busy">Validate</button>
         <button class="button primary" @onclick="SaveAsync" disabled="@_busy">Save</button>
 
@@ -65,6 +75,8 @@
     [Parameter]
     public string? FileName { get; set; }
 
+    private const long MaxImportBytes = 1024 * 1024;
+
     private bool _isNew;
     private bool _busy;
     private bool _confirmDelete;
@@ -83,6 +95,28 @@
         "}";
     private string? _message;
     private IReadOnlyList<string> _validationErrors = [];
+
+    private string ExportHref =>
+        "data:application/json;charset=utf-8;base64," +
+        Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(_json));
+
+    private string ExportFileName
+    {
+        get
+        {
+            var candidate = _fileName.Trim();
+
+            try
+            {
+                ScenarioFileName.Validate(candidate);
+                return candidate;
+            }
+            catch (ArgumentException)
+            {
+                return "scenario.json";
+            }
+        }
+    }
 
     protected override async Task OnParametersSetAsync()
     {
@@ -105,6 +139,65 @@
         }
 
         _json = document.Json;
+    }
+
+    private async Task ImportAsync(InputFileChangeEventArgs args)
+    {
+        _busy = true;
+        _message = null;
+        _validationErrors = [];
+
+        try
+        {
+            var file = args.File;
+
+            if (!file.Name.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+            {
+                _validationErrors = ["Select a .json scenario file."];
+                return;
+            }
+
+            if (file.Size > MaxImportBytes)
+            {
+                _validationErrors =
+                [
+                    $"Scenario JSON must be no larger than {MaxImportBytes / 1024} KiB."
+                ];
+                return;
+            }
+
+            await using var stream = file.OpenReadStream(MaxImportBytes);
+            using var reader = new StreamReader(stream);
+            _json = await reader.ReadToEndAsync();
+
+            if (_isNew)
+            {
+                try
+                {
+                    ScenarioFileName.Validate(file.Name);
+                    _fileName = file.Name;
+                }
+                catch (ArgumentException)
+                {
+                    // Keep the current file name. SaveAsync will still enforce
+                    // the normal path-safe .json naming rules.
+                }
+            }
+
+            var validation = ScenarioJsonValidation.Validate(_json);
+            _validationErrors = validation.Errors;
+            _message = validation.IsValid
+                ? $"Imported {file.Name}. Review the JSON and save when ready."
+                : $"Imported {file.Name}, but validation found issues.";
+        }
+        catch (IOException)
+        {
+            _validationErrors = ["The selected scenario file could not be read."];
+        }
+        finally
+        {
+            _busy = false;
+        }
     }
 
     private Task ValidateAsync()
