@@ -38,6 +38,17 @@ public sealed class ScenarioTestRunService(
             };
         }
 
+        if (ContainsSuspend(parsed.Definition.Steps))
+        {
+            return new ScenarioTestRunResult
+            {
+                Errors =
+                [
+                    "Editor test runs use the one-shot execution path and cannot contain Suspend. Durable scenarios must be saved and executed through the durable run path."
+                ],
+            };
+        }
+
         var execution = await executor.ExecuteAsync(
             parsed.Definition,
             cancellationToken);
@@ -45,9 +56,12 @@ public sealed class ScenarioTestRunService(
         return new ScenarioTestRunResult
         {
             Execution = execution,
-            Errors = string.IsNullOrWhiteSpace(execution.ErrorMessage)
-                ? []
-                : [execution.ErrorMessage],
         };
     }
+
+    private static bool ContainsSuspend(
+        IReadOnlyList<ScenarioStep> steps) =>
+        steps.Any(step =>
+            step.Type == StepType.Suspend ||
+            ContainsSuspend(step.Children));
 }
