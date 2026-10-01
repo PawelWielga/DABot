@@ -115,6 +115,33 @@ public sealed class ScenarioVersionTests
     }
 
     [Fact]
+    public void Capture_WhenEnabledIsExplicitTrue_MatchesOmittedCanonicalDefinition()
+    {
+        var omitted = CreateScenario();
+        var explicitTrue = CreateScenario();
+        explicitTrue.Steps[0] = explicitTrue.Steps[0] with
+        {
+            Enabled = true,
+        };
+
+        var omittedVersion = ScenarioVersion.Capture(
+            Guid.NewGuid(),
+            1,
+            omitted,
+            DateTimeOffset.UtcNow);
+
+        var explicitVersion = ScenarioVersion.Capture(
+            Guid.NewGuid(),
+            1,
+            explicitTrue,
+            DateTimeOffset.UtcNow);
+
+        explicitVersion.DefinitionJson.Should().Be(omittedVersion.DefinitionJson);
+        explicitVersion.DefinitionHash.Should().Be(omittedVersion.DefinitionHash);
+        explicitVersion.DefinitionJson.Should().NotContain("enabled");
+    }
+
+    [Fact]
     public void Capture_WhenStepIsDisabled_PersistsEnabledFalse()
     {
         var scenario = CreateScenario();
