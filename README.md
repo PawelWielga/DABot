@@ -174,7 +174,7 @@ Agents should use the README and implementation backlog to distinguish current f
 | Suspend and resume | Available |
 | External event model | Available |
 | Generic page observers | Available |
-| Web management panel | Dashboard, runs, scenario JSON management, browser profile management, and local headed interactive profile setup available |
+| Web management panel | Dashboard, runs, scenario JSON management/import/export/test runs, browser profile management, and local headed interactive profile setup available |
 | MCP server/client integration | Planned |
 | Dynamic reusable tool registry | Planned |
 
