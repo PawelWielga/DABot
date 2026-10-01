@@ -110,6 +110,27 @@ Editor test runs go through `IScenarioTestRunService` in Application and then th
 
 The UI uses `IScenarioCatalogQueryService` for listing and `IScenarioManagementService` for document operations. The filesystem implementation accepts only simple `.json` file names, rejects directory traversal, writes through a temporary file, and keeps all file IO in Infrastructure.
 
+### Configuration
+
+The shared Configuration page now manages non-secret general runtime settings for the local Web host through `IGeneralRuntimeSettingsService`.
+
+Editable settings include:
+
+- default scenario path,
+- browser headless mode, slow motion, timeout, and viewport size,
+- retry-worker poll interval and batch size,
+- event-worker polling, batching, attempts, and retry delays,
+- observer-worker polling, batching, and maximum error backoff,
+- interactive-browser maximum session duration.
+
+The runtime implementation writes only those owned `bot` sections in the Web host's `appsettings.json`. Existing storage settings, logging configuration, and unknown future properties are preserved. Writes use a temporary file followed by replacement so a partially written configuration is not left behind.
+
+Changes are intentionally **restart required**. The running process keeps its already-constructed `BotOptions` and active browser/worker state until restart; the page does not pretend that an edited file has hot-reconfigured existing services.
+
+The static GitHub Pages demo uses representative values and renders configuration as read-only.
+
+Storage-path editing and secret-backed configuration display remain separate backlog items so path migration and secret-redaction rules can be designed independently.
+
 ### Browser profiles
 
 The profiles page lists persistent browser profile directories through the Application-level `IBrowserProfileCatalog` contract. The Infrastructure adapter reads only names beneath `bot.storage.browserProfilesDirectory`, ignores internal dot-prefixed directories such as `.locks`, and does not launch Chromium or acquire a profile lease while listing.
@@ -185,7 +206,7 @@ No login/identity provider is enabled yet, so current routes remain anonymous un
 
 The dashboard remains read-only. Run details support guarded manual resume/retry/cancel actions, the run list supports filtering, scenario JSON management supports create/edit/delete and validation, and persistent browser profiles can be listed, created, renamed, cleared, deleted, and health-tested.
 
-Remote browser display/input streaming, interactive-session authorization/inactivity cleanup/durable audit storage, configuration editing, and authentication UX remain later Sprint 8/9 work.
+Remote browser display/input streaming, interactive-session authorization/inactivity cleanup/durable audit storage, storage/secret configuration editing, and authentication UX remain later Sprint 8/9 work.
 
 
 ## Static GitHub Pages demo
