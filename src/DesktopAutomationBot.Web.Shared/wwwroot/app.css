@@ -1022,3 +1022,69 @@ select {
 .scenario-step-card.disabled-step > .scenario-step-subsection {
     opacity: .62;
 }
+
+
+.configuration-notice p {
+    margin-bottom: 0;
+}
+
+.configuration-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 18px;
+}
+
+.configuration-grid label {
+    display: grid;
+    gap: 6px;
+}
+
+.configuration-grid label > span,
+.configuration-grid label > small {
+    display: block;
+}
+
+.configuration-wide {
+    grid-column: 1 / -1;
+}
+
+.configuration-checkbox {
+    display: flex !important;
+    align-items: center;
+    gap: 8px !important;
+    align-self: end;
+    min-height: 42px;
+}
+
+.configuration-checkbox input {
+    width: auto;
+    margin: 0;
+}
+
+.configuration-group + .configuration-group {
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.configuration-group h3 {
+    margin: 0 0 12px;
+    font-size: 1rem;
+}
+
+.configuration-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+}
+
+@media (max-width: 760px) {
+    .configuration-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .configuration-wide {
+        grid-column: auto;
+    }
+}
