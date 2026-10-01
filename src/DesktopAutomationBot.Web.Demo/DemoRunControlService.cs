@@ -8,6 +8,11 @@ public sealed class DemoRunControlService : IDurableRunControlService
     private const string Message =
         "Run actions are disabled in the static GitHub Pages demo.";
 
+    public Task<DurableScenarioExecutionResult> CloneAsync(
+        Guid runId,
+        CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException(Message);
+
     public Task<DurableScenarioExecutionResult> ResumeManuallyAsync(
         Guid runId,
         CancellationToken cancellationToken = default) =>
