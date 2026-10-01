@@ -1,3 +1,5 @@
+using DesktopAutomationBot.Core;
+
 namespace DesktopAutomationBot.Application;
 
 public interface IScenarioTestRunService
