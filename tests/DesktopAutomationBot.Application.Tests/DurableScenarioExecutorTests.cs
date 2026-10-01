@@ -209,14 +209,32 @@ public sealed class DurableScenarioExecutorTests : IDisposable
             runStore,
             attemptStore);
 
-        var version = CreateVersion(
-            new ScenarioStep
+        var version = ScenarioVersion.Capture(
+            Guid.NewGuid(),
+            1,
+            new ScenarioDefinition
             {
-                Id = "open",
-                Type = StepType.OpenUrl,
-                Url = "https://{{host}}",
-                Output = "captured",
-            });
+                Name = "Clone inputs",
+                Steps =
+                [
+                    new ScenarioStep
+                    {
+                        Id = "disabled-host-output",
+                        Type = StepType.ReadText,
+                        Enabled = false,
+                        Selector = "#ignored",
+                        Output = "host",
+                    },
+                    new ScenarioStep
+                    {
+                        Id = "open",
+                        Type = StepType.OpenUrl,
+                        Url = "https://{{host}}",
+                        Output = "captured",
+                    },
+                ],
+            },
+            DateTimeOffset.Parse("2026-10-01T08:30:00+02:00"));
 
         var source = await executor.ExecuteAsync(
             new ScenarioRunRequest
