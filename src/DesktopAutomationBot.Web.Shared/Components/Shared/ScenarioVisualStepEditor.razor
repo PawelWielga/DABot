@@ -1,6 +1,4 @@
-@foreach (var _ in new[] { Model })
-{
-    <article class="scenario-step-card" style="@($"--step-depth:{Depth}")">
+<article class="scenario-step-card" style="@($"--step-depth:{Depth}")">
         <div class="scenario-step-heading">
             <div>
                 <strong>Step @(Index + 1)</strong>
@@ -208,8 +206,7 @@
                 }
             </div>
         }
-    </article>
-}
+</article>
 
 @code {
     [Parameter, EditorRequired]
