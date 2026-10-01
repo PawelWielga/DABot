@@ -18,8 +18,16 @@ public sealed class ScenarioVisualModel
     private ScenarioVisualModel(JsonObject root)
     {
         _root = root;
-        _steps = root["steps"] as JsonArray ?? new JsonArray();
-        _root["steps"] = _steps;
+
+        if (root["steps"] is JsonArray existingSteps)
+        {
+            _steps = existingSteps;
+        }
+        else
+        {
+            _steps = new JsonArray();
+            _root["steps"] = _steps;
+        }
 
         Steps = _steps
             .OfType<JsonObject>()
