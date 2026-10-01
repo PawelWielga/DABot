@@ -96,6 +96,59 @@ public sealed class StorageRuntimeSettingsTests
     }
 
     [Fact]
+    public void Validate_DirectoryPointingAtExistingFile_IsRejected()
+    {
+        var filePath = Path.GetTempFileName();
+
+        try
+        {
+            var settings = new StorageRuntimeSettings
+            {
+                ScenariosDirectory = filePath,
+            };
+
+            var errors = StorageRuntimeSettingsValidator.Validate(settings);
+
+            errors.Should().Contain(
+                error =>
+                    error.Contains("Scenarios directory") &&
+                    error.Contains("existing file"));
+        }
+        finally
+        {
+            File.Delete(filePath);
+        }
+    }
+
+    [Fact]
+    public void Validate_DatabasePointingAtExistingDirectory_IsRejected()
+    {
+        var directory = Path.Combine(
+            Path.GetTempPath(),
+            $"dabot-storage-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+
+        try
+        {
+            var settings = new StorageRuntimeSettings
+            {
+                DatabasePath = directory,
+            };
+
+            var errors = StorageRuntimeSettingsValidator.Validate(settings);
+
+            errors.Should().Contain(
+                error =>
+                    error.Contains("Database path") &&
+                    error.Contains("existing directory"));
+        }
+        finally
+        {
+            Directory.Delete(directory);
+        }
+    }
+
+    [Fact]
     public void CloneAndHasSameValues_TrackEditsWithoutSharingState()
     {
         var settings = new StorageRuntimeSettings();
