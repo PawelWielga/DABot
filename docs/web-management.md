@@ -112,9 +112,9 @@ The UI uses `IScenarioCatalogQueryService` for listing and `IScenarioManagementS
 
 ### Observers
 
-The Observers page is a read-only operational view over persisted page-observer definitions and snapshots.
+The Observers area combines operational state with definition management.
 
-It shows:
+The list shows:
 
 - observer name and target URL,
 - enabled/disabled state,
@@ -125,7 +125,13 @@ It shows:
 - event type and correlation ID,
 - current failure count and last error.
 
-The page uses `IPageObserverQueryService`; the Blazor component does not query SQLite directly. The runtime implementation joins the existing `PageObservers` and `PageObserverSnapshots` tables, while the GitHub Pages demo uses representative in-memory data. Editing definitions, condition configuration, and administrative event operations remain later Sprint 9 work.
+The editor can create or update the URL, optional browser profile, enabled state, all current condition types, structured locator kind/value/exact matching, expected value or URL regular expression, polling interval, event type, and correlation ID.
+
+Reads use `IPageObserverQueryService`; writes use `IPageObserverManagementService`. The Blazor components do not query SQLite or duplicate observer validation. The runtime management store persists definitions through the existing observer tables, while the GitHub Pages demo uses the same Application management service over an in-memory store.
+
+Changing the URL, browser profile, condition, locator, expected value, event type, or correlation ID resets the persisted observer snapshot atomically with the definition update. This prevents an old `LastObservation` / edge-trigger state from being interpreted under different observation or event-routing semantics. Renaming, enabling/disabling, or changing only the polling interval preserves the snapshot. CLI observer import retains its previous non-resetting save behavior.
+
+Event history browsing and administrative event publishing remain later Sprint 9 work.
 
 ### Configuration
 
