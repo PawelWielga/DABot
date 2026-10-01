@@ -16,7 +16,12 @@ builder.Services.AddSingleton(
 builder.Services.AddSingleton<DemoDataService>();
 builder.Services.AddSingleton<IGeneralRuntimeSettingsService, DemoGeneralRuntimeSettingsService>();
 builder.Services.AddSingleton<IStorageRuntimeSettingsService, DemoStorageRuntimeSettingsService>();
-builder.Services.AddSingleton<IPageObserverQueryService, DemoPageObserverQueryService>();
+builder.Services.AddSingleton<DemoPageObserverQueryService>();
+builder.Services.AddSingleton<IPageObserverQueryService>(
+    static provider => provider.GetRequiredService<DemoPageObserverQueryService>());
+builder.Services.AddSingleton<IPageObserverManagementStore>(
+    static provider => provider.GetRequiredService<DemoPageObserverQueryService>());
+builder.Services.AddSingleton<IPageObserverManagementService, PageObserverManagementService>();
 builder.Services.AddSingleton<IBrowserProfileCatalog, DemoBrowserProfileCatalog>();
 builder.Services.AddSingleton<IBrowserProfileManagementService, DemoBrowserProfileManagementService>();
 builder.Services.AddSingleton<IBrowserProfileService, DemoBrowserProfileService>();
