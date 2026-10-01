@@ -69,6 +69,7 @@ Run details also expose guarded manual controls through the existing `IDurableRu
 - Resume is available for waiting runs except retry waits.
 - Retry now is available only for `Waiting / Retry` runs. It bypasses the scheduled `RetryNotBefore` time while preserving persisted retry limits and recovery checks.
 - Cancel is available for queued and waiting runs and requires an explicit confirmation step in the UI.
+- Clone run requires confirmation because it starts a new durable execution and can repeat external side effects. The new run reuses the exact immutable scenario version, starts from the beginning with a new run ID, and carries forward source input variables while dropping the old `runId` and variables produced by scenario step outputs.
 - Active running executions are not cancelled from the panel because safe cross-process cancellation requires worker lease/CAS coordination.
 - The GitHub Pages demo renders the controls as unavailable and never executes runtime actions.
 
