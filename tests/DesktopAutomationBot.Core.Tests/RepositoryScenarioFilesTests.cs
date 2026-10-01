@@ -155,6 +155,25 @@ public sealed class RepositoryScenarioFilesTests
         typeOptions.Should().BeEquivalentTo(Enum.GetNames<StepType>());
     }
 
+    [Fact]
+    public async Task Scenario_schema_should_define_enabled_as_optional_default_true_boolean()
+    {
+        var repositoryRoot = FindRepositoryRoot();
+        var schemaPath = Path.Combine(repositoryRoot, "schemas", "scenario.schema.json");
+        var json = await File.ReadAllTextAsync(schemaPath);
+
+        using var document = JsonDocument.Parse(json);
+
+        var enabled = document.RootElement
+            .GetProperty("$defs")
+            .GetProperty("step")
+            .GetProperty("properties")
+            .GetProperty("enabled");
+
+        enabled.GetProperty("type").GetString().Should().Be("boolean");
+        enabled.GetProperty("default").GetBoolean().Should().BeTrue();
+    }
+
     private static string FindRepositoryRoot()
     {
         DirectoryInfo? directory = new(AppContext.BaseDirectory);
