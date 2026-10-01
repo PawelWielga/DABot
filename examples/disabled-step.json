@@ -1,0 +1,23 @@
+{
+  "$schema": "../schemas/scenario.schema.json",
+  "name": "Disabled step",
+  "steps": [
+    {
+      "id": "open",
+      "type": "OpenUrl",
+      "url": "data:text/html,<main><h1 id='status'>Ready</h1></main>"
+    },
+    {
+      "id": "temporary-delay",
+      "type": "Delay",
+      "enabled": false,
+      "timeoutMs": 5000
+    },
+    {
+      "id": "read-status",
+      "type": "ReadText",
+      "selector": "#status",
+      "output": "status"
+    }
+  ]
+}
