@@ -149,6 +149,54 @@ public sealed class ScenarioVisualModel
         Steps.Remove(step);
     }
 
+    public bool MoveStep(
+        ScenarioVisualStepModel step,
+        int offset) =>
+        MoveStep(
+            Steps,
+            _steps,
+            step,
+            offset);
+
+    internal static bool MoveStep(
+        IList<ScenarioVisualStepModel> models,
+        JsonArray nodes,
+        ScenarioVisualStepModel step,
+        int offset)
+    {
+        ArgumentNullException.ThrowIfNull(models);
+        ArgumentNullException.ThrowIfNull(nodes);
+        ArgumentNullException.ThrowIfNull(step);
+
+        if (offset is not (-1 or 1))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(offset),
+                offset,
+                "Step move offset must be -1 or 1.");
+        }
+
+        var currentIndex = models.IndexOf(step);
+        if (currentIndex < 0)
+        {
+            return false;
+        }
+
+        var targetIndex = currentIndex + offset;
+        if (targetIndex < 0 || targetIndex >= models.Count)
+        {
+            return false;
+        }
+
+        nodes.RemoveAt(currentIndex);
+        nodes.Insert(targetIndex, step.Node);
+
+        models.RemoveAt(currentIndex);
+        models.Insert(targetIndex, step);
+
+        return true;
+    }
+
     internal static JsonObject CreateStep(
         StepType type,
         bool includeStarterValue = false)
@@ -490,6 +538,19 @@ public sealed class ScenarioVisualStepModel
         {
             ScenarioVisualModel.RemoveNode(Node, "children");
         }
+    }
+
+    public bool MoveChild(
+        ScenarioVisualStepModel child,
+        int offset)
+    {
+        EnsureChildrenAttached();
+
+        return ScenarioVisualModel.MoveStep(
+            Children,
+            _children,
+            child,
+            offset);
     }
 
     private JsonObject EnsureLocator()
