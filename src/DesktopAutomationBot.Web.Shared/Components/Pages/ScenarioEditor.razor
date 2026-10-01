@@ -25,11 +25,89 @@
         </label>
     </div>
 
-    <label class="editor-label" for="scenario-json">Scenario JSON</label>
-    <textarea id="scenario-json"
-              class="json-editor"
-              @bind="_json"
-              spellcheck="false"></textarea>
+    <div class="scenario-visual-editor">
+        <div class="scenario-editor-section-heading">
+            <div>
+                <h2>Visual editor</h2>
+                <p>Edit scenario metadata and steps. Changes are written back to the JSON below.</p>
+            </div>
+
+            <button class="button secondary"
+                    type="button"
+                    @onclick="AddVisualStepAsync"
+                    disabled="@(IsBusy || _visualModel is null)">
+                Add step
+            </button>
+        </div>
+
+        @if (_visualModel is null)
+        {
+            <div class="scenario-errors">
+                <div>@(_visualMessage ?? "Fix the JSON validation errors to use the visual editor.")</div>
+            </div>
+        }
+        else
+        {
+            <div class="scenario-root-grid">
+                <label>
+                    <span>Name</span>
+                    <input @bind="_visualModel.Name"
+                           @bind:after="VisualChangedAsync" />
+                </label>
+
+                <label>
+                    <span>Browser profile</span>
+                    <input @bind="_visualModel.BrowserProfile"
+                           @bind:after="VisualChangedAsync"
+                           placeholder="Optional persistent profile" />
+                </label>
+
+                <label>
+                    <span>Scenario timeout (ms)</span>
+                    <input type="number"
+                           @bind="_visualModel.TimeoutMs"
+                           @bind:after="VisualChangedAsync"
+                           min="1"
+                           placeholder="Default" />
+                </label>
+            </div>
+
+            <div class="scenario-step-list">
+                @if (_visualModel.Steps.Count == 0)
+                {
+                    <p class="muted">No steps yet. Add the first step to continue.</p>
+                }
+                else
+                {
+                    @for (var stepIndex = 0; stepIndex < _visualModel.Steps.Count; stepIndex++)
+                    {
+                        var step = _visualModel.Steps[stepIndex];
+
+                        <ScenarioVisualStepEditor @key="step"
+                                                  Model="step"
+                                                  Index="stepIndex"
+                                                  OnChanged="VisualChangedAsync"
+                                                  OnRemove="@(() => RemoveVisualStepAsync(step))" />
+                    }
+                }
+            </div>
+        }
+    </div>
+
+    <div class="scenario-json-section">
+        <div class="scenario-editor-section-heading compact-heading">
+            <div>
+                <h2>Scenario JSON</h2>
+                <p>Advanced/raw representation. Leaving this field refreshes the visual editor when the JSON is valid.</p>
+            </div>
+        </div>
+
+        <textarea id="scenario-json"
+                  class="json-editor"
+                  @bind="_json"
+                  @bind:after="JsonChangedAsync"
+                  spellcheck="false"></textarea>
+    </div>
 
     @if (_validationErrors.Count > 0)
     {
@@ -195,8 +273,10 @@
         "  ]\n" +
         "}";
     private string? _message;
+    private string? _visualMessage;
     private IReadOnlyList<string> _validationErrors = [];
     private ScenarioExecutionResult? _testRunResult;
+    private ScenarioVisualModel? _visualModel;
 
     private bool IsBusy => _busy || _testRunBusy;
 
@@ -227,11 +307,13 @@
         _isNew = string.IsNullOrWhiteSpace(FileName);
         _fileName = FileName ?? string.Empty;
         _message = null;
+        _visualMessage = null;
         _validationErrors = [];
         _confirmDelete = false;
 
         if (_isNew)
         {
+            SyncVisualFromJson();
             return;
         }
 
@@ -243,6 +325,7 @@
         }
 
         _json = document.Json;
+        SyncVisualFromJson();
     }
 
     private async Task ImportAsync(InputFileChangeEventArgs args)
@@ -290,8 +373,19 @@
 
             var validation = ScenarioJsonValidation.Validate(_json);
             _validationErrors = validation.Errors;
+
+            if (validation.IsValid)
+            {
+                SyncVisualFromJson();
+            }
+            else
+            {
+                _visualModel = null;
+                _visualMessage = "Fix the imported JSON validation errors to use the visual editor.";
+            }
+
             _message = validation.IsValid
-                ? $"Imported {file.Name}. Review the JSON and save when ready."
+                ? $"Imported {file.Name}. Review the scenario and save when ready."
                 : $"Imported {file.Name}, but validation found issues.";
         }
         catch (IOException)
@@ -352,11 +446,100 @@
     {
         var validation = ScenarioJsonValidation.Validate(_json);
         _validationErrors = validation.Errors;
+
+        if (validation.IsValid)
+        {
+            SyncVisualFromJson();
+        }
+        else
+        {
+            _visualModel = null;
+            _visualMessage = "Fix the JSON validation errors to use the visual editor.";
+        }
+
         _message = validation.IsValid
             ? "Scenario JSON is valid."
             : null;
 
         return Task.CompletedTask;
+    }
+
+    private Task JsonChangedAsync()
+    {
+        _message = null;
+        _testRunResult = null;
+
+        var validation = ScenarioJsonValidation.Validate(_json);
+        _validationErrors = validation.Errors;
+
+        if (!validation.IsValid)
+        {
+            _visualModel = null;
+            _visualMessage = "Fix the JSON validation errors to use the visual editor.";
+            return Task.CompletedTask;
+        }
+
+        SyncVisualFromJson();
+        return Task.CompletedTask;
+    }
+
+    private Task VisualChangedAsync()
+    {
+        if (_visualModel is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        _json = _visualModel.ToJson();
+        _message = null;
+        _visualMessage = null;
+        _testRunResult = null;
+
+        var validation = ScenarioJsonValidation.Validate(_json);
+        _validationErrors = validation.Errors;
+
+        return Task.CompletedTask;
+    }
+
+    private async Task AddVisualStepAsync()
+    {
+        if (_visualModel is null || IsBusy)
+        {
+            return;
+        }
+
+        _visualModel.AddStep();
+        await VisualChangedAsync();
+    }
+
+    private async Task RemoveVisualStepAsync(
+        ScenarioVisualStepModel step)
+    {
+        if (_visualModel is null || IsBusy)
+        {
+            return;
+        }
+
+        _visualModel.RemoveStep(step);
+        await VisualChangedAsync();
+    }
+
+    private void SyncVisualFromJson()
+    {
+        if (ScenarioVisualModel.TryCreate(
+                _json,
+                out var model,
+                out var errors))
+        {
+            _visualModel = model;
+            _visualMessage = null;
+            return;
+        }
+
+        _visualModel = null;
+        _visualMessage = errors.Count > 0
+            ? "Fix the JSON validation errors to use the visual editor."
+            : "The scenario could not be loaded into the visual editor.";
     }
 
     private async Task SaveAsync()
