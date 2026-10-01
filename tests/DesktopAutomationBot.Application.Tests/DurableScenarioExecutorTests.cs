@@ -792,18 +792,6 @@ public sealed class DurableScenarioExecutorTests : IDisposable
         var attemptStore = new RecordingStepAttemptStore(events);
         var browser = new RecordingBrowserAutomation(events);
 
-        var openHandler = new RecordingStepHandler(
-            StepType.OpenUrl,
-            events,
-            (_, _, index, _) =>
-                Task.FromResult(
-                    new StepExecutionResult
-                    {
-                        Index = index,
-                        Type = StepType.OpenUrl,
-                        Success = true,
-                    }));
-
         var screenshotHandler = new RecordingStepHandler(
             StepType.Screenshot,
             events,
@@ -817,7 +805,7 @@ public sealed class DurableScenarioExecutorTests : IDisposable
                     }));
 
         var executor = CreateExecutor(
-            [openHandler, screenshotHandler],
+            [screenshotHandler],
             browser,
             runStore,
             attemptStore);
@@ -832,10 +820,19 @@ public sealed class DurableScenarioExecutorTests : IDisposable
                 [
                     new ScenarioStep
                     {
-                        Id = "disabled-open",
-                        Type = StepType.OpenUrl,
+                        Id = "disabled-loop",
+                        Type = StepType.Loop,
                         Enabled = false,
-                        Url = "https://example.com/disabled",
+                        Value = "2",
+                        Children =
+                        [
+                            new ScenarioStep
+                            {
+                                Id = "never-open",
+                                Type = StepType.OpenUrl,
+                                Url = "https://example.com/disabled",
+                            },
+                        ],
                     },
                     new ScenarioStep
                     {
