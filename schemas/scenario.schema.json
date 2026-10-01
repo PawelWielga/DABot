@@ -48,7 +48,7 @@
       ],
       "properties": {
         "type": {
-          "description": "Scenario step type. OpenUrl, Click, FillText, PasteText, ReadText, WaitFor, CallApi, Delay and Screenshot are currently executable. Other listed values are reserved by the domain model and roadmap.",
+          "description": "Scenario step type.",
           "oneOf": [
             {
               "const": "OpenUrl",
@@ -99,6 +99,11 @@
               "description": "Available in durable execution: persist the next execution cursor and return Suspended. Optional parameters.reason is Human (default), Event, or Schedule."
             }
           ]
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Optional execution switch. Omitted or true means the step executes normally. false skips the step; for If and Loop it skips the entire nested subtree."
         },
         "selector": {
           "type": "string",
