@@ -813,3 +813,153 @@ select {
         flex-direction: column;
     }
 }
+
+
+.scenario-visual-editor,
+.scenario-json-section {
+    margin-top: 22px;
+}
+
+.scenario-json-section {
+    padding-top: 22px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.scenario-editor-section-heading,
+.scenario-step-heading,
+.scenario-step-subheading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+.scenario-editor-section-heading {
+    margin-bottom: 16px;
+}
+
+.scenario-editor-section-heading p,
+.scenario-step-heading .muted {
+    margin: 4px 0 0;
+}
+
+.compact-heading {
+    margin-bottom: 10px;
+}
+
+.scenario-root-grid,
+.scenario-step-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.scenario-root-grid {
+    margin-bottom: 16px;
+}
+
+.scenario-root-grid label,
+.scenario-step-grid label,
+.scenario-step-subsection > label {
+    display: grid;
+    gap: 7px;
+    color: #374151;
+    font-size: .82rem;
+    font-weight: 600;
+}
+
+.scenario-step-list {
+    display: grid;
+    gap: 14px;
+}
+
+.scenario-step-card {
+    margin-left: calc(var(--step-depth, 0) * 12px);
+    padding: 16px;
+    border: 1px solid #dbe1ea;
+    border-radius: 10px;
+    background: #f8fafc;
+}
+
+.scenario-step-heading {
+    align-items: center;
+    margin-bottom: 14px;
+}
+
+.scenario-step-heading > div {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+}
+
+.scenario-step-wide {
+    grid-column: 1 / -1;
+}
+
+.scenario-step-subsection {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.scenario-step-subheading {
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.scenario-checkbox {
+    display: flex !important;
+    align-items: center;
+    gap: 8px !important;
+}
+
+.scenario-checkbox input {
+    width: auto;
+}
+
+.scenario-parameters-editor {
+    min-height: 110px;
+    resize: vertical;
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #172033;
+    font-family: "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    font-size: .84rem;
+    line-height: 1.45;
+}
+
+.scenario-children {
+    display: grid;
+    gap: 10px;
+}
+
+.button.compact {
+    min-height: 32px;
+    padding: 5px 10px;
+    font-size: .82rem;
+}
+
+@media (max-width: 760px) {
+    .scenario-root-grid,
+    .scenario-step-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .scenario-step-wide {
+        grid-column: auto;
+    }
+
+    .scenario-step-card {
+        margin-left: 0;
+    }
+
+    .scenario-editor-section-heading {
+        flex-direction: column;
+    }
+
+    .scenario-editor-section-heading .button {
+        width: 100%;
+    }
+}
