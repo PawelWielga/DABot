@@ -65,6 +65,31 @@ public sealed class InteractiveBrowserSessionServiceTests
     }
 
     [Fact]
+    public async Task SessionMetadataContracts_DoNotExposeInteractiveBrowserContentOrInput()
+    {
+        typeof(InteractiveBrowserSessionInfo)
+            .GetProperties()
+            .Select(property => property.Name)
+            .Should()
+            .BeEquivalentTo(
+                nameof(InteractiveBrowserSessionInfo.SessionId),
+                nameof(InteractiveBrowserSessionInfo.ProfileName),
+                nameof(InteractiveBrowserSessionInfo.StartedAt),
+                nameof(InteractiveBrowserSessionInfo.ExpiresAt));
+
+        typeof(InteractiveBrowserSessionAuditEvent)
+            .GetProperties()
+            .Select(property => property.Name)
+            .Should()
+            .BeEquivalentTo(
+                nameof(InteractiveBrowserSessionAuditEvent.EventType),
+                nameof(InteractiveBrowserSessionAuditEvent.SessionId),
+                nameof(InteractiveBrowserSessionAuditEvent.ProfileName),
+                nameof(InteractiveBrowserSessionAuditEvent.OccurredAt),
+                nameof(InteractiveBrowserSessionAuditEvent.EndReason));
+    }
+
+    [Fact]
     public async Task StartAsync_WhenAuditStartFails_ClosesBrowserAndDoesNotRegisterSession()
     {
         var profiles = new RecordingProfileService();
