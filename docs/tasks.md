@@ -313,7 +313,7 @@ The web panel is optional and uses Application services. It must not directly ow
 - [x] Create/edit/delete scenario. The web panel can create, edit, and delete top-level scenario JSON files through `IScenarioManagementService` with path-safe filesystem writes.
 - [x] Visual step editor. The shared scenario editor exposes scenario metadata and recursive step forms for all current step types, including selector/structured locator editing, retry settings, parameters JSON, nested `If`/`Loop` children, add/remove operations, and type-specific fields.
 - [x] Reorder steps. The visual editor exposes move-up/move-down controls for top-level and nested steps; each move updates both the visual collection and the underlying JSON array immediately.
-- [ ] Enable/disable steps.
+- [x] Enable/disable steps. Scenario steps support optional `enabled` with an omitted/default-true contract; the visual editor exposes the toggle, one-shot and durable execution skip disabled steps/subtrees, and durable skips advance and persist the execution cursor without creating step attempts.
 - [x] Validation UI. The JSON editor validates syntax and the existing scenario domain rules before saving and can validate on demand.
 - [x] JSON editor. A shared raw JSON editor is available in both the real management host and the GitHub Pages demo.
 - [x] Synchronized visual/JSON representations. Visual changes rewrite the raw JSON immediately; valid raw JSON refreshes the visual model when the JSON field loses focus or validation runs. The visual model edits the parsed JSON tree in place so extension fields such as `$schema` and unknown future properties are preserved.
