@@ -991,3 +991,34 @@ select {
         margin-left: auto;
     }
 }
+
+
+.scenario-step-enabled {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 32px;
+    padding: 5px 8px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #374151;
+    font-size: .82rem;
+    font-weight: 600;
+}
+
+.scenario-step-enabled input {
+    width: auto;
+    margin: 0;
+}
+
+.scenario-step-card.disabled-step {
+    border-style: dashed;
+    background: #f3f4f6;
+}
+
+.scenario-step-card.disabled-step > .scenario-step-heading > div:first-child,
+.scenario-step-card.disabled-step > .scenario-step-grid,
+.scenario-step-card.disabled-step > .scenario-step-subsection {
+    opacity: .62;
+}
