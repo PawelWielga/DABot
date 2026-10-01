@@ -90,6 +90,7 @@ Each scenario can be opened in the shared synchronized visual/JSON editor. The e
 - selector or structured locator editing,
 - retry, timeout, output, URL/value, and parameters editing,
 - nested child-step editing for `If` and `Loop`,
+- move-up/move-down reordering for top-level and nested steps,
 - immediate visual-to-JSON synchronization while preserving unknown JSON properties such as `$schema`,
 - JSON-to-visual refresh whenever the raw JSON is valid,
 - import a local `.json` definition into the editor with a 1 MiB size limit,
@@ -102,7 +103,7 @@ Each scenario can be opened in the shared synchronized visual/JSON editor. The e
 
 Import does not bypass the normal save rules. Imported content is validated immediately, and saving still uses `IScenarioManagementService` with the existing path-safe file-name checks. Export is generated from the current editor buffer and does not require a runtime endpoint, so the same behavior is available in the static GitHub Pages demo.
 
-The visual editor works on the parsed JSON tree rather than rebuilding a scenario document from the domain model. This keeps extension metadata and unknown future fields intact. Invalid raw JSON disables the visual representation until validation succeeds, preventing stale visual state from overwriting manual JSON edits.
+The visual editor works on the parsed JSON tree rather than rebuilding a scenario document from the domain model. Reordering therefore moves the same JSON nodes instead of reconstructing steps, keeping step data and extension fields intact. Invalid raw JSON disables the visual representation until validation succeeds, preventing stale visual state from overwriting manual JSON edits.
 
 Editor test runs go through `IScenarioTestRunService` in Application and then the normal `IScenarioExecutor`; the Razor component does not control Playwright directly. The test uses the current unsaved JSON buffer and reports the execution outcome and step results in the editor. It is intentionally a one-shot test path, so scenarios containing durable `Suspend` steps are rejected before Chromium is opened. The static demo renders the test action as disabled and never executes automation.
 

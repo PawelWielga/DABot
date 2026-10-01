@@ -86,7 +86,11 @@
                         <ScenarioVisualStepEditor @key="step"
                                                   Model="step"
                                                   Index="stepIndex"
+                                                  CanMoveUp="@(stepIndex > 0)"
+                                                  CanMoveDown="@(stepIndex < _visualModel.Steps.Count - 1)"
                                                   OnChanged="VisualChangedAsync"
+                                                  OnMoveUp="@(() => MoveVisualStepAsync(step, -1))"
+                                                  OnMoveDown="@(() => MoveVisualStepAsync(step, 1))"
                                                   OnRemove="@(() => RemoveVisualStepAsync(step))" />
                     }
                 }
@@ -510,6 +514,21 @@
 
         _visualModel.AddStep();
         await VisualChangedAsync();
+    }
+
+    private async Task MoveVisualStepAsync(
+        ScenarioVisualStepModel step,
+        int offset)
+    {
+        if (_visualModel is null || IsBusy)
+        {
+            return;
+        }
+
+        if (_visualModel.MoveStep(step, offset))
+        {
+            await VisualChangedAsync();
+        }
     }
 
     private async Task RemoveVisualStepAsync(
