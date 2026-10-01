@@ -1,10 +1,17 @@
-<article class="scenario-step-card" style="@($"--step-depth:{Depth}")">
+<article class="scenario-step-card @(!Model.Enabled ? "disabled-step" : null)"
+         style="@($"--step-depth:{Depth}")">
         <div class="scenario-step-heading">
             <div>
                 <strong>Step @(Index + 1)</strong>
                 <span class="muted">@Model.Type</span>
             </div>
             <div class="scenario-step-actions">
+                <label class="scenario-step-enabled">
+                    <input type="checkbox"
+                           @bind="Model.Enabled"
+                           @bind:after="NotifyChanged" />
+                    <span>Enabled</span>
+                </label>
                 <button class="button secondary compact"
                         type="button"
                         title="Move step up"
