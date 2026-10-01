@@ -93,6 +93,47 @@ public sealed class DurableScenarioExecutor :
             cancellationToken);
     }
 
+    public async Task<DurableScenarioExecutionResult> CloneAsync(
+        Guid runId,
+        CancellationToken cancellationToken = default)
+    {
+        if (runId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Run ID must not be empty.",
+                nameof(runId));
+        }
+
+        var stored = await _runStore.LoadAsync(
+            runId,
+            cancellationToken);
+
+        if (stored is null)
+        {
+            throw new KeyNotFoundException(
+                $"Durable run '{runId}' does not exist.");
+        }
+
+        var scenario = stored.ScenarioVersion.MaterializeDefinition();
+        var derivedVariables = CollectDerivedVariableNames(scenario.Steps);
+
+        var initialVariables = stored.Run.Variables
+            .Where(pair => !derivedVariables.Contains(pair.Key))
+            .ToDictionary(
+                pair => pair.Key,
+                pair => ScenarioVariableValue.FromJsonElement(
+                    pair.Value.ToJsonElement()),
+                StringComparer.OrdinalIgnoreCase);
+
+        return await ExecuteAsync(
+            new ScenarioRunRequest
+            {
+                ScenarioVersion = stored.ScenarioVersion,
+                StructuredVariables = initialVariables,
+            },
+            cancellationToken);
+    }
+
     public Task<DurableScenarioExecutionResult> ResumeAsync(
         Guid runId,
         CancellationToken cancellationToken = default) =>
@@ -839,6 +880,34 @@ public sealed class DurableScenarioExecutor :
             run.CreatedAt,
             updatedAt,
             retryNotBefore);
+
+    private static HashSet<string> CollectDerivedVariableNames(
+        IReadOnlyList<ScenarioStep> steps)
+    {
+        var names = new HashSet<string>(
+            StringComparer.OrdinalIgnoreCase)
+        {
+            "runId",
+        };
+
+        CollectDerivedVariableNames(steps, names);
+        return names;
+    }
+
+    private static void CollectDerivedVariableNames(
+        IReadOnlyList<ScenarioStep> steps,
+        ISet<string> names)
+    {
+        foreach (var step in steps)
+        {
+            if (!string.IsNullOrWhiteSpace(step.Output))
+            {
+                names.Add(step.Output);
+            }
+
+            CollectDerivedVariableNames(step.Children, names);
+        }
+    }
 
     private static void CaptureOutputVariable(
         IDictionary<string, ScenarioVariableValue> variables,
