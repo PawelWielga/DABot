@@ -81,10 +81,17 @@ The scenarios page lists top-level JSON files from `bot.storage.scenariosDirecto
 
 For each file it shows the scenario name, file name, schema version, step count, browser-profile mode, and validation status. Invalid definitions remain visible with validation diagnostics instead of failing the whole page.
 
-Each scenario can be opened in the shared raw JSON editor. The editor supports:
+Each scenario can be opened in the shared synchronized visual/JSON editor. The editor supports:
 
 - create,
 - edit,
+- visual scenario metadata editing,
+- recursive visual step editing for all current step types,
+- selector or structured locator editing,
+- retry, timeout, output, URL/value, and parameters editing,
+- nested child-step editing for `If` and `Loop`,
+- immediate visual-to-JSON synchronization while preserving unknown JSON properties such as `$schema`,
+- JSON-to-visual refresh whenever the raw JSON is valid,
 - import a local `.json` definition into the editor with a 1 MiB size limit,
 - export the current JSON buffer as a local `.json` download,
 - explicit validation,
@@ -94,6 +101,8 @@ Each scenario can be opened in the shared raw JSON editor. The editor supports:
 - delete.
 
 Import does not bypass the normal save rules. Imported content is validated immediately, and saving still uses `IScenarioManagementService` with the existing path-safe file-name checks. Export is generated from the current editor buffer and does not require a runtime endpoint, so the same behavior is available in the static GitHub Pages demo.
+
+The visual editor works on the parsed JSON tree rather than rebuilding a scenario document from the domain model. This keeps extension metadata and unknown future fields intact. Invalid raw JSON disables the visual representation until validation succeeds, preventing stale visual state from overwriting manual JSON edits.
 
 Editor test runs go through `IScenarioTestRunService` in Application and then the normal `IScenarioExecutor`; the Razor component does not control Playwright directly. The test uses the current unsaved JSON buffer and reports the execution outcome and step results in the editor. It is intentionally a one-shot test path, so scenarios containing durable `Suspend` steps are rejected before Chromium is opened. The static demo renders the test action as disabled and never executes automation.
 
