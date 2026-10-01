@@ -17,4 +17,4 @@
 
 - Keep management presentation in `DesktopAutomationBot.Web.Shared`; the real web host and GitHub Pages demo must reuse those components. The demo is sample-data only and must not execute automation or access real runtime data.
 
-- Keep interactive-browser audit events metadata-only; never include target URLs with sensitive query data, page content, credentials, MFA values, or operator keystrokes.
+- Keep interactive-browser session and audit contracts metadata-only. Operator input must go directly to the browser/profile; never add target URLs with sensitive query data, page content, form values, credentials, MFA values, or operator keystrokes to Application models, logs, configuration, or durable variables.
