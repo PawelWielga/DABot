@@ -29,6 +29,13 @@ public sealed record ScenarioJsonValidationResult(
     bool IsValid,
     IReadOnlyList<string> Errors);
 
+public sealed record ScenarioJsonDefinitionResult(
+    ScenarioDefinition? Definition,
+    IReadOnlyList<string> Errors)
+{
+    public bool IsValid => Definition is not null && Errors.Count == 0;
+}
+
 public sealed record ScenarioWriteResult(
     bool Success,
     IReadOnlyList<string> Errors);
@@ -70,10 +77,18 @@ public static class ScenarioJsonValidation
 
     public static ScenarioJsonValidationResult Validate(string? json)
     {
+        var definition = Parse(json);
+        return new ScenarioJsonValidationResult(
+            definition.IsValid,
+            definition.Errors);
+    }
+
+    public static ScenarioJsonDefinitionResult Parse(string? json)
+    {
         if (string.IsNullOrWhiteSpace(json))
         {
-            return new ScenarioJsonValidationResult(
-                false,
+            return new ScenarioJsonDefinitionResult(
+                null,
                 ["Scenario JSON is required."]);
         }
 
@@ -85,16 +100,16 @@ public static class ScenarioJsonValidation
 
             if (scenario is null)
             {
-                return new ScenarioJsonValidationResult(
-                    false,
+                return new ScenarioJsonDefinitionResult(
+                    null,
                     ["Scenario JSON could not be parsed."]);
             }
 
             scenario = ScenarioDefinitionNormalizer.Normalize(scenario);
             var validation = Validator.Validate(scenario);
 
-            return new ScenarioJsonValidationResult(
-                validation.IsValid,
+            return new ScenarioJsonDefinitionResult(
+                validation.IsValid ? scenario : null,
                 validation.Errors);
         }
         catch (JsonException exception)
@@ -104,8 +119,8 @@ public static class ScenarioJsonValidation
                     ? $" at line {exception.LineNumber + 1}, byte {exception.BytePositionInLine + 1}"
                     : string.Empty;
 
-            return new ScenarioJsonValidationResult(
-                false,
+            return new ScenarioJsonDefinitionResult(
+                null,
                 [$"Invalid JSON{location}: {exception.Message}"]);
         }
     }

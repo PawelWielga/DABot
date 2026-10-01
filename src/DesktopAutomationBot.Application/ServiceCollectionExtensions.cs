@@ -12,6 +12,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IBrowserProfileService, BrowserProfileService>();
         services.AddSingleton<IInteractiveBrowserSessionService, InteractiveBrowserSessionService>();
         services.AddSingleton<IScenarioExecutor, ScenarioExecutor>();
+        services.AddSingleton<IScenarioTestRunService, ScenarioTestRunService>();
         services.AddSingleton<DurableScenarioExecutor>();
         services.AddSingleton<IDurableScenarioExecutor>(
             static provider => provider.GetRequiredService<DurableScenarioExecutor>());
