@@ -1,7 +1,10 @@
 @page "/scenarios/new"
 @page "/scenarios/{FileName}"
 @using Microsoft.AspNetCore.Components.Forms
+@implements IDisposable
 @inject IScenarioManagementService ScenarioManagement
+@inject IScenarioTestRunService ScenarioTestRun
+@inject ManagementUiEnvironment UiEnvironment
 @inject NavigationManager Navigation
 
 <PageTitle>@(_isNew ? "New DABot scenario" : $"Edit {FileName}")</PageTitle>
@@ -48,28 +51,124 @@
             Import JSON
             <InputFile OnChange="ImportAsync"
                        accept=".json,application/json"
-                       disabled="@_busy" />
+                       disabled="@IsBusy" />
         </label>
         <a class="button secondary"
            href="@ExportHref"
            download="@ExportFileName">Export JSON</a>
-        <button class="button secondary" @onclick="ValidateAsync" disabled="@_busy">Validate</button>
-        <button class="button primary" @onclick="SaveAsync" disabled="@_busy">Save</button>
+        <button class="button secondary" @onclick="ValidateAsync" disabled="@IsBusy">Validate</button>
+        <button class="button secondary"
+                @onclick="RunTestAsync"
+                disabled="@(UiEnvironment.IsDemo || IsBusy)">
+            @(_testRunBusy ? "Running…" : "Test run")
+        </button>
+        @if (_testRunBusy)
+        {
+            <button class="button secondary" @onclick="CancelTestRun">Cancel test</button>
+        }
+        <button class="button primary" @onclick="SaveAsync" disabled="@IsBusy">Save</button>
 
         @if (!_isNew)
         {
             @if (_confirmDelete)
             {
-                <button class="button danger" @onclick="DeleteAsync" disabled="@_busy">Confirm delete</button>
-                <button class="button secondary" @onclick="CancelDelete" disabled="@_busy">Cancel</button>
+                <button class="button danger" @onclick="DeleteAsync" disabled="@IsBusy">Confirm delete</button>
+                <button class="button secondary" @onclick="CancelDelete" disabled="@IsBusy">Cancel</button>
             }
             else
             {
-                <button class="button danger" @onclick="RequestDelete" disabled="@_busy">Delete</button>
+                <button class="button danger" @onclick="RequestDelete" disabled="@IsBusy">Delete</button>
             }
         }
     </div>
 </section>
+
+@if (UiEnvironment.IsDemo)
+{
+    <p class="muted action-note">Scenario test runs are disabled in the static demo.</p>
+}
+
+@if (_testRunResult is not null)
+{
+    <section class="panel">
+        <div class="panel-heading">
+            <div>
+                <h2>Test run result</h2>
+                <p>Executed directly from the current editor buffer without saving the scenario.</p>
+            </div>
+            <span class="status @(_testRunResult.Success ? "completed" : "failed")">
+                @(_testRunResult.Success ? "Completed" : "Failed")
+            </span>
+        </div>
+
+        <div class="detail-grid">
+            <div class="detail-card">
+                <span>Scenario</span>
+                <strong>@_testRunResult.ScenarioName</strong>
+            </div>
+            <div class="detail-card">
+                <span>Run ID</span>
+                <strong><code>@(_testRunResult.RunId ?? "-")</code></strong>
+            </div>
+            <div class="detail-card">
+                <span>Steps</span>
+                <strong>@_testRunResult.Steps.Count</strong>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(_testRunResult.ErrorMessage))
+        {
+            <div class="scenario-errors editor-errors">
+                <div>@_testRunResult.ErrorMessage</div>
+            </div>
+        }
+
+        @if (_testRunResult.Steps.Count > 0)
+        {
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Output</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var step in _testRunResult.Steps)
+                        {
+                            <tr>
+                                <td>@(step.Index + 1)</td>
+                                <td>@step.Type</td>
+                                <td>
+                                    <span class="status @(step.Success ? "completed" : "failed")">
+                                        @(step.Success ? "OK" : "Failed")
+                                    </span>
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrWhiteSpace(step.OutputName))
+                                    {
+                                        <code>@step.OutputName</code>
+                                        <span> = @step.OutputValue</span>
+                                    }
+                                    else if (!string.IsNullOrWhiteSpace(step.ErrorMessage))
+                                    {
+                                        <span>@step.ErrorMessage</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="muted">-</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+}
 
 @code {
     [Parameter]
@@ -79,7 +178,9 @@
 
     private bool _isNew;
     private bool _busy;
+    private bool _testRunBusy;
     private bool _confirmDelete;
+    private CancellationTokenSource? _testRunCancellation;
     private string _fileName = string.Empty;
     private string _json =
         "{\n" +
@@ -95,6 +196,9 @@
         "}";
     private string? _message;
     private IReadOnlyList<string> _validationErrors = [];
+    private ScenarioExecutionResult? _testRunResult;
+
+    private bool IsBusy => _busy || _testRunBusy;
 
     private string ExportHref =>
         "data:application/json;charset=utf-8;base64," +
@@ -200,6 +304,50 @@
         }
     }
 
+    private async Task RunTestAsync()
+    {
+        _testRunBusy = true;
+        _message = null;
+        _validationErrors = [];
+        _testRunResult = null;
+
+        _testRunCancellation?.Dispose();
+        _testRunCancellation = new CancellationTokenSource();
+
+        try
+        {
+            var result = await ScenarioTestRun.RunAsync(
+                _json,
+                _testRunCancellation.Token);
+
+            _validationErrors = result.Errors;
+            _testRunResult = result.Execution;
+
+            if (!result.Executed)
+            {
+                _message = null;
+                return;
+            }
+
+            _message = result.Success
+                ? "Test run completed successfully."
+                : "Test run failed. See the result below.";
+        }
+        catch (OperationCanceledException)
+        {
+            _message = "Test run cancelled.";
+        }
+        finally
+        {
+            _testRunBusy = false;
+            _testRunCancellation?.Dispose();
+            _testRunCancellation = null;
+        }
+    }
+
+    private void CancelTestRun() =>
+        _testRunCancellation?.Cancel();
+
     private Task ValidateAsync()
     {
         var validation = ScenarioJsonValidation.Validate(_json);
@@ -264,6 +412,12 @@
     {
         _confirmDelete = false;
         _message = null;
+    }
+
+    public void Dispose()
+    {
+        _testRunCancellation?.Cancel();
+        _testRunCancellation?.Dispose();
     }
 
     private async Task DeleteAsync()
