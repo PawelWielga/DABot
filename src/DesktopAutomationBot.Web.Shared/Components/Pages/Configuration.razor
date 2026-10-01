@@ -10,7 +10,7 @@
 <div class="page-heading">
     <div>
         <h1>Configuration</h1>
-        <p class="lead">General runtime settings for the local DABot management host.</p>
+        <p class="lead">Runtime and storage settings for the local DABot management host.</p>
     </div>
     <span class="muted">@UiEnvironment.RuntimeLabel</span>
 </div>
@@ -333,7 +333,7 @@ else
         <button class="button secondary"
                 type="button"
                 @onclick="ReloadAsync"
-                disabled="@_saving">
+                disabled="@(_saving || _storageSaving)">
             Reload
         </button>
     </div>
