@@ -356,10 +356,10 @@ The web panel is optional and uses Application services. It must not directly ow
 ## Sprint 9 - Observers and events in the web panel
 
 - [x] Observer list. The shared web panel lists persisted observer definitions and polling snapshots through `IPageObserverQueryService`, including enabled state, condition, profile, event correlation, polling times, and current error state; the static demo uses representative observer data.
-- [ ] Observer editor.
-- [ ] Condition editor.
-- [ ] Poll interval configuration.
-- [ ] Event type/correlation configuration.
+- [x] Observer editor. The shared panel can create and edit persisted observer definitions through `IPageObserverManagementService`; the GitHub Pages demo uses the same Application use case with an in-memory management store.
+- [x] Condition editor. The observer form supports every current `PageObserverConditionKind`, structured selector/text/test-id locators, exact matching where applicable, expected values, and URL regular expressions while leaving validation authoritative in Core.
+- [x] Poll interval configuration. Observer polling intervals are editable in milliseconds and validated by the existing observer domain rules.
+- [x] Event type/correlation configuration. Observer event type and correlation ID are editable; changes that alter observation or event-routing semantics reset the persisted polling snapshot so stale edge/baseline state cannot suppress or fabricate events.
 - [ ] Event history browser.
 - [ ] Manual administrative event publishing.
 - [ ] Audit manual resume/cancel/event operations.
