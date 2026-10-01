@@ -1,0 +1,346 @@
+@page "/observers/new"
+@page "/observers/{ObserverId:guid}"
+@inject IPageObserverManagementService ObserverManagement
+@inject NavigationManager Navigation
+
+<PageTitle>@(_isNew ? "New DABot observer" : "Edit DABot observer")</PageTitle>
+
+<div class="page-heading">
+    <div>
+        <h1>@(_isNew ? "New observer" : "Edit observer")</h1>
+        <p class="lead">
+            Configure what DABot watches and which automation event it emits.
+        </p>
+    </div>
+    <a class="button secondary" href="observers">Back to observers</a>
+</div>
+
+<section class="panel">
+    @if (_loading)
+    {
+        <p>Loading observer…</p>
+    }
+    else if (_notFound)
+    {
+        <div class="scenario-errors">
+            <div>Observer was not found.</div>
+        </div>
+    }
+    else
+    {
+        <div class="configuration-group">
+            <h3>Observer</h3>
+
+            <div class="configuration-grid">
+                <label>
+                    <span>Name</span>
+                    <input @bind="_name"
+                           placeholder="Inventory availability" />
+                </label>
+
+                <label>
+                    <span>Observer ID</span>
+                    <input value="@_observerId.ToString("D")"
+                           disabled />
+                </label>
+
+                <label class="configuration-wide">
+                    <span>URL</span>
+                    <input @bind="_url"
+                           placeholder="https://example.com/status" />
+                </label>
+
+                <label>
+                    <span>Browser profile</span>
+                    <input @bind="_browserProfile"
+                           placeholder="Optional persistent profile" />
+                </label>
+
+                <label class="configuration-checkbox">
+                    <input type="checkbox" @bind="_enabled" />
+                    <span>Enabled</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="configuration-group">
+            <h3>Condition</h3>
+
+            <div class="configuration-grid">
+                <label>
+                    <span>Condition type</span>
+                    <select @bind="_condition">
+                        @foreach (var condition in Enum.GetValues<PageObserverConditionKind>())
+                        {
+                            <option value="@condition">@condition</option>
+                        }
+                    </select>
+                </label>
+
+                @if (NeedsLocator)
+                {
+                    <label>
+                        <span>Locator type</span>
+                        <select @bind="_locatorKind">
+                            @foreach (var kind in Enum.GetValues<ScenarioLocatorKind>())
+                            {
+                                <option value="@kind">@kind</option>
+                            }
+                        </select>
+                    </label>
+
+                    <label class="configuration-wide">
+                        <span>Locator value</span>
+                        <input @bind="_locatorValue"
+                               placeholder="@LocatorPlaceholder" />
+                    </label>
+
+                    <label class="configuration-checkbox">
+                        <input type="checkbox" @bind="_locatorExact" />
+                        <span>Exact text/test-id match where supported</span>
+                    </label>
+                }
+
+                @if (NeedsExpectedValue)
+                {
+                    <label class="configuration-wide">
+                        <span>@ExpectedValueLabel</span>
+                        <input @bind="_expectedValue"
+                               placeholder="@ExpectedValuePlaceholder" />
+                    </label>
+                }
+            </div>
+        </div>
+
+        <div class="configuration-group">
+            <h3>Polling and emitted event</h3>
+
+            <div class="configuration-grid">
+                <label>
+                    <span>Poll interval (ms)</span>
+                    <input type="number"
+                           min="1"
+                           @bind="_pollIntervalMs" />
+                </label>
+
+                <label>
+                    <span>Event type</span>
+                    <input @bind="_eventType"
+                           placeholder="inventory.changed" />
+                </label>
+
+                <label class="configuration-wide">
+                    <span>Correlation ID</span>
+                    <input @bind="_correlationId"
+                           placeholder="sku-42" />
+                </label>
+            </div>
+        </div>
+
+        @if (_validationErrors.Count > 0)
+        {
+            <div class="scenario-errors editor-errors">
+                @foreach (var error in _validationErrors)
+                {
+                    <div>@error</div>
+                }
+            </div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(_message))
+        {
+            <p class="editor-message">@_message</p>
+        }
+
+        <div class="button-row">
+            <button class="button primary"
+                    @onclick="SaveAsync"
+                    disabled="@_saving">
+                @(_saving ? "Saving…" : "Save observer")
+            </button>
+            <a class="button secondary" href="observers">Cancel</a>
+        </div>
+
+        @if (!_isNew)
+        {
+            <p class="muted action-note">
+                Changing the URL, profile, condition, locator, expected value,
+                event type, or correlation ID resets the observer polling snapshot.
+                Renaming, enabling/disabling, or changing the interval preserves it.
+            </p>
+        }
+    }
+</section>
+
+@code {
+    [Parameter]
+    public Guid? ObserverId { get; set; }
+
+    private bool _loading = true;
+    private bool _saving;
+    private bool _notFound;
+    private bool _isNew;
+    private Guid _observerId;
+    private string _name = string.Empty;
+    private string _url = string.Empty;
+    private string _browserProfile = string.Empty;
+    private PageObserverConditionKind _condition =
+        PageObserverConditionKind.SelectorVisible;
+    private ScenarioLocatorKind _locatorKind =
+        ScenarioLocatorKind.Selector;
+    private string _locatorValue = string.Empty;
+    private bool _locatorExact;
+    private string _expectedValue = string.Empty;
+    private int _pollIntervalMs = 5000;
+    private string _eventType = string.Empty;
+    private string _correlationId = string.Empty;
+    private bool _enabled = true;
+    private string? _message;
+    private IReadOnlyList<string> _validationErrors = [];
+
+    private bool NeedsLocator =>
+        _condition is not PageObserverConditionKind.UrlMatches;
+
+    private bool NeedsExpectedValue =>
+        _condition is
+            PageObserverConditionKind.TextEquals or
+            PageObserverConditionKind.TextContains or
+            PageObserverConditionKind.UrlMatches;
+
+    private string LocatorPlaceholder =>
+        _locatorKind switch
+        {
+            ScenarioLocatorKind.Selector => "#status or [data-state='ready']",
+            ScenarioLocatorKind.Text => "Visible text",
+            ScenarioLocatorKind.TestId => "status-label",
+            _ => string.Empty,
+        };
+
+    private string ExpectedValueLabel =>
+        _condition == PageObserverConditionKind.UrlMatches
+            ? "URL regular expression"
+            : "Expected value";
+
+    private string ExpectedValuePlaceholder =>
+        _condition == PageObserverConditionKind.UrlMatches
+            ? "/completed$"
+            : "Completed";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        _notFound = false;
+        _validationErrors = [];
+        _message = null;
+        _isNew = ObserverId is null;
+
+        if (_isNew)
+        {
+            LoadDefinition(
+                new PageObserverDefinition
+                {
+                    ObserverId = Guid.NewGuid(),
+                    Name = string.Empty,
+                    Url = string.Empty,
+                    Condition = PageObserverConditionKind.SelectorVisible,
+                    Locator = ScenarioLocator.FromSelector("#status"),
+                    EventType = string.Empty,
+                    CorrelationId = string.Empty,
+                    PollIntervalMs = 5000,
+                    Enabled = true,
+                });
+
+            _locatorValue = string.Empty;
+            _loading = false;
+            return;
+        }
+
+        var definition =
+            await ObserverManagement.GetAsync(ObserverId!.Value);
+
+        if (definition is null)
+        {
+            _notFound = true;
+            _loading = false;
+            return;
+        }
+
+        LoadDefinition(definition);
+        _loading = false;
+    }
+
+    private void LoadDefinition(PageObserverDefinition definition)
+    {
+        _observerId = definition.ObserverId;
+        _name = definition.Name;
+        _url = definition.Url;
+        _browserProfile = definition.BrowserProfile ?? string.Empty;
+        _condition = definition.Condition;
+        _locatorKind =
+            definition.Locator?.Kind ?? ScenarioLocatorKind.Selector;
+        _locatorValue = definition.Locator?.Value ?? string.Empty;
+        _locatorExact = definition.Locator?.Exact ?? false;
+        _expectedValue = definition.ExpectedValue ?? string.Empty;
+        _pollIntervalMs = definition.PollIntervalMs;
+        _eventType = definition.EventType;
+        _correlationId = definition.CorrelationId;
+        _enabled = definition.Enabled;
+    }
+
+    private async Task SaveAsync()
+    {
+        _saving = true;
+        _message = null;
+        _validationErrors = [];
+
+        try
+        {
+            var definition =
+                new PageObserverDefinition
+                {
+                    ObserverId = _observerId,
+                    Name = _name.Trim(),
+                    Url = _url.Trim(),
+                    BrowserProfile = NullIfWhiteSpace(_browserProfile),
+                    Condition = _condition,
+                    Locator = NeedsLocator
+                        ? new ScenarioLocator
+                        {
+                            Kind = _locatorKind,
+                            Value = _locatorValue.Trim(),
+                            Exact = _locatorExact,
+                        }
+                        : null,
+                    ExpectedValue = NeedsExpectedValue
+                        ? NullIfWhiteSpace(_expectedValue)
+                        : null,
+                    EventType = _eventType.Trim(),
+                    CorrelationId = _correlationId.Trim(),
+                    PollIntervalMs = _pollIntervalMs,
+                    Enabled = _enabled,
+                };
+
+            var result = await ObserverManagement.SaveAsync(definition);
+            if (!result.Success)
+            {
+                _validationErrors = result.Errors;
+                return;
+            }
+
+            Navigation.NavigateTo("observers");
+        }
+        catch (Exception exception)
+        {
+            _message = exception.Message;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private static string? NullIfWhiteSpace(string value) =>
+        string.IsNullOrWhiteSpace(value)
+            ? null
+            : value.Trim();
+}
