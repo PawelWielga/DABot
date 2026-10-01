@@ -91,6 +91,7 @@ Each scenario can be opened in the shared synchronized visual/JSON editor. The e
 - retry, timeout, output, URL/value, and parameters editing,
 - nested child-step editing for `If` and `Loop`,
 - move-up/move-down reordering for top-level and nested steps,
+- enable/disable toggles for top-level and nested steps; disabled control-flow steps skip their complete subtree,
 - immediate visual-to-JSON synchronization while preserving unknown JSON properties such as `$schema`,
 - JSON-to-visual refresh whenever the raw JSON is valid,
 - import a local `.json` definition into the editor with a 1 MiB size limit,
@@ -103,7 +104,7 @@ Each scenario can be opened in the shared synchronized visual/JSON editor. The e
 
 Import does not bypass the normal save rules. Imported content is validated immediately, and saving still uses `IScenarioManagementService` with the existing path-safe file-name checks. Export is generated from the current editor buffer and does not require a runtime endpoint, so the same behavior is available in the static GitHub Pages demo.
 
-The visual editor works on the parsed JSON tree rather than rebuilding a scenario document from the domain model. Reordering therefore moves the same JSON nodes instead of reconstructing steps, keeping step data and extension fields intact. Invalid raw JSON disables the visual representation until validation succeeds, preventing stale visual state from overwriting manual JSON edits.
+The visual editor works on the parsed JSON tree rather than rebuilding a scenario document from the domain model. Reordering therefore moves the same JSON nodes instead of reconstructing steps, keeping step data and extension fields intact. The enabled toggle writes `enabled: false` only when a step is disabled; enabling it again removes the property so existing/default-true scenario JSON stays compact and backward compatible. Invalid raw JSON disables the visual representation until validation succeeds, preventing stale visual state from overwriting manual JSON edits.
 
 Editor test runs go through `IScenarioTestRunService` in Application and then the normal `IScenarioExecutor`; the Razor component does not control Playwright directly. The test uses the current unsaved JSON buffer and reports the execution outcome and step results in the editor. It is intentionally a one-shot test path, so scenarios containing durable `Suspend` steps are rejected before Chromium is opened. The static demo renders the test action as disabled and never executes automation.
 
@@ -184,7 +185,7 @@ No login/identity provider is enabled yet, so current routes remain anonymous un
 
 The dashboard remains read-only. Run details support guarded manual resume/retry/cancel actions, the run list supports filtering, scenario JSON management supports create/edit/delete and validation, and persistent browser profiles can be listed, created, renamed, cleared, deleted, and health-tested.
 
-Visual scenario editing, synchronized visual/JSON representations, import/export, scenario test runs, clone-run actions, remote browser display/input streaming, interactive-session authorization/inactivity cleanup/durable audit storage, configuration editing, and authentication UX remain later Sprint 8/9 work.
+Remote browser display/input streaming, interactive-session authorization/inactivity cleanup/durable audit storage, configuration editing, and authentication UX remain later Sprint 8/9 work.
 
 
 ## Static GitHub Pages demo
