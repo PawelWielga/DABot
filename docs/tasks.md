@@ -311,12 +311,12 @@ The web panel is optional and uses Application services. It must not directly ow
 
 - [x] Scenario list. The read-only web page lists JSON scenarios from the configured scenarios directory, including validation status, schema version, step count, and browser profile.
 - [x] Create/edit/delete scenario. The web panel can create, edit, and delete top-level scenario JSON files through `IScenarioManagementService` with path-safe filesystem writes.
-- [ ] Visual step editor.
+- [x] Visual step editor. The shared scenario editor exposes scenario metadata and recursive step forms for all current step types, including selector/structured locator editing, retry settings, parameters JSON, nested `If`/`Loop` children, add/remove operations, and type-specific fields.
 - [ ] Reorder steps.
 - [ ] Enable/disable steps.
 - [x] Validation UI. The JSON editor validates syntax and the existing scenario domain rules before saving and can validate on demand.
 - [x] JSON editor. A shared raw JSON editor is available in both the real management host and the GitHub Pages demo.
-- [ ] Synchronized visual/JSON representations.
+- [x] Synchronized visual/JSON representations. Visual changes rewrite the raw JSON immediately; valid raw JSON refreshes the visual model when the JSON field loses focus or validation runs. The visual model edits the parsed JSON tree in place so extension fields such as `$schema` and unknown future properties are preserved.
 - [x] Import JSON. The shared scenario editor loads a local `.json` file into the editor, applies the existing validation rules, and adopts a safe file name for new scenarios.
 - [x] Export JSON. The shared scenario editor downloads the current JSON buffer directly, so export works in both the runtime host and the static GitHub Pages demo.
 - [x] Test run. The shared scenario editor can execute the current unsaved JSON through an Application-level one-shot test service, show step results, and cancel an active test; durable `Suspend` scenarios are explicitly rejected from this one-shot path.
