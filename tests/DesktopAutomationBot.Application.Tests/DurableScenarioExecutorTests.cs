@@ -173,8 +173,9 @@ public sealed class DurableScenarioExecutorTests : IDisposable
         var handler = new RecordingStepHandler(
             StepType.OpenUrl,
             events,
-            (step, context, index, _) =>
+            (step, context, index, cancellationToken) =>
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 callCount++;
 
                 if (callCount == 2)
