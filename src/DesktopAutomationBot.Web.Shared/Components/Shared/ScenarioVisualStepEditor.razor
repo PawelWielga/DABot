@@ -4,11 +4,29 @@
                 <strong>Step @(Index + 1)</strong>
                 <span class="muted">@Model.Type</span>
             </div>
-            <button class="button danger compact"
-                    type="button"
-                    @onclick="RemoveAsync">
-                Remove
-            </button>
+            <div class="scenario-step-actions">
+                <button class="button secondary compact"
+                        type="button"
+                        title="Move step up"
+                        aria-label="Move step up"
+                        @onclick="MoveUpAsync"
+                        disabled="@(!CanMoveUp)">
+                    ↑
+                </button>
+                <button class="button secondary compact"
+                        type="button"
+                        title="Move step down"
+                        aria-label="Move step down"
+                        @onclick="MoveDownAsync"
+                        disabled="@(!CanMoveDown)">
+                    ↓
+                </button>
+                <button class="button danger compact"
+                        type="button"
+                        @onclick="RemoveAsync">
+                    Remove
+                </button>
+            </div>
         </div>
 
         <div class="scenario-step-grid">
@@ -200,7 +218,11 @@
                                                   Model="child"
                                                   Index="childIndex"
                                                   Depth="@(Depth + 1)"
+                                                  CanMoveUp="@(childIndex > 0)"
+                                                  CanMoveDown="@(childIndex < Model.Children.Count - 1)"
                                                   OnChanged="OnChanged"
+                                                  OnMoveUp="@(() => MoveChildAsync(child, -1))"
+                                                  OnMoveDown="@(() => MoveChildAsync(child, 1))"
                                                   OnRemove="@(() => RemoveChildAsync(child))" />
                     }
                 }
@@ -219,7 +241,19 @@
     public int Depth { get; set; }
 
     [Parameter]
+    public bool CanMoveUp { get; set; }
+
+    [Parameter]
+    public bool CanMoveDown { get; set; }
+
+    [Parameter]
     public EventCallback OnChanged { get; set; }
+
+    [Parameter]
+    public EventCallback OnMoveUp { get; set; }
+
+    [Parameter]
+    public EventCallback OnMoveDown { get; set; }
 
     [Parameter]
     public EventCallback OnRemove { get; set; }
@@ -297,12 +331,28 @@
         await NotifyChanged();
     }
 
+    private async Task MoveChildAsync(
+        ScenarioVisualStepModel child,
+        int offset)
+    {
+        if (Model.MoveChild(child, offset))
+        {
+            await NotifyChanged();
+        }
+    }
+
     private async Task RemoveChildAsync(
         ScenarioVisualStepModel child)
     {
         Model.RemoveChild(child);
         await NotifyChanged();
     }
+
+    private Task MoveUpAsync() =>
+        OnMoveUp.InvokeAsync();
+
+    private Task MoveDownAsync() =>
+        OnMoveDown.InvokeAsync();
 
     private Task RemoveAsync() =>
         OnRemove.InvokeAsync();
