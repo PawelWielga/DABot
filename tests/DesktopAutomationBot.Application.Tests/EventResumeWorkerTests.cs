@@ -241,6 +241,11 @@ public sealed class EventResumeWorkerTests
 
         public Exception? ResumeException { get; init; }
 
+        public Task<DurableScenarioExecutionResult> CloneAsync(
+            Guid runId,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
         public Task<DurableScenarioExecutionResult> ResumeManuallyAsync(
             Guid runId,
             CancellationToken cancellationToken = default)
