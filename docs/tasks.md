@@ -350,7 +350,7 @@ The web panel is optional and uses Application services. It must not directly ow
 ### Configuration
 
 - [x] General runtime settings. The shared Configuration page edits browser, retry/event/observer worker, interactive-browser lifetime, and default scenario settings through `IGeneralRuntimeSettingsService`; the runtime host persists only those owned sections to `appsettings.json` and clearly requires a process restart before changes take effect.
-- [ ] Storage settings.
+- [x] Storage settings. The Configuration page edits scenario, screenshot, artifact, persistent-profile, and SQLite paths through `IStorageRuntimeSettingsService`; path validation rejects empty/root/colliding directory targets, saves require an explicit no-migration acknowledgement, changes apply after restart, and existing files are never moved or deleted.
 - [ ] Safe display of secret-backed configuration.
 
 ## Sprint 9 - Observers and events in the web panel
