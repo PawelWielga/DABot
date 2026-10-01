@@ -131,7 +131,13 @@ Reads use `IPageObserverQueryService`; writes use `IPageObserverManagementServic
 
 Changing the URL, browser profile, condition, locator, expected value, event type, or correlation ID resets the persisted observer snapshot atomically with the definition update. This prevents an old `LastObservation` / edge-trigger state from being interpreted under different observation or event-routing semantics. Renaming, enabling/disabling, or changing only the polling interval preserves the snapshot. CLI observer import retains its previous non-resetting save behavior.
 
-Event history browsing and administrative event publishing remain later Sprint 9 work.
+### Events
+
+The Events page provides a global read-only view over the durable event inbox through `IEventHistoryQueryService`. The SQLite adapter reads existing `AutomationEvents` rows and left-joins `ResumeWorkItems`, so operators can distinguish events that matched a waiting run from events that were accepted but did not schedule resume work.
+
+The page shows event type and ID, occurrence/receipt timestamps, correlation ID, linked run, resume-work status, attempt count, retry timing, completion timing, and the latest error. It supports matched/unmatched/problem filters plus text search. Raw `PayloadJson` is intentionally absent from the Application read model and is never sent to the shared UI or static demo.
+
+Administrative event publishing and audit of manual resume/cancel/event operations remain later Sprint 9 work.
 
 ### Configuration
 
@@ -229,7 +235,7 @@ No login/identity provider is enabled yet, so current routes remain anonymous un
 
 ## Current scope
 
-The dashboard remains read-only. Run details support guarded manual resume/retry/cancel actions, the run list supports filtering, scenario JSON management supports create/edit/delete and validation, persistent browser profiles can be listed, created, renamed, cleared, deleted, and health-tested, and page observers can be monitored, created, and edited.
+The dashboard remains read-only. Run details support guarded manual resume/retry/cancel actions, the run list supports filtering, scenario JSON management supports create/edit/delete and validation, persistent browser profiles can be listed, created, renamed, cleared, deleted, and health-tested, page observers can be monitored, created, and edited, and the global event history exposes durable delivery/resume metadata without raw payloads.
 
 Remote browser display/input streaming, interactive-session authorization/inactivity cleanup/durable audit storage, safely redacted secret-backed configuration, and authentication UX remain later Sprint 8/9 work.
 
@@ -244,7 +250,7 @@ Public demo:
 https://pawelwielga.github.io/DABot/
 ```
 
-The demo registers in-memory implementations for run/scenario queries and scenario management, plus observer query/management storage wired through the same `PageObserverManagementService` used by the runtime. It also provides disabled runtime stubs for artifact and run-control services. It contains representative completed, running, waiting, failed, and cancelled runs plus valid and invalid scenario examples. Scenario edits in the demo exist only in browser memory and disappear after reload.
+The demo registers in-memory implementations for run/scenario queries, scenario management, and event-history queries, plus observer query/management storage wired through the same `PageObserverManagementService` used by the runtime. It also provides disabled runtime stubs for artifact and run-control services. It contains representative completed, running, waiting, failed, and cancelled runs plus valid and invalid scenario examples. Scenario edits in the demo exist only in browser memory and disappear after reload.
 
 The demo is intentionally presentation-only:
 
