@@ -87,10 +87,14 @@ Each scenario can be opened in the shared raw JSON editor. The editor supports:
 - import a local `.json` definition into the editor with a 1 MiB size limit,
 - export the current JSON buffer as a local `.json` download,
 - explicit validation,
+- a one-shot test run of the current editor buffer without saving,
+- cancellation of an active editor test run,
 - save only when JSON syntax and scenario-domain validation pass,
 - delete.
 
 Import does not bypass the normal save rules. Imported content is validated immediately, and saving still uses `IScenarioManagementService` with the existing path-safe file-name checks. Export is generated from the current editor buffer and does not require a runtime endpoint, so the same behavior is available in the static GitHub Pages demo.
+
+Editor test runs go through `IScenarioTestRunService` in Application and then the normal `IScenarioExecutor`; the Razor component does not control Playwright directly. The test uses the current unsaved JSON buffer and reports the execution outcome and step results in the editor. It is intentionally a one-shot test path, so scenarios containing durable `Suspend` steps are rejected before Chromium is opened. The static demo renders the test action as disabled and never executes automation.
 
 The UI uses `IScenarioCatalogQueryService` for listing and `IScenarioManagementService` for document operations. The filesystem implementation accepts only simple `.json` file names, rejects directory traversal, writes through a temporary file, and keeps all file IO in Infrastructure.
 
