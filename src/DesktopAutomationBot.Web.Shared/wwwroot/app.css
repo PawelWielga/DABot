@@ -963,3 +963,31 @@ select {
         width: 100%;
     }
 }
+
+
+.scenario-step-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.scenario-step-actions .button.secondary {
+    min-width: 34px;
+    padding-inline: 8px;
+}
+
+@media (max-width: 520px) {
+    .scenario-step-heading {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .scenario-step-actions {
+        width: 100%;
+    }
+
+    .scenario-step-actions .button.danger {
+        margin-left: auto;
+    }
+}
