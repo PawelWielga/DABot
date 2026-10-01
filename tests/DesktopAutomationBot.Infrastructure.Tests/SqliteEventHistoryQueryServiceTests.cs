@@ -115,8 +115,8 @@ public sealed class SqliteEventHistoryQueryServiceTests :
             new SqliteEventHistoryQueryService(
                 CreateOptions());
 
-        var action =
-            () => query.ListRecentAsync(limit: 0);
+        Func<Task> action =
+            async () => await query.ListRecentAsync(limit: 0);
 
         await action.Should()
             .ThrowAsync<ArgumentOutOfRangeException>();
