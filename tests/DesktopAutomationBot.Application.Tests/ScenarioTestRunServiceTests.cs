@@ -21,6 +21,35 @@ public sealed class ScenarioTestRunServiceTests
     }
 
     [Fact]
+    public async Task RunAsync_SuspendScenario_ReturnsGuardrailWithoutExecuting()
+    {
+        var executor = new RecordingScenarioExecutor();
+        var service = new ScenarioTestRunService(executor);
+
+        var result = await service.RunAsync(
+            """
+            {
+              "schemaVersion": 1,
+              "name": "Durable editor test",
+              "steps": [
+                {
+                  "id": "wait",
+                  "type": "Suspend",
+                  "parameters": {
+                    "reason": "Human"
+                  }
+                }
+              ]
+            }
+            """);
+
+        result.Executed.Should().BeFalse();
+        result.Errors.Should().ContainSingle(
+            error => error.Contains("one-shot", StringComparison.OrdinalIgnoreCase));
+        executor.Executions.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task RunAsync_ValidScenario_ExecutesCurrentDefinition()
     {
         var executor = new RecordingScenarioExecutor();
