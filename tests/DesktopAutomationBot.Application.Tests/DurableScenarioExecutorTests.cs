@@ -159,6 +159,118 @@ public sealed class DurableScenarioExecutorTests : IDisposable
     }
 
     [Fact]
+    public async Task CloneAsync_UsesSameScenarioVersionAndOnlyOriginalInputs()
+    {
+        var events = new List<string>();
+        var runStore = new RecordingRunStore(events);
+        var attemptStore = new RecordingStepAttemptStore(events);
+        var browser = new RecordingBrowserAutomation(events);
+        var callCount = 0;
+        bool? cloneHadPreviousOutput = null;
+        string? cloneHost = null;
+        string? cloneContextRunId = null;
+
+        var handler = new RecordingStepHandler(
+            StepType.OpenUrl,
+            events,
+            (step, context, index, _) =>
+            {
+                callCount++;
+
+                if (callCount == 2)
+                {
+                    cloneHadPreviousOutput =
+                        context.Variables.TryGetValue("captured", out _);
+
+                    context.Variables.TryGetValue("host", out var host);
+                    cloneHost = host?.ToInterpolationString();
+
+                    context.Variables.TryGetValue("runId", out var runId);
+                    cloneContextRunId = runId?.ToInterpolationString();
+                }
+
+                return Task.FromResult(
+                    new StepExecutionResult
+                    {
+                        Index = index,
+                        Type = step.Type,
+                        Success = true,
+                        OutputName = "captured",
+                        OutputValue = callCount == 1
+                            ? "source-output"
+                            : "clone-output",
+                    });
+            });
+
+        var executor = CreateExecutor(
+            [handler],
+            browser,
+            runStore,
+            attemptStore);
+
+        var version = CreateVersion(
+            new ScenarioStep
+            {
+                Id = "open",
+                Type = StepType.OpenUrl,
+                Url = "https://{{host}}",
+                Output = "captured",
+            });
+
+        var source = await executor.ExecuteAsync(
+            new ScenarioRunRequest
+            {
+                ScenarioVersion = version,
+                StructuredVariables = new Dictionary<string, ScenarioVariableValue>(
+                    StringComparer.OrdinalIgnoreCase)
+                {
+                    ["host"] = ScenarioVariableValue.FromString("example.com"),
+                    ["runId"] = ScenarioVariableValue.FromString("stale-source-run-id"),
+                },
+            });
+
+        source.Run.Variables["captured"]
+            .ToInterpolationString()
+            .Should()
+            .Be("source-output");
+
+        var cloned = await executor.CloneAsync(source.Run.RunId);
+
+        cloned.Run.RunId.Should().NotBe(source.Run.RunId);
+        cloned.Run.ScenarioId.Should().Be(source.Run.ScenarioId);
+        cloned.Run.ScenarioVersionId.Should().Be(source.Run.ScenarioVersionId);
+        cloned.Run.State.Status.Should().Be(RunStatus.Completed);
+
+        cloneHadPreviousOutput.Should().BeFalse();
+        cloneHost.Should().Be("example.com");
+        cloneContextRunId.Should().Be(cloned.Run.RunId.ToString("D"));
+
+        cloned.Run.Variables["host"]
+            .ToInterpolationString()
+            .Should()
+            .Be("example.com");
+        cloned.Run.Variables.Should().NotContainKey("runId");
+        cloned.Run.Variables["captured"]
+            .ToInterpolationString()
+            .Should()
+            .Be("clone-output");
+    }
+
+    [Fact]
+    public async Task CloneAsync_WhenSourceRunDoesNotExist_Throws()
+    {
+        var executor = CreateExecutor(
+            [],
+            new RecordingBrowserAutomation([]),
+            new RecordingRunStore([]),
+            new RecordingStepAttemptStore([]));
+
+        Func<Task> action = () => executor.CloneAsync(Guid.NewGuid());
+
+        await action.Should().ThrowAsync<KeyNotFoundException>();
+    }
+
+    [Fact]
     public async Task RetryNowAsync_WhenRetryDelayHasNotElapsed_RunsImmediately()
     {
         var events = new List<string>();
