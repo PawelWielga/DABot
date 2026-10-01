@@ -26,6 +26,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IEventPublisher, EventPublisher>();
         services.AddSingleton<IEventResumeWorker, EventResumeWorker>();
         services.AddSingleton<IPageObserverWorker, PageObserverWorker>();
+        services.AddSingleton<IPageObserverManagementService, PageObserverManagementService>();
         services.AddSingleton<IStepHandler, OpenUrlStepHandler>();
         services.AddSingleton<IStepHandler, ClickStepHandler>();
         services.AddSingleton<IStepHandler, FillTextStepHandler>();

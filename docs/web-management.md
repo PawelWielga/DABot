@@ -112,9 +112,9 @@ The UI uses `IScenarioCatalogQueryService` for listing and `IScenarioManagementS
 
 ### Observers
 
-The Observers page is a read-only operational view over persisted page-observer definitions and snapshots.
+The Observers area combines operational state with definition management.
 
-It shows:
+The list shows:
 
 - observer name and target URL,
 - enabled/disabled state,
@@ -125,7 +125,13 @@ It shows:
 - event type and correlation ID,
 - current failure count and last error.
 
-The page uses `IPageObserverQueryService`; the Blazor component does not query SQLite directly. The runtime implementation joins the existing `PageObservers` and `PageObserverSnapshots` tables, while the GitHub Pages demo uses representative in-memory data. Editing definitions, condition configuration, and administrative event operations remain later Sprint 9 work.
+The editor can create or update the URL, optional browser profile, enabled state, all current condition types, structured locator kind/value/exact matching, expected value or URL regular expression, polling interval, event type, and correlation ID.
+
+Reads use `IPageObserverQueryService`; writes use `IPageObserverManagementService`. The Blazor components do not query SQLite or duplicate observer validation. The runtime management store persists definitions through the existing observer tables, while the GitHub Pages demo uses the same Application management service over an in-memory store.
+
+Changing the URL, browser profile, condition, locator, expected value, event type, or correlation ID resets the persisted observer snapshot atomically with the definition update. This prevents an old `LastObservation` / edge-trigger state from being interpreted under different observation or event-routing semantics. Renaming, enabling/disabling, or changing only the polling interval preserves the snapshot. CLI observer import retains its previous non-resetting save behavior.
+
+Event history browsing and administrative event publishing remain later Sprint 9 work.
 
 ### Configuration
 
@@ -223,7 +229,7 @@ No login/identity provider is enabled yet, so current routes remain anonymous un
 
 ## Current scope
 
-The dashboard remains read-only. Run details support guarded manual resume/retry/cancel actions, the run list supports filtering, scenario JSON management supports create/edit/delete and validation, and persistent browser profiles can be listed, created, renamed, cleared, deleted, and health-tested.
+The dashboard remains read-only. Run details support guarded manual resume/retry/cancel actions, the run list supports filtering, scenario JSON management supports create/edit/delete and validation, persistent browser profiles can be listed, created, renamed, cleared, deleted, and health-tested, and page observers can be monitored, created, and edited.
 
 Remote browser display/input streaming, interactive-session authorization/inactivity cleanup/durable audit storage, safely redacted secret-backed configuration, and authentication UX remain later Sprint 8/9 work.
 
@@ -238,7 +244,7 @@ Public demo:
 https://pawelwielga.github.io/DABot/
 ```
 
-The demo registers in-memory implementations of `IRunQueryService`, `IScenarioCatalogQueryService`, and `IScenarioManagementService`, plus disabled runtime stubs for artifact and run-control services. It contains representative completed, running, waiting, failed, and cancelled runs plus valid and invalid scenario examples. Scenario edits in the demo exist only in browser memory and disappear after reload.
+The demo registers in-memory implementations for run/scenario queries and scenario management, plus observer query/management storage wired through the same `PageObserverManagementService` used by the runtime. It also provides disabled runtime stubs for artifact and run-control services. It contains representative completed, running, waiting, failed, and cancelled runs plus valid and invalid scenario examples. Scenario edits in the demo exist only in browser memory and disappear after reload.
 
 The demo is intentionally presentation-only:
 
