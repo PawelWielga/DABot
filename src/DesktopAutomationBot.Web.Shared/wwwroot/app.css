@@ -1088,3 +1088,36 @@ select {
         grid-column: auto;
     }
 }
+
+
+.configuration-warning {
+    margin-bottom: 18px;
+    padding: 12px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    background: #f9fafb;
+}
+
+.configuration-warning p {
+    margin: 5px 0 0;
+}
+
+.configuration-confirmation {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    margin: 16px 0;
+    padding: 12px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+}
+
+.configuration-confirmation input {
+    width: auto;
+    margin-top: 3px;
+}
+
+.configuration-storage-errors {
+    margin-top: 16px;
+    margin-bottom: 0;
+}
