@@ -349,7 +349,7 @@ The web panel is optional and uses Application services. It must not directly ow
 
 ### Configuration
 
-- [ ] General runtime settings.
+- [x] General runtime settings. The shared Configuration page edits browser, retry/event/observer worker, interactive-browser lifetime, and default scenario settings through `IGeneralRuntimeSettingsService`; the runtime host persists only those owned sections to `appsettings.json` and clearly requires a process restart before changes take effect.
 - [ ] Storage settings.
 - [ ] Safe display of secret-backed configuration.
 

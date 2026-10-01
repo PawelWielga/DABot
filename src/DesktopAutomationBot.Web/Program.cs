@@ -32,6 +32,11 @@ builder.Services.AddSingleton(
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure();
+builder.Services.AddSingleton<IGeneralRuntimeSettingsService>(
+    new FileSystemGeneralRuntimeSettingsService(
+        Path.Combine(
+            builder.Environment.ContentRootPath,
+            "appsettings.json")));
 
 var app = builder.Build();
 
