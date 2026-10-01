@@ -27,6 +27,12 @@ public sealed record ScenarioStep
 
     public StepType Type { get; init; }
 
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? Enabled { get; init; }
+
+    [JsonIgnore]
+    public bool IsEnabled => Enabled is not false;
+
     public string? Selector { get; init; }
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
