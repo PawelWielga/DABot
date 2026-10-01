@@ -65,7 +65,7 @@ public sealed class InteractiveBrowserSessionServiceTests
     }
 
     [Fact]
-    public async Task SessionMetadataContracts_DoNotExposeInteractiveBrowserContentOrInput()
+    public void SessionMetadataContracts_DoNotExposeInteractiveBrowserContentOrInput()
     {
         typeof(InteractiveBrowserSessionInfo)
             .GetProperties()
