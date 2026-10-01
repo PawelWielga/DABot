@@ -336,6 +336,28 @@ public sealed class ScenarioVisualStepModel
             JsonValue.Create(value.ToString()));
     }
 
+    public bool Enabled
+    {
+        get =>
+            ScenarioVisualModel.GetNode(Node, "enabled") is not JsonValue value ||
+            !value.TryGetValue<bool>(out var enabled) ||
+            enabled;
+        set
+        {
+            if (value)
+            {
+                ScenarioVisualModel.RemoveNode(Node, "enabled");
+            }
+            else
+            {
+                ScenarioVisualModel.SetNode(
+                    Node,
+                    "enabled",
+                    JsonValue.Create(false));
+            }
+        }
+    }
+
     public string? Selector
     {
         get => ScenarioVisualModel.GetString(Node, "selector");
