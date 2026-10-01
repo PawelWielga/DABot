@@ -8,7 +8,10 @@
         <h1>Observers</h1>
         <p class="lead">Persistent page observers and their latest polling state.</p>
     </div>
-    <span class="muted">@FilteredObservers.Count observer(s)</span>
+    <div class="button-row">
+        <span class="muted">@FilteredObservers.Count observer(s)</span>
+        <a class="button primary" href="observers/new">New observer</a>
+    </div>
 </div>
 
 <section class="panel">
@@ -56,6 +59,7 @@
                             <th>Last event</th>
                             <th>Event</th>
                             <th>Health</th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -101,6 +105,12 @@
                                             <div class="muted compact-text">@observer.LastError</div>
                                         }
                                     }
+                                </td>
+                                <td>
+                                    <a class="button secondary compact"
+                                       href="@($"observers/{observer.ObserverId:D}")">
+                                        Edit
+                                    </a>
                                 </td>
                             </tr>
                         }
