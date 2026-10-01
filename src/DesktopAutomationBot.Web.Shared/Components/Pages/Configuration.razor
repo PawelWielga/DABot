@@ -295,7 +295,7 @@ else
             <button class="button primary"
                     type="button"
                     @onclick="SaveStorageAsync"
-                    disabled="@(IsReadOnly || !HasStorageChanges || !_storageChangeConfirmed)">
+                    disabled="@(IsReadOnly || !HasStorageChanges || !_storageChangeConfirmed || _storageValidationErrors.Count > 0)">
                 @(_storageSaving ? "Saving storage…" : "Save storage settings")
             </button>
         }
