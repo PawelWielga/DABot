@@ -1,0 +1,327 @@
+@page "/configuration"
+@inject IGeneralRuntimeSettingsService SettingsService
+@inject ManagementUiEnvironment UiEnvironment
+
+<PageTitle>DABot configuration</PageTitle>
+
+<div class="page-heading">
+    <div>
+        <h1>Configuration</h1>
+        <p class="lead">General runtime settings for the local DABot management host.</p>
+    </div>
+    <span class="muted">@UiEnvironment.RuntimeLabel</span>
+</div>
+
+@if (_loading)
+{
+    <section class="panel">
+        <p>Loading configuration…</p>
+    </section>
+}
+else if (_settings is null)
+{
+    <section class="panel">
+        <p class="action-error">Configuration could not be loaded.</p>
+    </section>
+}
+else
+{
+    <section class="panel configuration-notice">
+        <strong>Restart required</strong>
+        <p>Saved values are persisted for the next process start. Running browser sessions, workers, and executions keep their current settings until DABot is restarted.</p>
+    </section>
+
+    <section class="panel">
+        <div class="panel-heading">
+            <div>
+                <h2>Scenario and browser</h2>
+                <p>Default scenario selection and browser execution behavior.</p>
+            </div>
+        </div>
+
+        <div class="configuration-grid">
+            <label class="configuration-wide">
+                <span>Default scenario path</span>
+                <input type="text"
+                       @bind="_settings.ScenarioPath"
+                       placeholder="scenarios/sample-open-url.json"
+                       disabled="@IsReadOnly" />
+                <small>Optional. The runner can still override the scenario path per invocation.</small>
+            </label>
+
+            <label class="configuration-checkbox">
+                <input type="checkbox"
+                       @bind="_settings.BrowserHeadless"
+                       disabled="@IsReadOnly" />
+                <span>Headless browser</span>
+            </label>
+
+            <label>
+                <span>Slow motion (ms)</span>
+                <input type="number"
+                       min="0"
+                       @bind="_settings.BrowserSlowMoMs"
+                       disabled="@IsReadOnly" />
+            </label>
+
+            <label>
+                <span>Default timeout (ms)</span>
+                <input type="number"
+                       min="0"
+                       @bind="_settings.BrowserTimeoutMs"
+                       disabled="@IsReadOnly" />
+            </label>
+
+            <label>
+                <span>Viewport width</span>
+                <input type="number"
+                       min="1"
+                       @bind="_settings.BrowserViewportWidth"
+                       disabled="@IsReadOnly" />
+            </label>
+
+            <label>
+                <span>Viewport height</span>
+                <input type="number"
+                       min="1"
+                       @bind="_settings.BrowserViewportHeight"
+                       disabled="@IsReadOnly" />
+            </label>
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="panel-heading">
+            <div>
+                <h2>Durable workers</h2>
+                <p>Polling, batching, and retry behavior for background durable-workflow workers.</p>
+            </div>
+        </div>
+
+        <div class="configuration-group">
+            <h3>Retry worker</h3>
+            <div class="configuration-grid">
+                <label>
+                    <span>Poll interval (ms)</span>
+                    <input type="number" min="1"
+                           @bind="_settings.RetryWorkerPollIntervalMs"
+                           disabled="@IsReadOnly" />
+                </label>
+                <label>
+                    <span>Batch size</span>
+                    <input type="number" min="1"
+                           @bind="_settings.RetryWorkerBatchSize"
+                           disabled="@IsReadOnly" />
+                </label>
+            </div>
+        </div>
+
+        <div class="configuration-group">
+            <h3>Event worker</h3>
+            <div class="configuration-grid">
+                <label>
+                    <span>Poll interval (ms)</span>
+                    <input type="number" min="1"
+                           @bind="_settings.EventWorkerPollIntervalMs"
+                           disabled="@IsReadOnly" />
+                </label>
+                <label>
+                    <span>Batch size</span>
+                    <input type="number" min="1"
+                           @bind="_settings.EventWorkerBatchSize"
+                           disabled="@IsReadOnly" />
+                </label>
+                <label>
+                    <span>Maximum attempts</span>
+                    <input type="number" min="1"
+                           @bind="_settings.EventWorkerMaxAttempts"
+                           disabled="@IsReadOnly" />
+                </label>
+                <label>
+                    <span>Base retry delay (ms)</span>
+                    <input type="number" min="0"
+                           @bind="_settings.EventWorkerBaseRetryDelayMs"
+                           disabled="@IsReadOnly" />
+                </label>
+                <label>
+                    <span>Maximum retry delay (ms)</span>
+                    <input type="number" min="0"
+                           @bind="_settings.EventWorkerMaxRetryDelayMs"
+                           disabled="@IsReadOnly" />
+                </label>
+            </div>
+        </div>
+
+        <div class="configuration-group">
+            <h3>Observer worker</h3>
+            <div class="configuration-grid">
+                <label>
+                    <span>Poll interval (ms)</span>
+                    <input type="number" min="1"
+                           @bind="_settings.ObserverWorkerPollIntervalMs"
+                           disabled="@IsReadOnly" />
+                </label>
+                <label>
+                    <span>Batch size</span>
+                    <input type="number" min="1"
+                           @bind="_settings.ObserverWorkerBatchSize"
+                           disabled="@IsReadOnly" />
+                </label>
+                <label>
+                    <span>Maximum error backoff (ms)</span>
+                    <input type="number" min="1"
+                           @bind="_settings.ObserverWorkerMaxErrorBackoffMs"
+                           disabled="@IsReadOnly" />
+                </label>
+            </div>
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="panel-heading">
+            <div>
+                <h2>Interactive browser</h2>
+                <p>Lifecycle limit for headed profile setup sessions.</p>
+            </div>
+        </div>
+
+        <div class="configuration-grid">
+            <label>
+                <span>Maximum session duration (seconds)</span>
+                <input type="number"
+                       min="1"
+                       @bind="_settings.InteractiveBrowserMaxDurationSeconds"
+                       disabled="@IsReadOnly" />
+            </label>
+        </div>
+    </section>
+
+    @if (_validationErrors.Count > 0)
+    {
+        <section class="panel">
+            <div class="scenario-errors">
+                @foreach (var error in _validationErrors)
+                {
+                    <div>@error</div>
+                }
+            </div>
+        </section>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(_message))
+    {
+        <p class="action-message">@_message</p>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <p class="action-error">@_error</p>
+    }
+
+    <div class="configuration-actions">
+        <button class="button primary"
+                type="button"
+                @onclick="SaveAsync"
+                disabled="@(IsReadOnly || _saving)">
+            @(_saving ? "Saving…" : "Save general settings")
+        </button>
+        <button class="button secondary"
+                type="button"
+                @onclick="ReloadAsync"
+                disabled="@_saving">
+            Reload
+        </button>
+    </div>
+
+    @if (UiEnvironment.IsDemo)
+    {
+        <p class="muted action-note">Configuration is read-only in the static demo.</p>
+    }
+    else
+    {
+        <p class="muted action-note">Storage paths and secret-backed configuration are intentionally outside this editor for now.</p>
+    }
+}
+
+@code {
+    private bool _loading = true;
+    private bool _saving;
+    private GeneralRuntimeSettings? _settings;
+    private IReadOnlyList<string> _validationErrors = [];
+    private string? _message;
+    private string? _error;
+
+    private bool IsReadOnly => UiEnvironment.IsDemo || _saving;
+
+    protected override async Task OnInitializedAsync() =>
+        await ReloadAsync();
+
+    private async Task ReloadAsync()
+    {
+        _loading = true;
+        _message = null;
+        _error = null;
+        _validationErrors = [];
+
+        try
+        {
+            _settings = await SettingsService.GetAsync();
+        }
+        catch
+        {
+            _settings = null;
+            _error = "Configuration could not be loaded. Check server logs for diagnostics.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_settings is null || UiEnvironment.IsDemo || _saving)
+        {
+            return;
+        }
+
+        _validationErrors =
+            GeneralRuntimeSettingsValidator.Validate(_settings);
+
+        if (_validationErrors.Count > 0)
+        {
+            _message = null;
+            _error = null;
+            return;
+        }
+
+        _saving = true;
+        _message = null;
+        _error = null;
+
+        try
+        {
+            await SettingsService.SaveAsync(_settings);
+            _message =
+                "General settings saved. Restart DABot to apply the new values.";
+        }
+        catch (ArgumentException exception)
+        {
+            _validationErrors =
+                exception.Message
+                    .Split(
+                        Environment.NewLine,
+                        StringSplitOptions.RemoveEmptyEntries |
+                        StringSplitOptions.TrimEntries);
+        }
+        catch
+        {
+            _error =
+                "Configuration could not be saved. Check server logs for diagnostics.";
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}
