@@ -5,7 +5,8 @@ using DesktopAutomationBot.Application;
 namespace DesktopAutomationBot.Infrastructure;
 
 public sealed class FileSystemGeneralRuntimeSettingsService :
-    IGeneralRuntimeSettingsService
+    IGeneralRuntimeSettingsService,
+    IStorageRuntimeSettingsService
 {
     private static readonly JsonSerializerOptions SerializerOptions =
         new(JsonSerializerDefaults.Web)
@@ -142,6 +143,68 @@ public sealed class FileSystemGeneralRuntimeSettingsService :
         }
     }
 
+    async Task<StorageRuntimeSettings> IStorageRuntimeSettingsService.GetAsync(
+        CancellationToken cancellationToken)
+    {
+        var root = await ReadRootAsync(cancellationToken);
+        var bot = GetNode(root, "bot") as JsonObject;
+
+        if (bot is null)
+        {
+            return new StorageRuntimeSettings();
+        }
+
+        var options = bot.Deserialize<BotOptions>(SerializerOptions)
+            ?? new BotOptions();
+
+        return StorageRuntimeSettings.FromOptions(options);
+    }
+
+    async Task IStorageRuntimeSettingsService.SaveAsync(
+        StorageRuntimeSettings settings,
+        CancellationToken cancellationToken)
+    {
+        StorageRuntimeSettingsValidator.ValidateOrThrow(settings);
+
+        await _writeLock.WaitAsync(cancellationToken);
+
+        try
+        {
+            var root = await ReadRootAsync(cancellationToken);
+            var bot = GetOrCreateObject(root, "bot");
+            var storage = GetOrCreateObject(bot, "storage");
+
+            SetString(
+                storage,
+                "scenariosDirectory",
+                settings.ScenariosDirectory);
+            SetString(
+                storage,
+                "screenshotsDirectory",
+                settings.ScreenshotsDirectory);
+            SetString(
+                storage,
+                "artifactsDirectory",
+                settings.ArtifactsDirectory);
+            SetString(
+                storage,
+                "browserProfilesDirectory",
+                settings.BrowserProfilesDirectory);
+            SetString(
+                storage,
+                "databasePath",
+                settings.DatabasePath);
+
+            await WriteRootAsync(
+                root,
+                cancellationToken);
+        }
+        finally
+        {
+            _writeLock.Release();
+        }
+    }
+
     private async Task<JsonObject> ReadRootAsync(
         CancellationToken cancellationToken)
     {
@@ -228,6 +291,15 @@ public sealed class FileSystemGeneralRuntimeSettingsService :
             ? null
             : node[actualName];
     }
+
+    private static void SetString(
+        JsonObject node,
+        string propertyName,
+        string value) =>
+        SetNode(
+            node,
+            propertyName,
+            JsonValue.Create(value.Trim()));
 
     private static void SetBoolean(
         JsonObject node,
