@@ -100,10 +100,10 @@ These rules describe the durable execution architecture. Durable execution, susp
 
 ## Web panel rules
 
-The web panel currently provides a dashboard, run list/details and guarded run actions, scenario list/synchronized visual+JSON import/export/validation/editing with one-shot test runs, browser-profile list/create/rename/clear/delete/test operations, local headed interactive-profile session lifecycle, and restart-required editing of non-secret general runtime settings. Continue toward:
+The web panel currently provides a dashboard, run list/details and guarded run actions, scenario list/synchronized visual+JSON import/export/validation/editing with one-shot test runs, browser-profile list/create/rename/clear/delete/test operations, local headed interactive-profile session lifecycle, and restart-required editing of non-secret general and storage runtime settings. Continue toward:
 
 - remote interactive-browser display/input streaming with authorization, inactivity cleanup, and audit,
-- storage and safely redacted secret-backed configuration.
+- safely redacted secret-backed configuration.
 
 Later features may include:
 
@@ -114,7 +114,7 @@ Later features may include:
 - secret management,
 - audit logs.
 
-General configuration editing must go through Application contracts. The current file-backed implementation owns only general non-secret `bot` settings, preserves storage/logging/unknown sections, and applies changes after process restart; do not imply live reconfiguration unless runtime services are explicitly made reloadable.
+Configuration editing must go through Application contracts. The current file-backed implementation owns non-secret general and storage `bot` settings, preserves logging/unknown sections, serializes both editors through one file lock, and applies changes after process restart. Storage changes must remain configuration-only unless an explicit migration workflow is designed; never silently move or delete existing database, scenario, artifact, screenshot, or browser-profile data.
 
 The panel must not duplicate domain logic already available in Application. Shared presentation belongs in `DesktopAutomationBot.Web.Shared`; both the real host and `DesktopAutomationBot.Web.Demo` must render the same shared components. The Pages demo uses dummy Application-service implementations only and must never execute automation, access SQLite, contain credentials, or become a separate UI fork.
 

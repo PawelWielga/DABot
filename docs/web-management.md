@@ -112,7 +112,7 @@ The UI uses `IScenarioCatalogQueryService` for listing and `IScenarioManagementS
 
 ### Configuration
 
-The shared Configuration page now manages non-secret general runtime settings for the local Web host through `IGeneralRuntimeSettingsService`.
+The shared Configuration page manages non-secret general runtime settings through `IGeneralRuntimeSettingsService` and storage locations through `IStorageRuntimeSettingsService`.
 
 Editable settings include:
 
@@ -123,13 +123,15 @@ Editable settings include:
 - observer-worker polling, batching, and maximum error backoff,
 - interactive-browser maximum session duration.
 
-The runtime implementation writes only those owned `bot` sections in the Web host's `appsettings.json`. Existing storage settings, logging configuration, and unknown future properties are preserved. Writes use a temporary file followed by replacement so a partially written configuration is not left behind.
+The runtime implementation writes only the settings owned by the selected editor section in the Web host's `appsettings.json`. General-setting saves preserve storage; storage-setting saves preserve browser/worker settings. Logging configuration and unknown future properties are preserved in both cases. Both contracts resolve to the same singleton file-backed service, so their writes share one lock. Writes use a temporary file followed by replacement so a partially written configuration is not left behind.
 
 Changes are intentionally **restart required**. The running process keeps its already-constructed `BotOptions` and active browser/worker state until restart; the page does not pretend that an edited file has hot-reconfigured existing services.
 
+Storage editing covers scenario, screenshot, artifact, browser-profile, and SQLite database paths. Paths may be relative or absolute because runtime consumers resolve them with `Path.GetFullPath`. Validation rejects missing paths, filesystem roots for managed directories, and directory collisions. The editor never creates, copies, migrates, or deletes existing data when a path changes. A changed storage section requires an explicit acknowledgement before it can be saved, and the UI warns that switching the database or profile path can make existing history or login state appear absent until the previous path is restored.
+
 The static GitHub Pages demo uses representative values and renders configuration as read-only.
 
-Storage-path editing and secret-backed configuration display remain separate backlog items so path migration and secret-redaction rules can be designed independently.
+Safe secret-backed configuration display remains a separate backlog item so redaction and secret-source rules can be designed independently.
 
 ### Browser profiles
 
@@ -206,7 +208,7 @@ No login/identity provider is enabled yet, so current routes remain anonymous un
 
 The dashboard remains read-only. Run details support guarded manual resume/retry/cancel actions, the run list supports filtering, scenario JSON management supports create/edit/delete and validation, and persistent browser profiles can be listed, created, renamed, cleared, deleted, and health-tested.
 
-Remote browser display/input streaming, interactive-session authorization/inactivity cleanup/durable audit storage, storage/secret configuration editing, and authentication UX remain later Sprint 8/9 work.
+Remote browser display/input streaming, interactive-session authorization/inactivity cleanup/durable audit storage, safely redacted secret-backed configuration, and authentication UX remain later Sprint 8/9 work.
 
 
 ## Static GitHub Pages demo

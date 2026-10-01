@@ -1,6 +1,7 @@
 @using Microsoft.Extensions.Logging
 @page "/configuration"
 @inject IGeneralRuntimeSettingsService SettingsService
+@inject IStorageRuntimeSettingsService StorageSettingsService
 @inject ManagementUiEnvironment UiEnvironment
 @inject ILogger<Configuration> Logger
 
@@ -9,7 +10,7 @@
 <div class="page-heading">
     <div>
         <h1>Configuration</h1>
-        <p class="lead">General runtime settings for the local DABot management host.</p>
+        <p class="lead">Runtime and storage settings for the local DABot management host.</p>
     </div>
     <span class="muted">@UiEnvironment.RuntimeLabel</span>
 </div>
@@ -198,6 +199,108 @@ else
         </div>
     </section>
 
+    <section class="panel">
+        <div class="panel-heading">
+            <div>
+                <h2>Storage</h2>
+                <p>Filesystem locations used for scenarios, run artifacts, browser profiles, and durable state.</p>
+            </div>
+        </div>
+
+        @if (_storageSettings is null)
+        {
+            <p class="action-error">Storage configuration could not be loaded.</p>
+        }
+        else
+        {
+            <div class="configuration-warning">
+                <strong>No automatic migration</strong>
+                <p>Changing a path only changes where DABot looks after the next restart. Existing database files, scenarios, screenshots, artifacts, and browser profiles are not copied or moved.</p>
+            </div>
+
+            <div class="configuration-grid">
+                <label class="configuration-wide">
+                    <span>Scenarios directory</span>
+                    <input type="text"
+                           @bind="_storageSettings.ScenariosDirectory"
+                           @bind:after="StorageChanged"
+                           disabled="@IsReadOnly" />
+                </label>
+
+                <label class="configuration-wide">
+                    <span>Screenshots directory</span>
+                    <input type="text"
+                           @bind="_storageSettings.ScreenshotsDirectory"
+                           @bind:after="StorageChanged"
+                           disabled="@IsReadOnly" />
+                </label>
+
+                <label class="configuration-wide">
+                    <span>Artifacts directory</span>
+                    <input type="text"
+                           @bind="_storageSettings.ArtifactsDirectory"
+                           @bind:after="StorageChanged"
+                           disabled="@IsReadOnly" />
+                </label>
+
+                <label class="configuration-wide">
+                    <span>Browser profiles directory</span>
+                    <input type="text"
+                           @bind="_storageSettings.BrowserProfilesDirectory"
+                           @bind:after="StorageChanged"
+                           disabled="@IsReadOnly" />
+                    <small>Changing this location does not copy existing login sessions or profile locks.</small>
+                </label>
+
+                <label class="configuration-wide">
+                    <span>Database path</span>
+                    <input type="text"
+                           @bind="_storageSettings.DatabasePath"
+                           @bind:after="StorageChanged"
+                           disabled="@IsReadOnly" />
+                    <small>Pointing to another database can make existing runs and events appear missing until the old path is restored.</small>
+                </label>
+            </div>
+
+            @if (_storageValidationErrors.Count > 0)
+            {
+                <div class="scenario-errors configuration-storage-errors">
+                    @foreach (var error in _storageValidationErrors)
+                    {
+                        <div>@error</div>
+                    }
+                </div>
+            }
+
+            @if (HasStorageChanges && !UiEnvironment.IsDemo)
+            {
+                <label class="configuration-confirmation">
+                    <input type="checkbox"
+                           @bind="_storageChangeConfirmed"
+                           disabled="@IsReadOnly" />
+                    <span>I understand that DABot will not move existing data and that these paths take effect after restart.</span>
+                </label>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(_storageMessage))
+            {
+                <p class="action-message">@_storageMessage</p>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(_storageError))
+            {
+                <p class="action-error">@_storageError</p>
+            }
+
+            <button class="button primary"
+                    type="button"
+                    @onclick="SaveStorageAsync"
+                    disabled="@(IsReadOnly || !HasStorageChanges || !_storageChangeConfirmed || _storageValidationErrors.Count > 0)">
+                @(_storageSaving ? "Saving storage…" : "Save storage settings")
+            </button>
+        }
+    </section>
+
     @if (_validationErrors.Count > 0)
     {
         <section class="panel">
@@ -230,7 +333,7 @@ else
         <button class="button secondary"
                 type="button"
                 @onclick="ReloadAsync"
-                disabled="@_saving">
+                disabled="@(_saving || _storageSaving)">
             Reload
         </button>
     </div>
@@ -241,19 +344,34 @@ else
     }
     else
     {
-        <p class="muted action-note">Storage paths and secret-backed configuration are intentionally outside this editor for now.</p>
+        <p class="muted action-note">Secret-backed configuration is intentionally outside this editor for now. Storage changes never migrate or delete existing data.</p>
     }
 }
 
 @code {
     private bool _loading = true;
     private bool _saving;
+    private bool _storageSaving;
+    private bool _storageChangeConfirmed;
     private GeneralRuntimeSettings? _settings;
+    private StorageRuntimeSettings? _storageSettings;
+    private StorageRuntimeSettings? _originalStorageSettings;
     private IReadOnlyList<string> _validationErrors = [];
+    private IReadOnlyList<string> _storageValidationErrors = [];
     private string? _message;
     private string? _error;
+    private string? _storageMessage;
+    private string? _storageError;
 
-    private bool IsReadOnly => UiEnvironment.IsDemo || _saving;
+    private bool IsReadOnly =>
+        UiEnvironment.IsDemo ||
+        _saving ||
+        _storageSaving;
+
+    private bool HasStorageChanges =>
+        _storageSettings is not null &&
+        _originalStorageSettings is not null &&
+        !_storageSettings.HasSameValues(_originalStorageSettings);
 
     protected override async Task OnInitializedAsync() =>
         await ReloadAsync();
@@ -263,7 +381,11 @@ else
         _loading = true;
         _message = null;
         _error = null;
+        _storageMessage = null;
+        _storageError = null;
         _validationErrors = [];
+        _storageValidationErrors = [];
+        _storageChangeConfirmed = false;
 
         try
         {
@@ -277,9 +399,91 @@ else
             _settings = null;
             _error = "Configuration could not be loaded. Check server logs for diagnostics.";
         }
+
+        try
+        {
+            _storageSettings = await StorageSettingsService.GetAsync();
+            _originalStorageSettings = _storageSettings.Clone();
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(
+                exception,
+                "Loading storage runtime configuration failed.");
+            _storageSettings = null;
+            _originalStorageSettings = null;
+            _storageError =
+                "Storage configuration could not be loaded. Check server logs for diagnostics.";
+        }
         finally
         {
             _loading = false;
+        }
+    }
+
+    private void StorageChanged()
+    {
+        _storageChangeConfirmed = false;
+        _storageMessage = null;
+        _storageError = null;
+        _storageValidationErrors = _storageSettings is null
+            ? []
+            : StorageRuntimeSettingsValidator.Validate(_storageSettings);
+    }
+
+    private async Task SaveStorageAsync()
+    {
+        if (_storageSettings is null ||
+            UiEnvironment.IsDemo ||
+            _storageSaving ||
+            !HasStorageChanges ||
+            !_storageChangeConfirmed)
+        {
+            return;
+        }
+
+        _storageValidationErrors =
+            StorageRuntimeSettingsValidator.Validate(_storageSettings);
+
+        if (_storageValidationErrors.Count > 0)
+        {
+            _storageMessage = null;
+            _storageError = null;
+            return;
+        }
+
+        _storageSaving = true;
+        _storageMessage = null;
+        _storageError = null;
+
+        try
+        {
+            await StorageSettingsService.SaveAsync(_storageSettings);
+            _originalStorageSettings = _storageSettings.Clone();
+            _storageChangeConfirmed = false;
+            _storageMessage =
+                "Storage settings saved. Existing data was not moved. Restart DABot to use the new paths.";
+        }
+        catch (ArgumentException exception)
+        {
+            _storageValidationErrors =
+                exception.Message
+                    .Split(
+                        Environment.NewLine,
+                        StringSplitOptions.RemoveEmptyEntries |
+                        StringSplitOptions.TrimEntries);
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(
+                exception,
+                "Saving storage runtime configuration failed.");
+            _storageError =
+                "Storage configuration could not be saved. Check server logs for diagnostics.";
+        }
+        finally
+        {
+            _storageSaving = false;
         }
     }
 

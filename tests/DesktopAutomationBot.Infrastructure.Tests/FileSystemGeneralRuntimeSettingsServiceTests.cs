@@ -207,6 +207,206 @@ public sealed class FileSystemGeneralRuntimeSettingsServiceTests : IDisposable
             .Be(original);
     }
 
+    [Fact]
+    public async Task StorageSaveAsync_UpdatesStorageAndPreservesOtherConfiguration()
+    {
+        Directory.CreateDirectory(_directory);
+        var path = Path.Combine(_directory, "storage-appsettings.json");
+
+        await File.WriteAllTextAsync(
+            path,
+            """
+            {
+              "bot": {
+                "scenarioPath": "scenarios/current.json",
+                "browser": {
+                  "headless": false
+                },
+                "storage": {
+                  "databasePath": "data/old.db",
+                  "futureStorageSetting": "keep"
+                }
+              },
+              "Logging": {
+                "LogLevel": {
+                  "Default": "Warning"
+                }
+              }
+            }
+            """);
+
+        var service = new FileSystemGeneralRuntimeSettingsService(path);
+        IStorageRuntimeSettingsService storageService = service;
+
+        await storageService.SaveAsync(
+            new StorageRuntimeSettings
+            {
+                ScenariosDirectory = "new/scenarios",
+                ScreenshotsDirectory = "new/screenshots",
+                ArtifactsDirectory = "new/artifacts",
+                BrowserProfilesDirectory = "new/profiles",
+                DatabasePath = "new/dabot.db",
+            });
+
+        var root = JsonNode.Parse(
+            await File.ReadAllTextAsync(path))!
+            .AsObject();
+
+        root["bot"]!["scenarioPath"]!
+            .GetValue<string>()
+            .Should()
+            .Be("scenarios/current.json");
+        root["bot"]!["browser"]!["headless"]!
+            .GetValue<bool>()
+            .Should()
+            .BeFalse();
+        root["bot"]!["storage"]!["futureStorageSetting"]!
+            .GetValue<string>()
+            .Should()
+            .Be("keep");
+        root["Logging"]!["LogLevel"]!["Default"]!
+            .GetValue<string>()
+            .Should()
+            .Be("Warning");
+
+        root["bot"]!["storage"]!["scenariosDirectory"]!
+            .GetValue<string>()
+            .Should()
+            .Be("new/scenarios");
+        root["bot"]!["storage"]!["databasePath"]!
+            .GetValue<string>()
+            .Should()
+            .Be("new/dabot.db");
+    }
+
+    [Fact]
+    public async Task StorageGetAsync_MergesPersistedValuesWithDefaults()
+    {
+        Directory.CreateDirectory(_directory);
+        var path = Path.Combine(_directory, "storage-get-appsettings.json");
+
+        await File.WriteAllTextAsync(
+            path,
+            """
+            {
+              "bot": {
+                "storage": {
+                  "databasePath": "state/custom.db",
+                  "screenshotsDirectory": "captures"
+                }
+              }
+            }
+            """);
+
+        var service = new FileSystemGeneralRuntimeSettingsService(path);
+        IStorageRuntimeSettingsService storageService = service;
+
+        var settings = await storageService.GetAsync();
+
+        settings.DatabasePath.Should().Be("state/custom.db");
+        settings.ScreenshotsDirectory.Should().Be("captures");
+        settings.ScenariosDirectory.Should().Be("scenarios");
+        settings.ArtifactsDirectory.Should().Be("artifacts");
+        settings.BrowserProfilesDirectory.Should().Be(
+            Path.Combine("data", "browser-profiles"));
+    }
+
+    [Fact]
+    public async Task StorageSaveAsync_InvalidSettings_DoesNotModifyFile()
+    {
+        Directory.CreateDirectory(_directory);
+        var path = Path.Combine(_directory, "storage-invalid-appsettings.json");
+        const string original = """
+            {
+              "bot": {
+                "storage": {
+                  "databasePath": "data/dabot.db"
+                }
+              }
+            }
+            """;
+        await File.WriteAllTextAsync(path, original);
+
+        var service = new FileSystemGeneralRuntimeSettingsService(path);
+        IStorageRuntimeSettingsService storageService = service;
+
+        var action = () => storageService.SaveAsync(
+            new StorageRuntimeSettings
+            {
+                ScenariosDirectory = "",
+            });
+
+        await action.Should().ThrowAsync<ArgumentException>();
+
+        (await File.ReadAllTextAsync(path))
+            .Should()
+            .Be(original);
+    }
+
+    [Fact]
+    public async Task GeneralAndStorageSaveAsync_ConcurrentWrites_PreserveBothChanges()
+    {
+        Directory.CreateDirectory(_directory);
+        var path = Path.Combine(_directory, "concurrent-appsettings.json");
+        await File.WriteAllTextAsync(
+            path,
+            """
+            {
+              "bot": {
+                "browser": {
+                  "headless": true
+                },
+                "storage": {
+                  "databasePath": "data/dabot.db"
+                }
+              }
+            }
+            """);
+
+        var service = new FileSystemGeneralRuntimeSettingsService(path);
+        IStorageRuntimeSettingsService storageService = service;
+
+        var general = service.SaveAsync(
+            new GeneralRuntimeSettings
+            {
+                ScenarioPath = "scenarios/concurrent.json",
+                BrowserHeadless = false,
+            });
+
+        var storage = storageService.SaveAsync(
+            new StorageRuntimeSettings
+            {
+                ScenariosDirectory = "state/scenarios",
+                ScreenshotsDirectory = "state/screenshots",
+                ArtifactsDirectory = "state/artifacts",
+                BrowserProfilesDirectory = "state/profiles",
+                DatabasePath = "state/dabot.db",
+            });
+
+        await Task.WhenAll(general, storage);
+
+        var root = JsonNode.Parse(
+            await File.ReadAllTextAsync(path))!
+            .AsObject();
+
+        root["bot"]!["scenarioPath"]!
+            .GetValue<string>()
+            .Should()
+            .Be("scenarios/concurrent.json");
+        root["bot"]!["browser"]!["headless"]!
+            .GetValue<bool>()
+            .Should()
+            .BeFalse();
+        root["bot"]!["storage"]!["databasePath"]!
+            .GetValue<string>()
+            .Should()
+            .Be("state/dabot.db");
+        root["bot"]!["storage"]!["browserProfilesDirectory"]!
+            .GetValue<string>()
+            .Should()
+            .Be("state/profiles");
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_directory))
