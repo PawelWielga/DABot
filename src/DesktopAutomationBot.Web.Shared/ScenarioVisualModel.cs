@@ -19,14 +19,14 @@ public sealed class ScenarioVisualModel
     {
         _root = root;
 
-        if (root["steps"] is JsonArray existingSteps)
+        if (GetNode(root, "steps") is JsonArray existingSteps)
         {
             _steps = existingSteps;
         }
         else
         {
             _steps = new JsonArray();
-            _root["steps"] = _steps;
+            SetNode(_root, "steps", _steps);
         }
 
         Steps = _steps
@@ -40,7 +40,7 @@ public sealed class ScenarioVisualModel
     public string Name
     {
         get => GetString(_root, "name") ?? string.Empty;
-        set => _root["name"] = value;
+        set => SetNode(_root, "name", JsonValue.Create(value));
     }
 
     public string? BrowserProfile
@@ -71,7 +71,7 @@ public sealed class ScenarioVisualModel
         try
         {
             if (JsonNode.Parse(json) is not JsonObject root ||
-                root["steps"] is not JsonArray steps ||
+                GetNode(root, "steps") is not JsonArray steps ||
                 steps.Any(node => node is not JsonObject))
             {
                 model = null;
@@ -93,6 +93,45 @@ public sealed class ScenarioVisualModel
 
     public string ToJson() =>
         _root.ToJsonString(IndentedJson);
+
+    internal static string? FindPropertyName(
+        JsonObject node,
+        string propertyName) =>
+        node
+            .Select(property => property.Key)
+            .FirstOrDefault(key =>
+                string.Equals(
+                    key,
+                    propertyName,
+                    StringComparison.OrdinalIgnoreCase));
+
+    internal static JsonNode? GetNode(
+        JsonObject node,
+        string propertyName)
+    {
+        var key = FindPropertyName(node, propertyName);
+        return key is null
+            ? null
+            : node[key];
+    }
+
+    internal static void SetNode(
+        JsonObject node,
+        string propertyName,
+        JsonNode? value)
+    {
+        var key = FindPropertyName(node, propertyName)
+            ?? propertyName;
+        node[key] = value;
+    }
+
+    internal static bool RemoveNode(
+        JsonObject node,
+        string propertyName)
+    {
+        var key = FindPropertyName(node, propertyName);
+        return key is not null && node.Remove(key);
+    }
 
     public void AddStep()
     {
@@ -130,7 +169,7 @@ public sealed class ScenarioVisualModel
     internal static string? GetString(
         JsonObject node,
         string propertyName) =>
-        node[propertyName] is JsonValue value &&
+        GetNode(node, propertyName) is JsonValue value &&
         value.TryGetValue<string>(out var result)
             ? result
             : null;
@@ -142,11 +181,11 @@ public sealed class ScenarioVisualModel
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            node.Remove(propertyName);
+            RemoveNode(node, propertyName);
             return;
         }
 
-        node[propertyName] = value;
+        SetNode(node, propertyName, JsonValue.Create(value));
     }
 
     internal static int? GetInt32(
@@ -164,7 +203,7 @@ public sealed class ScenarioVisualModel
     {
         if (value.HasValue)
         {
-            node[propertyName] = value.Value;
+            SetNode(node, propertyName, JsonValue.Create(value.Value));
         }
         else
         {
@@ -194,7 +233,7 @@ public sealed class ScenarioVisualModel
     {
         if (value.HasValue)
         {
-            node[propertyName] = value.Value.ToString();
+            SetNode(node, propertyName, JsonValue.Create(value.Value.ToString()));
         }
         else
         {
@@ -215,9 +254,9 @@ public sealed class ScenarioVisualStepModel
     internal ScenarioVisualStepModel(JsonObject node)
     {
         Node = node;
-        _children = node["children"] as JsonArray ?? new JsonArray();
+        _children = ScenarioVisualModel.GetNode(node, "children") as JsonArray ?? new JsonArray();
 
-        if (node["children"] is JsonArray)
+        if (ScenarioVisualModel.GetNode(node, "children") is JsonArray)
         {
             Children = _children
                 .OfType<JsonObject>()
@@ -243,7 +282,10 @@ public sealed class ScenarioVisualStepModel
     public StepType Type
     {
         get => ScenarioVisualModel.GetEnum<StepType>(Node, "type") ?? StepType.OpenUrl;
-        set => Node["type"] = value.ToString();
+        set => ScenarioVisualModel.SetNode(
+            Node,
+            "type",
+            JsonValue.Create(value.ToString()));
     }
 
     public string? Selector
@@ -295,44 +337,44 @@ public sealed class ScenarioVisualStepModel
     }
 
     public bool UsesStructuredLocator =>
-        Node["locator"] is JsonObject;
+        ScenarioVisualModel.GetNode(Node, "locator") is JsonObject;
 
     public ScenarioLocatorKind LocatorKind
     {
-        get => Node["locator"] is JsonObject locator
+        get => ScenarioVisualModel.GetNode(Node, "locator") is JsonObject locator
             ? ScenarioVisualModel.GetEnum<ScenarioLocatorKind>(locator, "kind")
                 ?? ScenarioLocatorKind.Selector
             : ScenarioLocatorKind.Selector;
         set
         {
             var locator = EnsureLocator();
-            locator["kind"] = value.ToString();
+            ScenarioVisualModel.SetNode(locator, "kind", JsonValue.Create(value.ToString()));
         }
     }
 
     public string? LocatorValue
     {
-        get => Node["locator"] is JsonObject locator
+        get => ScenarioVisualModel.GetNode(Node, "locator") is JsonObject locator
             ? ScenarioVisualModel.GetString(locator, "value")
             : null;
         set
         {
             var locator = EnsureLocator();
-            locator["value"] = value ?? string.Empty;
+            ScenarioVisualModel.SetNode(locator, "value", JsonValue.Create(value ?? string.Empty));
         }
     }
 
     public bool LocatorExact
     {
         get =>
-            Node["locator"] is JsonObject locator &&
-            locator["exact"] is JsonValue value &&
+            ScenarioVisualModel.GetNode(Node, "locator") is JsonObject locator &&
+            ScenarioVisualModel.GetNode(locator, "exact") is JsonValue value &&
             value.TryGetValue<bool>(out var exact) &&
             exact;
         set
         {
             var locator = EnsureLocator();
-            locator["exact"] = value;
+            ScenarioVisualModel.SetNode(locator, "exact", JsonValue.Create(value));
         }
     }
 
@@ -362,7 +404,7 @@ public sealed class ScenarioVisualStepModel
         Type is StepType.WaitFor or
             StepType.CallApi or
             StepType.Suspend ||
-        Node["parameters"] is not null;
+        ScenarioVisualModel.GetNode(Node, "parameters") is not null;
 
     public bool SupportsChildren =>
         Type is StepType.If or StepType.Loop ||
@@ -371,30 +413,30 @@ public sealed class ScenarioVisualStepModel
     public void UseStructuredLocator()
     {
         var selector = Selector;
-        Node.Remove("selector");
+        ScenarioVisualModel.RemoveNode(Node, "selector");
 
-        Node["locator"] = new JsonObject
+        ScenarioVisualModel.SetNode(Node, "locator", new JsonObject
         {
             ["kind"] = ScenarioLocatorKind.Selector.ToString(),
             ["value"] = selector ?? string.Empty,
             ["exact"] = false,
-        };
+        });
     }
 
     public void UseSelector()
     {
-        if (Node["locator"] is JsonObject locator &&
+        if (ScenarioVisualModel.GetNode(Node, "locator") is JsonObject locator &&
             ScenarioVisualModel.GetEnum<ScenarioLocatorKind>(locator, "kind") ==
                 ScenarioLocatorKind.Selector)
         {
             Selector = ScenarioVisualModel.GetString(locator, "value");
         }
 
-        Node.Remove("locator");
+        ScenarioVisualModel.RemoveNode(Node, "locator");
     }
 
     public string GetParametersJson() =>
-        Node["parameters"] is JsonObject parameters
+        ScenarioVisualModel.GetNode(Node, "parameters") is JsonObject parameters
             ? parameters.ToJsonString(IndentedJson)
             : string.Empty;
 
@@ -404,7 +446,7 @@ public sealed class ScenarioVisualStepModel
     {
         if (string.IsNullOrWhiteSpace(json))
         {
-            Node.Remove("parameters");
+            ScenarioVisualModel.RemoveNode(Node, "parameters");
             error = null;
             return true;
         }
@@ -417,7 +459,7 @@ public sealed class ScenarioVisualStepModel
                 return false;
             }
 
-            Node["parameters"] = parameters;
+            ScenarioVisualModel.SetNode(Node, "parameters", parameters);
             error = null;
             return true;
         }
@@ -446,13 +488,13 @@ public sealed class ScenarioVisualStepModel
 
         if (Children.Count == 0)
         {
-            Node.Remove("children");
+            ScenarioVisualModel.RemoveNode(Node, "children");
         }
     }
 
     private JsonObject EnsureLocator()
     {
-        if (Node["locator"] is JsonObject locator)
+        if (ScenarioVisualModel.GetNode(Node, "locator") is JsonObject locator)
         {
             return locator;
         }
@@ -463,16 +505,18 @@ public sealed class ScenarioVisualStepModel
             ["value"] = string.Empty,
             ["exact"] = false,
         };
-        Node["locator"] = locator;
-        Node.Remove("selector");
+        ScenarioVisualModel.SetNode(Node, "locator", locator);
+        ScenarioVisualModel.RemoveNode(Node, "selector");
         return locator;
     }
 
     private void EnsureChildrenAttached()
     {
-        if (!ReferenceEquals(Node["children"], _children))
+        if (!ReferenceEquals(
+                ScenarioVisualModel.GetNode(Node, "children"),
+                _children))
         {
-            Node["children"] = _children;
+            ScenarioVisualModel.SetNode(Node, "children", _children);
         }
     }
 }
