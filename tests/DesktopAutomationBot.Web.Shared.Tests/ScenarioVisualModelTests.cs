@@ -143,4 +143,46 @@ public sealed class ScenarioVisualModelTests
             .Should()
             .Equal("first", "second");
     }
+    [Fact]
+    public void Enabled_DefaultsToTrueAndFalseRoundTripsToJson()
+    {
+        const string json = """
+            {
+              "name": "Toggle",
+              "steps": [
+                {
+                  "id": "capture",
+                  "type": "Screenshot"
+                }
+              ]
+            }
+            """;
+
+        ScenarioVisualModel.TryCreate(
+                json,
+                out var model,
+                out var errors)
+            .Should()
+            .BeTrue(string.Join(Environment.NewLine, errors));
+
+        var step = model!.Steps.Single();
+        step.Enabled.Should().BeTrue();
+
+        step.Enabled = false;
+
+        var disabled = JsonNode.Parse(model.ToJson())!.AsObject();
+        disabled["steps"]![0]!["enabled"]!
+            .GetValue<bool>()
+            .Should()
+            .BeFalse();
+
+        step.Enabled = true;
+
+        var enabled = JsonNode.Parse(model.ToJson())!.AsObject();
+        enabled["steps"]![0]!.AsObject()
+            .ContainsKey("enabled")
+            .Should()
+            .BeFalse();
+    }
+
 }

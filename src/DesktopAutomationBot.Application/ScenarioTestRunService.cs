@@ -62,6 +62,7 @@ public sealed class ScenarioTestRunService(
     private static bool ContainsSuspend(
         IReadOnlyList<ScenarioStep> steps) =>
         steps.Any(step =>
-            step.Type == StepType.Suspend ||
-            ContainsSuspend(step.Children));
+            step.IsEnabled &&
+            (step.Type == StepType.Suspend ||
+             ContainsSuspend(step.Children)));
 }

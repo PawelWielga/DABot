@@ -102,7 +102,6 @@ These rules describe the durable execution architecture. Durable execution, susp
 
 The web panel currently provides a dashboard, run list/details and guarded run actions, scenario list/synchronized visual+JSON import/export/validation/editing with one-shot test runs, browser-profile list/create/rename/clear/delete/test operations, and local headed interactive-profile session lifecycle. Continue toward:
 
-- scenario step enable/disable controls,
 - remote interactive-browser display/input streaming with authorization, inactivity cleanup, and audit,
 - configuration.
 
@@ -135,6 +134,8 @@ Currently supported scenario actions include:
 - durable `Suspend`.
 
 Check the scenario schema and current handler/compiled-execution code before changing this list.
+
+Scenario steps may set optional `enabled: false`; omitted/true means enabled. Execution must skip disabled steps without handler invocation, and disabled `If`/`Loop` containers skip their whole subtree. Durable execution must persist cursor advancement for skipped steps without creating a step attempt.
 
 String scenario inputs support `{{variableName}}` interpolation. Values may come from prior step outputs or run variables, and `runId` is a built-in execution variable. Missing variables must fail explicitly rather than remain unresolved.
 

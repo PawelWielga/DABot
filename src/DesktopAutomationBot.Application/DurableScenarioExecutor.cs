@@ -430,6 +430,35 @@ public sealed class DurableScenarioExecutor :
                         scenario,
                         run.Cursor);
 
+                if (!step.IsEnabled)
+                {
+                    var skippedCursor =
+                        DurableExecutionCursorNavigator.AdvanceCursor(
+                            scenario,
+                            run.Cursor,
+                            index,
+                            context.Variables);
+
+                    var skippedState = skippedCursor.IsCompleted
+                        ? run.State.Complete()
+                        : run.State;
+
+                    run = RestoreSnapshot(
+                        run,
+                        scenarioVersion,
+                        skippedState,
+                        skippedCursor,
+                        variables,
+                        NextTimestamp(run.UpdatedAt));
+
+                    await _runStore.SaveAsync(
+                        run,
+                        scenarioVersion,
+                        CancellationToken.None);
+
+                    continue;
+                }
+
                 if (step.Type == StepType.Suspend)
                 {
                     var waitReason =
@@ -900,6 +929,11 @@ public sealed class DurableScenarioExecutor :
     {
         foreach (var step in steps)
         {
+            if (!step.IsEnabled)
+            {
+                continue;
+            }
+
             if (!string.IsNullOrWhiteSpace(step.Output))
             {
                 names.Add(step.Output);

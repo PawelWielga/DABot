@@ -49,6 +49,24 @@ If a generated structural ID conflicts with an explicit ID, a deterministic nume
 These generated IDs preserve compatibility with existing files, but they are structural: reordering legacy steps can change them. Once a scenario is edited or exported by a future management UI, generated IDs should be persisted into the scenario definition so subsequent reordering does not change logical step identity.
 
 
+## Disabled steps
+
+Every step may define an optional `enabled` flag:
+
+```json
+{
+  "id": "temporary-step",
+  "type": "Screenshot",
+  "enabled": false
+}
+```
+
+Omitting `enabled`, or setting it to `true`, keeps the existing behavior. Normalization treats explicit `true` the same as omission, so both produce the same canonical scenario-version JSON and hash. Setting it to `false` makes the execution engine skip the step without invoking a handler or creating a durable step attempt. Disabled `If` and `Loop` steps skip their entire child subtree.
+
+Disabled steps remain part of the scenario definition and immutable scenario-version hash. They must still be structurally valid according to the schema and domain validation, which keeps saved definitions deterministic and allows the step to be re-enabled without changing its shape.
+
+Durable execution persists the advanced cursor after a disabled step is skipped, so restart/resume behavior remains deterministic. Editor one-shot test runs also ignore disabled `Suspend` steps because those steps cannot suspend when they are not executable.
+
 ## Per-step retry safety
 
 A step may override DABot's default crash-recovery classification with `retrySafety`:

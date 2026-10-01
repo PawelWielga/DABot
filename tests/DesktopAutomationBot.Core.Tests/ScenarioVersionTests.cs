@@ -102,6 +102,66 @@ public sealed class ScenarioVersionTests
 
 
     [Fact]
+    public void Capture_WhenEnabledIsOmitted_DoesNotChangeLegacyCanonicalShape()
+    {
+        var version = ScenarioVersion.Capture(
+            Guid.NewGuid(),
+            1,
+            CreateScenario(),
+            DateTimeOffset.UtcNow);
+
+        version.DefinitionJson.Should().NotContain("enabled");
+        version.MaterializeDefinition().Steps[0].IsEnabled.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Capture_WhenEnabledIsExplicitTrue_MatchesOmittedCanonicalDefinition()
+    {
+        var omitted = CreateScenario();
+        var explicitTrue = CreateScenario();
+        explicitTrue.Steps[0] = explicitTrue.Steps[0] with
+        {
+            Enabled = true,
+        };
+
+        var omittedVersion = ScenarioVersion.Capture(
+            Guid.NewGuid(),
+            1,
+            omitted,
+            DateTimeOffset.UtcNow);
+
+        var explicitVersion = ScenarioVersion.Capture(
+            Guid.NewGuid(),
+            1,
+            explicitTrue,
+            DateTimeOffset.UtcNow);
+
+        explicitVersion.DefinitionJson.Should().Be(omittedVersion.DefinitionJson);
+        explicitVersion.DefinitionHash.Should().Be(omittedVersion.DefinitionHash);
+        explicitVersion.DefinitionJson.Should().NotContain("enabled");
+    }
+
+    [Fact]
+    public void Capture_WhenStepIsDisabled_PersistsEnabledFalse()
+    {
+        var scenario = CreateScenario();
+        scenario.Steps[0] = scenario.Steps[0] with
+        {
+            Enabled = false,
+        };
+
+        var version = ScenarioVersion.Capture(
+            Guid.NewGuid(),
+            1,
+            scenario,
+            DateTimeOffset.UtcNow);
+
+        version.DefinitionJson.Should().Contain("\"enabled\":false");
+        version.MaterializeDefinition().Steps[0].IsEnabled.Should().BeFalse();
+    }
+
+
+    [Fact]
     public void Capture_WhenLocatorIsOmitted_DoesNotChangeLegacyCanonicalShape()
     {
         var version = ScenarioVersion.Capture(

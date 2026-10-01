@@ -83,7 +83,7 @@ CI performs the restore/build flow on Ubuntu, creates a framework-dependent `lin
 
 ## Minimal scenario
 
-A DABot scenario is a JSON document containing an ordered list of steps. The machine-readable contract is [schemas/scenario.schema.json](schemas/scenario.schema.json).
+A DABot scenario is a JSON document containing an ordered list of steps. The machine-readable contract is [schemas/scenario.schema.json](schemas/scenario.schema.json). Any step may set `enabled: false` to remain in the definition while being skipped at execution time; omitting `enabled` keeps the backward-compatible enabled behavior.
 
 ```json
 {
@@ -174,7 +174,7 @@ Agents should use the README and implementation backlog to distinguish current f
 | Suspend and resume | Available |
 | External event model | Available |
 | Generic page observers | Available |
-| Web management panel | Dashboard, runs, scenario JSON management/import/export/test runs, browser profile management, and local headed interactive profile setup available |
+| Web management panel | Dashboard, runs, synchronized visual/JSON scenario editing with reorder/enable controls, import/export/test runs, browser profile management, and local headed interactive profile setup available |
 | MCP server/client integration | Planned |
 | Dynamic reusable tool registry | Planned |
 

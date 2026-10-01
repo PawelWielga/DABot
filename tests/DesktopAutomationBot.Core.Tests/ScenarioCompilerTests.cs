@@ -158,6 +158,32 @@ public sealed class ScenarioCompilerTests
     }
 
     [Fact]
+    public void Compile_DisabledStep_RoundTripsEnabledState()
+    {
+        var scenario = new ScenarioDefinition
+        {
+            Name = "Disabled step",
+            Steps =
+            [
+                new ScenarioStep
+                {
+                    Type = StepType.Screenshot,
+                    Enabled = false,
+                },
+            ],
+        };
+
+        var compiled = ScenarioCompiler.Compile(scenario);
+
+        compiled.Steps.Should().ContainSingle();
+        compiled.Steps[0].Enabled.Should().BeFalse();
+
+        var materialized = ScenarioCompiler.Materialize(compiled);
+        materialized.Steps[0].Enabled.Should().BeFalse();
+        materialized.Steps[0].IsEnabled.Should().BeFalse();
+    }
+
+    [Fact]
     public void ScenarioVersion_Compile_UsesStoredImmutableDefinition()
     {
         var definition = new ScenarioDefinition

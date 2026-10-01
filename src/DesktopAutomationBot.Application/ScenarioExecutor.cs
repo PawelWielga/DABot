@@ -257,6 +257,15 @@ public sealed class ScenarioExecutor : IScenarioExecutor
             cancellationToken.ThrowIfCancellationRequested();
             var step = steps[index];
 
+            if (!step.IsEnabled)
+            {
+                _logger.LogInformation(
+                    "Skipping disabled step {StepIndex} ({StepType})",
+                    index + 1,
+                    step.Type);
+                continue;
+            }
+
             if (step.Type == StepType.Suspend)
             {
                 throw new NotSupportedException(

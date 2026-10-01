@@ -211,6 +211,61 @@ public sealed class ScenarioExecutorInterpolationTests : IDisposable
 
 
     [Fact]
+    public async Task ExecuteAsync_DisabledStepsAndSubtrees_AreSkipped()
+    {
+        var browser = new RecordingBrowserAutomation();
+        var handler = new CountingScreenshotStepHandler();
+        var executor = new ScenarioExecutor(
+            new BotOptions
+            {
+                Storage = new StorageOptions
+                {
+                    ScreenshotsDirectory = Path.Combine(_tempDirectory, "screenshots"),
+                    ArtifactsDirectory = Path.Combine(_tempDirectory, "artifacts"),
+                },
+            },
+            new ScenarioValidationService(),
+            [handler],
+            browser);
+
+        var result = await executor.ExecuteAsync(
+            new ScenarioDefinition
+            {
+                Name = "disabled-steps",
+                Steps =
+                [
+                    new ScenarioStep
+                    {
+                        Type = StepType.Screenshot,
+                        Enabled = false,
+                    },
+                    new ScenarioStep
+                    {
+                        Type = StepType.Loop,
+                        Enabled = false,
+                        Value = "3",
+                        Children =
+                        [
+                            new ScenarioStep
+                            {
+                                Type = StepType.Screenshot,
+                            },
+                        ],
+                    },
+                    new ScenarioStep
+                    {
+                        Type = StepType.Screenshot,
+                    },
+                ],
+            });
+
+        result.Success.Should().BeTrue();
+        handler.ExecutionCount.Should().Be(1);
+        result.Steps.Should().ContainSingle();
+    }
+
+
+    [Fact]
     public async Task ExecuteAsync_WhenStepFailsWithinRetryBudget_RetriesAndSucceeds()
     {
         var browser = new RecordingBrowserAutomation();

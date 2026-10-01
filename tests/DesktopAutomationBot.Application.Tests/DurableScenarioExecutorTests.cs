@@ -209,14 +209,32 @@ public sealed class DurableScenarioExecutorTests : IDisposable
             runStore,
             attemptStore);
 
-        var version = CreateVersion(
-            new ScenarioStep
+        var version = ScenarioVersion.Capture(
+            Guid.NewGuid(),
+            1,
+            new ScenarioDefinition
             {
-                Id = "open",
-                Type = StepType.OpenUrl,
-                Url = "https://{{host}}",
-                Output = "captured",
-            });
+                Name = "Clone inputs",
+                Steps =
+                [
+                    new ScenarioStep
+                    {
+                        Id = "disabled-host-output",
+                        Type = StepType.ReadText,
+                        Enabled = false,
+                        Selector = "#ignored",
+                        Output = "host",
+                    },
+                    new ScenarioStep
+                    {
+                        Id = "open",
+                        Type = StepType.OpenUrl,
+                        Url = "https://{{host}}",
+                        Output = "captured",
+                    },
+                ],
+            },
+            DateTimeOffset.Parse("2026-10-01T08:30:00+02:00"));
 
         var source = await executor.ExecuteAsync(
             new ScenarioRunRequest
@@ -782,6 +800,86 @@ public sealed class DurableScenarioExecutorTests : IDisposable
         runStore.ArmedWait!.RunId.Should().Be(result.Run.RunId);
         runStore.ArmedWait.CorrelationId.Should().Be("job-42");
         runStore.ArmedWait.EventType.Should().Be("job.finished");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_DisabledStep_SkipsAttemptAndContinues()
+    {
+        var events = new List<string>();
+        var runStore = new RecordingRunStore(events);
+        var attemptStore = new RecordingStepAttemptStore(events);
+        var browser = new RecordingBrowserAutomation(events);
+
+        var screenshotHandler = new RecordingStepHandler(
+            StepType.Screenshot,
+            events,
+            (_, _, index, _) =>
+                Task.FromResult(
+                    new StepExecutionResult
+                    {
+                        Index = index,
+                        Type = StepType.Screenshot,
+                        Success = true,
+                    }));
+
+        var executor = CreateExecutor(
+            [screenshotHandler],
+            browser,
+            runStore,
+            attemptStore);
+
+        var version = ScenarioVersion.Capture(
+            Guid.NewGuid(),
+            1,
+            new ScenarioDefinition
+            {
+                Name = "Disabled durable step",
+                Steps =
+                [
+                    new ScenarioStep
+                    {
+                        Id = "disabled-loop",
+                        Type = StepType.Loop,
+                        Enabled = false,
+                        Value = "2",
+                        Children =
+                        [
+                            new ScenarioStep
+                            {
+                                Id = "never-open",
+                                Type = StepType.OpenUrl,
+                                Url = "https://example.com/disabled",
+                            },
+                        ],
+                    },
+                    new ScenarioStep
+                    {
+                        Id = "capture",
+                        Type = StepType.Screenshot,
+                    },
+                ],
+            },
+            DateTimeOffset.Parse("2026-10-01T09:00:00+02:00"));
+
+        var result = await executor.ExecuteAsync(
+            new ScenarioRunRequest
+            {
+                ScenarioVersion = version,
+            });
+
+        result.Outcome.Should().Be(DurableExecutionOutcome.Completed);
+        result.Run.State.Status.Should().Be(RunStatus.Completed);
+        result.Run.Cursor.IsCompleted.Should().BeTrue();
+        result.Steps.Should().ContainSingle();
+        result.Steps[0].Type.Should().Be(StepType.Screenshot);
+
+        events.Should().NotContain("handler:OpenUrl");
+        events.Should().Contain("handler:Screenshot");
+
+        attemptStore.Attempts
+            .Select(attempt => attempt.StepId)
+            .Should()
+            .OnlyContain(stepId => stepId == "capture");
     }
 
     public void Dispose()
