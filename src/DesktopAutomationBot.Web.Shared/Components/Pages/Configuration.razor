@@ -1,6 +1,8 @@
+@using Microsoft.Extensions.Logging
 @page "/configuration"
 @inject IGeneralRuntimeSettingsService SettingsService
 @inject ManagementUiEnvironment UiEnvironment
+@inject ILogger<Configuration> Logger
 
 <PageTitle>DABot configuration</PageTitle>
 
@@ -267,8 +269,11 @@ else
         {
             _settings = await SettingsService.GetAsync();
         }
-        catch
+        catch (Exception exception)
         {
+            Logger.LogError(
+                exception,
+                "Loading general runtime configuration failed.");
             _settings = null;
             _error = "Configuration could not be loaded. Check server logs for diagnostics.";
         }
@@ -314,8 +319,11 @@ else
                         StringSplitOptions.RemoveEmptyEntries |
                         StringSplitOptions.TrimEntries);
         }
-        catch
+        catch (Exception exception)
         {
+            Logger.LogError(
+                exception,
+                "Saving general runtime configuration failed.");
             _error =
                 "Configuration could not be saved. Check server logs for diagnostics.";
         }
