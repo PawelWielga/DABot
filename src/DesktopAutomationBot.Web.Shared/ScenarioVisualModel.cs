@@ -191,7 +191,7 @@ public sealed class ScenarioVisualModel
     internal static int? GetInt32(
         JsonObject node,
         string propertyName) =>
-        node[propertyName] is JsonValue value &&
+        GetNode(node, propertyName) is JsonValue value &&
         value.TryGetValue<int>(out var result)
             ? result
             : null;
@@ -207,7 +207,7 @@ public sealed class ScenarioVisualModel
         }
         else
         {
-            node.Remove(propertyName);
+            RemoveNode(node, propertyName);
         }
     }
 
@@ -237,7 +237,7 @@ public sealed class ScenarioVisualModel
         }
         else
         {
-            node.Remove(propertyName);
+            RemoveNode(node, propertyName);
         }
     }
 }
