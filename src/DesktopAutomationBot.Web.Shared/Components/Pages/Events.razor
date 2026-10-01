@@ -107,6 +107,12 @@
                                                 next @FormatTimestamp(item.NextAttemptAt.Value)
                                             </div>
                                         }
+                                        @if (item.FinishedAt is not null)
+                                        {
+                                            <div class="muted compact-text">
+                                                finished @FormatTimestamp(item.FinishedAt.Value)
+                                            </div>
+                                        }
                                         @if (!string.IsNullOrWhiteSpace(item.ErrorMessage))
                                         {
                                             <div class="muted compact-text">@item.ErrorMessage</div>
