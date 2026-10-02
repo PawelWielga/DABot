@@ -49,8 +49,12 @@ public sealed class SqliteNodeRegistryStoreTests : IDisposable
 
         first.RegisteredAt.Should()
             .Be(firstRegisteredAt);
+        first.LastSeenAt.Should()
+            .Be(firstRegisteredAt);
         second.RegisteredAt.Should()
             .Be(firstRegisteredAt);
+        second.LastSeenAt.Should()
+            .Be(later);
         second.Metadata.Should()
             .BeEquivalentTo(refreshedMetadata);
 
@@ -182,7 +186,7 @@ public sealed class SqliteNodeRegistryStoreTests : IDisposable
         Convert.ToInt32(
                 await version.ExecuteScalarAsync())
             .Should()
-            .Be(8);
+            .Be(9);
 
         await using var columns =
             upgraded.CreateCommand();
@@ -197,13 +201,14 @@ public sealed class SqliteNodeRegistryStoreTests : IDisposable
                 'BrowserVersionsJson',
                 'TagsJson',
                 'CapabilitiesJson',
-                'ExecutionSlots');
+                'ExecutionSlots',
+                'LastSeenAt');
             """;
 
         Convert.ToInt32(
                 await columns.ExecuteScalarAsync())
             .Should()
-            .Be(7);
+            .Be(8);
     }
 
     [Fact]
@@ -258,6 +263,7 @@ public sealed class SqliteNodeRegistryStoreTests : IDisposable
 
         migrated.Should().NotBeNull();
         migrated!.RegisteredAt.Should().Be(registeredAt);
+        migrated.LastSeenAt.Should().Be(registeredAt);
         migrated.Metadata.DisplayName.Should()
             .Be(nodeId.ToString("D"));
         migrated.Metadata.OperatingSystem.Should()
@@ -276,8 +282,90 @@ public sealed class SqliteNodeRegistryStoreTests : IDisposable
 
         refreshed.RegisteredAt.Should()
             .Be(registeredAt);
+        refreshed.LastSeenAt.Should()
+            .Be(registeredAt.AddHours(4));
         refreshed.Metadata.Should()
             .BeEquivalentTo(currentMetadata);
+    }
+
+
+    [Fact]
+    public async Task HeartbeatAsync_UpdatesLastSeenWithoutChangingRegistrationOrMetadata()
+    {
+        var databasePath = Path.Combine(
+            _directory,
+            "heartbeat.db");
+        var store = new SqliteRunStore(
+            CreateOptions(databasePath));
+        var nodeId = Guid.NewGuid();
+        var registeredAt = DateTimeOffset.Parse(
+            "2026-10-02T08:00:00+00:00");
+        var heartbeatAt = registeredAt.AddMinutes(5);
+        var metadata = CreateMetadata("worker-1");
+
+        await store.RegisterAsync(
+            nodeId,
+            registeredAt,
+            metadata);
+
+        var heartbeat = await store.HeartbeatAsync(
+            nodeId,
+            heartbeatAt);
+
+        heartbeat.RegisteredAt.Should()
+            .Be(registeredAt);
+        heartbeat.LastSeenAt.Should()
+            .Be(heartbeatAt);
+        heartbeat.Metadata.Should()
+            .BeEquivalentTo(metadata);
+    }
+
+    [Fact]
+    public async Task HeartbeatAsync_OlderTimestamp_DoesNotMoveLastSeenBackwards()
+    {
+        var databasePath = Path.Combine(
+            _directory,
+            "heartbeat-monotonic.db");
+        var store = new SqliteRunStore(
+            CreateOptions(databasePath));
+        var nodeId = Guid.NewGuid();
+        var registeredAt = DateTimeOffset.Parse(
+            "2026-10-02T08:00:00+00:00");
+        var newer = registeredAt.AddMinutes(10);
+        var older = registeredAt.AddMinutes(5);
+
+        await store.RegisterAsync(
+            nodeId,
+            registeredAt,
+            CreateMetadata("worker-1"));
+
+        await store.HeartbeatAsync(
+            nodeId,
+            newer);
+        var result = await store.HeartbeatAsync(
+            nodeId,
+            older);
+
+        result.LastSeenAt.Should().Be(newer);
+    }
+
+    [Fact]
+    public async Task HeartbeatAsync_UnregisteredNode_Throws()
+    {
+        var store = new SqliteRunStore(
+            CreateOptions(
+                Path.Combine(
+                    _directory,
+                    "heartbeat-missing.db")));
+
+        Func<Task> action = async () =>
+            await store.HeartbeatAsync(
+                Guid.NewGuid(),
+                DateTimeOffset.UtcNow);
+
+        await action.Should()
+            .ThrowAsync<InvalidOperationException>()
+            .WithMessage("*is not registered*");
     }
 
     [Fact]
