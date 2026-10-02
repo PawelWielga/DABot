@@ -69,13 +69,13 @@ try
         RunnerCommand.EventWorker or
         RunnerCommand.ObserverWorker)
     {
-        var nodeIdentity =
+        var node =
             await provider
-                .GetRequiredService<INodeIdentityProvider>()
-                .GetAsync();
+                .GetRequiredService<INodeRegistryService>()
+                .EnsureLocalNodeRegisteredAsync();
 
         Console.WriteLine(
-            $"DABot node: {nodeIdentity.NodeId:D}");
+            $"DABot node: {node.NodeId:D}; registered: {node.RegisteredAt:O}");
     }
 
     if (commandLine.Command == RunnerCommand.RetryWorker)
