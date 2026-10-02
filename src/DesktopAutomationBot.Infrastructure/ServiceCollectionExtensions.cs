@@ -34,6 +34,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IInteractiveBrowserSessionAuditSink, LoggingInteractiveBrowserSessionAuditSink>();
         services.AddSingleton<IAdministrativeAuditSink, LoggingAdministrativeAuditSink>();
         services.AddSingleton<INodeIdentityProvider, FileSystemNodeIdentityProvider>();
+        services.AddSingleton<INodeMetadataProvider, RuntimeNodeMetadataProvider>();
         services.AddSingleton<IHttpAutomationClient, HttpAutomationClient>();
         services.AddSingleton<ISecretProvider, EnvironmentSecretProvider>();
         services.AddSingleton<IBrowserSessionFactory, PlaywrightBrowserSessionFactory>();
