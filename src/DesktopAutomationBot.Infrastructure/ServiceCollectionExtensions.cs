@@ -30,6 +30,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IBrowserProfileCatalog, FileSystemBrowserProfileCatalog>();
         services.AddSingleton<IBrowserProfileManagementService, FileSystemBrowserProfileManagementService>();
         services.AddSingleton<IInteractiveBrowserSessionAuditSink, LoggingInteractiveBrowserSessionAuditSink>();
+        services.AddSingleton<IAdministrativeAuditSink, LoggingAdministrativeAuditSink>();
         services.AddSingleton<IHttpAutomationClient, HttpAutomationClient>();
         services.AddSingleton<ISecretProvider, EnvironmentSecretProvider>();
         services.AddSingleton<IBrowserSessionFactory, PlaywrightBrowserSessionFactory>();

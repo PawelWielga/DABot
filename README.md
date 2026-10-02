@@ -174,7 +174,7 @@ Agents should use the README and implementation backlog to distinguish current f
 | Suspend and resume | Available |
 | External event model | Available |
 | Generic page observers | Available |
-| Web management panel | Dashboard, runs, synchronized visual/JSON scenario editing, browser profile management, local headed interactive profile setup, observer monitoring/configuration, event history/manual publishing, and restart-required general/storage configuration editing available |
+| Web management panel | Dashboard, runs, synchronized visual/JSON scenario editing, browser profile management, local headed interactive profile setup, observer monitoring/configuration, event history/manual publishing, metadata-only audit logging for manual resume/cancel/event actions, and restart-required general/storage configuration editing available |
 | MCP server/client integration | Planned |
 | Dynamic reusable tool registry | Planned |
 
@@ -186,7 +186,7 @@ The Blazor management panel is available:
 dotnet run --project src/DesktopAutomationBot.Web
 ```
 
-It reads durable run, observer, and event-inbox state through Application services, can create/edit page observers, browse event delivery/resume metadata, manually publish idempotent durable events, manages persistent browser profiles, can start/stop a headed interactive profile browser, and can edit non-secret general and storage settings for the next process start through Application services. Storage path changes are configuration-only and never migrate existing files; the Web project still does not directly own Playwright. See [web management panel](docs/web-management.md).
+It reads durable run, observer, and event-inbox state through Application services, can create/edit page observers, browse event delivery/resume metadata, manually publish idempotent durable events, emits structured metadata-only audit records for manual resume/cancel/event actions, manages persistent browser profiles, can start/stop a headed interactive profile browser, and can edit non-secret general and storage settings for the next process start through Application services. Storage path changes are configuration-only and never migrate existing files; the Web project still does not directly own Playwright. See [web management panel](docs/web-management.md).
 
 A static demo of the same management UI, backed only by sample data, is published on GitHub Pages: [DABot web demo](https://pawelwielga.github.io/DABot/). The demo does not execute automation or connect to a runtime.
 

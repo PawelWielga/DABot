@@ -1,7 +1,7 @@
 # DABot repository instructions
 
 - Read and follow `AGENTS.md`; it is the authoritative repository-wide engineering guide.
-- DABot currently provides one-shot and durable declarative JSON browser automation on .NET 8 using Playwright, including persistent profiles, durable events, page observers, and a web-management panel with run controls, scenario JSON management, browser-profile management/local headed interactive-profile lifecycle, observer monitoring/create/edit management, event-history browsing without raw payload exposure, and manual durable-event publishing through Application services. MCP and dynamic tools remain roadmap work unless the code and README explicitly show otherwise.
+- DABot currently provides one-shot and durable declarative JSON browser automation on .NET 8 using Playwright, including persistent profiles, durable events, page observers, and a web-management panel with run controls, scenario JSON management, browser-profile management/local headed interactive-profile lifecycle, observer monitoring/create/edit management, event-history browsing without raw payload exposure, manual durable-event publishing through Application services, and metadata-only structured audit logging for manual resume/cancel/event operations. MCP and dynamic tools remain roadmap work unless the code and README explicitly show otherwise.
 - Keep Core free of Playwright, MCP, website-specific, vendor-specific, and transport-specific types.
 - Put orchestration and interfaces in Application, concrete external integrations in Infrastructure, and executable composition/CLI concerns in Runner.
 - Preserve existing scenario JSON compatibility unless a migration is explicitly documented.
@@ -17,4 +17,4 @@
 
 - Keep management presentation in `DesktopAutomationBot.Web.Shared`; the real web host and GitHub Pages demo must reuse those components. The demo is sample-data only and must not execute automation or access real runtime data.
 
-- Keep interactive-browser session and audit contracts metadata-only. Operator input must go directly to the browser/profile; never add target URLs with sensitive query data, page content, form values, credentials, MFA values, or operator keystrokes to Application models, logs, configuration, or durable variables.
+- Keep interactive-browser session and audit contracts metadata-only. Operator input must go directly to the browser/profile; never add target URLs with sensitive query data, page content, form values, credentials, MFA values, or operator keystrokes to Application models, logs, configuration, or durable variables.\n- Keep administrative audit contracts metadata-only as well: no event payloads, correlation IDs, page content, credentials, MFA values, or operator input.

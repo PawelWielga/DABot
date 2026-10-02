@@ -20,6 +20,7 @@ public static class ServiceCollectionExtensions
             static provider => provider.GetRequiredService<DurableScenarioExecutor>());
         services.AddSingleton<IDurableRunControlService>(
             static provider => provider.GetRequiredService<DurableScenarioExecutor>());
+        services.AddSingleton<IAdministrativeRunControlService, AdministrativeRunControlService>();
         services.AddSingleton<IDurableRunRecoveryService, DurableRunRecoveryService>();
         services.AddSingleton<IDurableRetryScheduler, DurableRetryScheduler>();
         services.AddSingleton<IDurableRetryWorker, DurableRetryWorker>();
