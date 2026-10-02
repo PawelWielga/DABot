@@ -98,7 +98,7 @@ Each node has a stable `NodeId`.
 
 The first implemented identity layer is transport-neutral: Application exposes `INodeIdentityProvider`, while the default Infrastructure adapter persists a generated non-empty GUID in the machine-local file configured by `bot.node.identityPath` (`data/node-id` by default). Creation is atomic so concurrent first starts converge on the same persisted ID. An invalid/corrupt identity file is treated as an operator-visible error rather than silently replacing the node identity. The identity path must be persisted across restarts and must not be shared by distinct machines/agents.
 
-The durable node registry is also implemented. `INodeRegistryService` ensures the local identity exists in a persistence-agnostic `INodeRegistryStore`; the standalone SQLite adapter stores the stable `NodeId`, immutable first `RegisteredAt`, and refreshable node metadata in schema version 8. Web startup and long-running retry/event/observer workers register idempotently. Metadata includes display name, OS/process architecture, DABot version, detected browser versions, tags/capabilities, and configured execution slots. Heartbeat/liveness state remains the next Sprint 10 increment.
+The durable node registry is also implemented. `INodeRegistryService` ensures the local identity exists in a persistence-agnostic `INodeRegistryStore`; the standalone SQLite adapter stores the stable `NodeId`, immutable first `RegisteredAt`, refreshable node metadata, and persisted `LastSeenAt` in schema version 9. Web startup and long-running retry/event/observer workers register idempotently. Metadata includes display name, OS/process architecture, DABot version, detected browser versions, tags/capabilities, and configured execution slots.
 
 The identity provider and registry contracts do not depend on HTTP, PostgreSQL, or the control-plane transport. A future distributed persistence adapter can implement the same registry contract centrally.
 
@@ -112,7 +112,7 @@ A node currently reports and persists:
 - configured tags and capabilities,
 - automatically detected OS capability plus `interactive`, and `chromium` when the executable is installed.
 
-Current active-run count, optional CPU/memory load, last heartbeat, and lifecycle status remain later increments. The reported execution-slot count is not yet enforced by dispatch/concurrency logic.
+`INodeHeartbeatService` periodically updates `LastSeenAt` using `bot.node.heartbeatIntervalSeconds` (15 seconds by default). Heartbeat timestamps are monotonic in persistence, so an older timestamp cannot move `LastSeenAt` backwards. Registration itself also counts as the first observation. Current active-run count, optional CPU/memory load, lifecycle state, and heartbeat-expiry/liveness evaluation remain later increments. The reported execution-slot count is not yet enforced by dispatch/concurrency logic.
 
 Example capabilities:
 
