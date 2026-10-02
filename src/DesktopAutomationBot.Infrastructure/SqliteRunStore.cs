@@ -6,9 +6,9 @@ using Microsoft.Data.Sqlite;
 
 namespace DesktopAutomationBot.Infrastructure;
 
-public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStore, IEventInboxStore, IPageObserverStore, IPageObserverManagementStore
+public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStore, IEventInboxStore, IPageObserverStore, IPageObserverManagementStore, INodeRegistryStore
 {
-    private const int StoreSchemaVersion = 6;
+    private const int StoreSchemaVersion = 7;
 
     private readonly string _connectionString;
     private readonly SemaphoreSlim _initializationLock = new(1, 1);
@@ -1562,6 +1562,164 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
         }
     }
 
+
+    public async Task<RegisteredNode> RegisterAsync(
+        Guid nodeId,
+        DateTimeOffset registeredAt,
+        CancellationToken cancellationToken = default)
+    {
+        if (nodeId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Node ID must not be empty.",
+                nameof(nodeId));
+        }
+
+        await EnsureInitializedAsync(cancellationToken);
+
+        await using var connection =
+            await OpenConnectionAsync(cancellationToken);
+        await using var transaction =
+            (SqliteTransaction)await connection.BeginTransactionAsync(
+                cancellationToken);
+
+        await using (var insert = connection.CreateCommand())
+        {
+            insert.Transaction = transaction;
+            insert.CommandText =
+                """
+                INSERT OR IGNORE INTO Nodes (
+                    NodeId,
+                    RegisteredAt)
+                VALUES (
+                    $nodeId,
+                    $registeredAt);
+                """;
+            insert.Parameters.AddWithValue(
+                "$nodeId",
+                nodeId.ToString("D"));
+            insert.Parameters.AddWithValue(
+                "$registeredAt",
+                FormatTimestamp(registeredAt));
+
+            await insert.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        DateTimeOffset persistedRegisteredAt;
+
+        await using (var select = connection.CreateCommand())
+        {
+            select.Transaction = transaction;
+            select.CommandText =
+                """
+                SELECT RegisteredAt
+                FROM Nodes
+                WHERE NodeId = $nodeId;
+                """;
+            select.Parameters.AddWithValue(
+                "$nodeId",
+                nodeId.ToString("D"));
+
+            var value = await select.ExecuteScalarAsync(
+                cancellationToken);
+
+            if (value is not string persisted)
+            {
+                throw new InvalidOperationException(
+                    $"Node '{nodeId}' could not be read after registration.");
+            }
+
+            persistedRegisteredAt = ParseTimestamp(
+                persisted,
+                "Node.RegisteredAt");
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+
+        return new RegisteredNode
+        {
+            NodeId = nodeId,
+            RegisteredAt = persistedRegisteredAt,
+        };
+    }
+
+    public async Task<RegisteredNode?> LoadNodeAsync(
+        Guid nodeId,
+        CancellationToken cancellationToken = default)
+    {
+        if (nodeId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Node ID must not be empty.",
+                nameof(nodeId));
+        }
+
+        await EnsureInitializedAsync(cancellationToken);
+
+        await using var connection =
+            await OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT NodeId, RegisteredAt
+            FROM Nodes
+            WHERE NodeId = $nodeId;
+            """;
+        command.Parameters.AddWithValue(
+            "$nodeId",
+            nodeId.ToString("D"));
+
+        await using var reader =
+            await command.ExecuteReaderAsync(cancellationToken);
+
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return null;
+        }
+
+        return ReadRegisteredNode(reader);
+    }
+
+    public async Task<IReadOnlyList<RegisteredNode>> ListNodesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureInitializedAsync(cancellationToken);
+
+        await using var connection =
+            await OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT NodeId, RegisteredAt
+            FROM Nodes
+            ORDER BY julianday(RegisteredAt), NodeId;
+            """;
+
+        var nodes = new List<RegisteredNode>();
+
+        await using var reader =
+            await command.ExecuteReaderAsync(cancellationToken);
+
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            nodes.Add(ReadRegisteredNode(reader));
+        }
+
+        return nodes;
+    }
+
+    private static RegisteredNode ReadRegisteredNode(
+        SqliteDataReader reader) =>
+        new()
+        {
+            NodeId = ParseGuid(
+                reader.GetString(0),
+                "Node.NodeId"),
+            RegisteredAt = ParseTimestamp(
+                reader.GetString(1),
+                "Node.RegisteredAt"),
+        };
+
     private async Task EnsureInitializedAsync(CancellationToken cancellationToken)
     {
         if (_initialized)
@@ -1771,7 +1929,12 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
             CREATE INDEX IX_PageObserverSnapshots_NextCheckAt
                 ON PageObserverSnapshots(NextCheckAt);
 
-            PRAGMA user_version = 6;
+            CREATE TABLE IF NOT EXISTS Nodes (
+                NodeId TEXT NOT NULL PRIMARY KEY,
+                RegisteredAt TEXT NOT NULL
+            );
+
+            PRAGMA user_version = 7;
             """;
 
         await command.ExecuteNonQueryAsync(cancellationToken);
@@ -1812,6 +1975,11 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
                 case 5:
                     await MigrateV5ToV6Async(connection, cancellationToken);
                     version = 6;
+                    break;
+
+                case 6:
+                    await MigrateV6ToV7Async(connection, cancellationToken);
+                    version = 7;
                     break;
 
                 default:
@@ -2026,6 +2194,30 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
                 ON PageObserverSnapshots(NextCheckAt);
 
             PRAGMA user_version = 6;
+            """;
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+
+    private static async Task MigrateV6ToV7Async(
+        SqliteConnection connection,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction =
+            (SqliteTransaction)await connection.BeginTransactionAsync(
+                cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText =
+            """
+            CREATE TABLE IF NOT EXISTS Nodes (
+                NodeId TEXT NOT NULL PRIMARY KEY,
+                RegisteredAt TEXT NOT NULL
+            );
+
+            PRAGMA user_version = 7;
             """;
 
         await command.ExecuteNonQueryAsync(cancellationToken);

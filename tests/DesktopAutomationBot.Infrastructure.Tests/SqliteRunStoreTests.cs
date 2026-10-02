@@ -407,7 +407,7 @@ public sealed class SqliteRunStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task ExistingVersion1Database_IsMigratedToVersion6()
+    public async Task ExistingVersion1Database_IsMigratedToCurrentVersion()
     {
         var databasePath = Path.Combine(_tempDirectory, "schema-v1.db");
         await CreateVersion1DatabaseAsync(databasePath);
@@ -439,11 +439,11 @@ public sealed class SqliteRunStoreTests : IDisposable
         command.CommandText = "PRAGMA user_version;";
         var rawVersion = await command.ExecuteScalarAsync();
 
-        Convert.ToInt32(rawVersion).Should().Be(6);
+        Convert.ToInt32(rawVersion).Should().Be(7);
     }
 
     [Fact]
-    public async Task ExistingVersion2RetryWait_IsMigratedAndBackfilledToVersion6()
+    public async Task ExistingVersion2RetryWait_IsMigratedAndBackfilledToCurrentVersion()
     {
         var databasePath = Path.Combine(_tempDirectory, "schema-v2.db");
         var version = CreateScenarioVersion();
@@ -479,7 +479,7 @@ public sealed class SqliteRunStoreTests : IDisposable
         command.CommandText = "PRAGMA user_version;";
         var rawVersion = await command.ExecuteScalarAsync();
 
-        Convert.ToInt32(rawVersion).Should().Be(6);
+        Convert.ToInt32(rawVersion).Should().Be(7);
     }
 
     [Fact]

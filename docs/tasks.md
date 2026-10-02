@@ -373,7 +373,7 @@ Architecture source: [Distributed DABot deployment](distributed-deployment.md).
 ### Node identity and registry
 
 - [x] Introduce stable `NodeId` / worker identity. `INodeIdentityProvider` exposes a transport-neutral identity; the Infrastructure file provider atomically creates and reuses a machine-local GUID at `bot.node.identityPath` (`data/node-id` by default), fails loudly on corrupt persisted identity, and long-running workers/web startup surface the resolved ID.
-- [ ] Add durable node registry.
+- [x] Add durable node registry. `INodeRegistryService` combines the stable local identity with `INodeRegistryStore`; SQLite schema v7 persists `NodeId` and first `RegisteredAt`, registration is idempotent across restarts, and Web plus long-running workers ensure their local node is registered at startup.
 - [ ] Add node metadata: display name, OS, DABot version, browser versions, tags/capabilities, configured execution slots.
 - [ ] Add heartbeat with persisted `LastSeenAt`.
 - [ ] Define node lifecycle states: Online, Draining, Offline, Disabled, Unhealthy.
