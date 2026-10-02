@@ -97,7 +97,7 @@ The shared Events page can publish an event manually through `IAdministrativeEve
 
 Reusing the same event ID is safe: the durable inbox returns the existing acceptance result and does not schedule duplicate resume work. The page keeps the submitted event ID after publishing so an operator can intentionally retry the same delivery, and provides an explicit **New event ID** action for a distinct event.
 
-The static GitHub Pages demo renders the same form but keeps publishing disabled. Event-history queries continue to exclude raw payloads; payload JSON is visible only while the operator is composing the event and is then persisted for workflow use through the existing inbox path.
+The static GitHub Pages demo renders the same form but keeps publishing disabled. Event-history queries continue to exclude raw payloads; payload JSON is visible only while the operator is composing the event and is then persisted for workflow use through the existing inbox path. Manual publishing also emits metadata-only administrative audit records before and after the operation. Those records contain event/run/work-item identifiers and outcome flags only; payload, correlation ID, and event type are deliberately excluded.
 
 ## Resume retry and dead-letter policy
 
