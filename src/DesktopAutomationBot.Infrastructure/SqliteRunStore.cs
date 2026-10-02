@@ -8,7 +8,7 @@ namespace DesktopAutomationBot.Infrastructure;
 
 public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStore, IEventInboxStore, IPageObserverStore, IPageObserverManagementStore, INodeRegistryStore
 {
-    private const int StoreSchemaVersion = 8;
+    private const int StoreSchemaVersion = 9;
 
     private readonly string _connectionString;
     private readonly SemaphoreSlim _initializationLock = new(1, 1);
@@ -1595,6 +1595,7 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
                 INSERT INTO Nodes (
                     NodeId,
                     RegisteredAt,
+                    LastSeenAt,
                     DisplayName,
                     OperatingSystem,
                     DABotVersion,
@@ -1605,6 +1606,7 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
                 VALUES (
                     $nodeId,
                     $registeredAt,
+                    $lastSeenAt,
                     $displayName,
                     $operatingSystem,
                     $dabotVersion,
@@ -1613,6 +1615,11 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
                     $capabilitiesJson,
                     $executionSlots)
                 ON CONFLICT(NodeId) DO UPDATE SET
+                    LastSeenAt = CASE
+                        WHEN julianday(excluded.LastSeenAt) > julianday(Nodes.LastSeenAt)
+                            THEN excluded.LastSeenAt
+                        ELSE Nodes.LastSeenAt
+                    END,
                     DisplayName = excluded.DisplayName,
                     OperatingSystem = excluded.OperatingSystem,
                     DABotVersion = excluded.DABotVersion,
@@ -1626,6 +1633,9 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
                 nodeId.ToString("D"));
             upsert.Parameters.AddWithValue(
                 "$registeredAt",
+                FormatTimestamp(registeredAt));
+            upsert.Parameters.AddWithValue(
+                "$lastSeenAt",
                 FormatTimestamp(registeredAt));
             upsert.Parameters.AddWithValue(
                 "$displayName",
@@ -1665,6 +1675,7 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
                 SELECT
                     NodeId,
                     RegisteredAt,
+                    LastSeenAt,
                     DisplayName,
                     OperatingSystem,
                     DABotVersion,
@@ -1695,6 +1706,58 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
         return registeredNode;
     }
 
+    public async Task<RegisteredNode> HeartbeatAsync(
+        Guid nodeId,
+        DateTimeOffset lastSeenAt,
+        CancellationToken cancellationToken = default)
+    {
+        if (nodeId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Node ID must not be empty.",
+                nameof(nodeId));
+        }
+
+        await EnsureInitializedAsync(cancellationToken);
+
+        await using (var connection =
+            await OpenConnectionAsync(cancellationToken))
+        await using (var command = connection.CreateCommand())
+        {
+            command.CommandText =
+                """
+                UPDATE Nodes
+                SET LastSeenAt = CASE
+                    WHEN julianday($lastSeenAt) > julianday(LastSeenAt)
+                        THEN $lastSeenAt
+                    ELSE LastSeenAt
+                END
+                WHERE NodeId = $nodeId;
+                """;
+            command.Parameters.AddWithValue(
+                "$lastSeenAt",
+                FormatTimestamp(lastSeenAt));
+            command.Parameters.AddWithValue(
+                "$nodeId",
+                nodeId.ToString("D"));
+
+            var changed =
+                await command.ExecuteNonQueryAsync(cancellationToken);
+
+            if (changed != 1)
+            {
+                throw new InvalidOperationException(
+                    $"Node '{nodeId}' is not registered.");
+            }
+        }
+
+        return await LoadNodeAsync(
+            nodeId,
+            cancellationToken)
+            ?? throw new InvalidOperationException(
+                $"Node '{nodeId}' could not be read after heartbeat.");
+    }
+
     public async Task<RegisteredNode?> LoadNodeAsync(
         Guid nodeId,
         CancellationToken cancellationToken = default)
@@ -1716,6 +1779,7 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
             SELECT
                 NodeId,
                 RegisteredAt,
+                LastSeenAt,
                 DisplayName,
                 OperatingSystem,
                 DABotVersion,
@@ -1754,6 +1818,7 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
             SELECT
                 NodeId,
                 RegisteredAt,
+                LastSeenAt,
                 DisplayName,
                 OperatingSystem,
                 DABotVersion,
@@ -1783,17 +1848,17 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
     {
         var browserVersions =
             JsonSerializer.Deserialize<Dictionary<string, string>>(
-                reader.GetString(5))
+                reader.GetString(6))
             ?? [];
 
         var tags =
             JsonSerializer.Deserialize<string[]>(
-                reader.GetString(6))
+                reader.GetString(7))
             ?? [];
 
         var capabilities =
             JsonSerializer.Deserialize<string[]>(
-                reader.GetString(7))
+                reader.GetString(8))
             ?? [];
 
         return new RegisteredNode
@@ -1804,16 +1869,19 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
             RegisteredAt = ParseTimestamp(
                 reader.GetString(1),
                 "Node.RegisteredAt"),
+            LastSeenAt = ParseTimestamp(
+                reader.GetString(2),
+                "Node.LastSeenAt"),
             Metadata = NodeMetadata.Validate(
                 new NodeMetadata
                 {
-                    DisplayName = reader.GetString(2),
-                    OperatingSystem = reader.GetString(3),
-                    DABotVersion = reader.GetString(4),
+                    DisplayName = reader.GetString(3),
+                    OperatingSystem = reader.GetString(4),
+                    DABotVersion = reader.GetString(5),
                     BrowserVersions = browserVersions,
                     Tags = tags,
                     Capabilities = capabilities,
-                    ExecutionSlots = reader.GetInt32(8),
+                    ExecutionSlots = reader.GetInt32(9),
                 }),
         };
     }
@@ -2030,6 +2098,7 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
             CREATE TABLE IF NOT EXISTS Nodes (
                 NodeId TEXT NOT NULL PRIMARY KEY,
                 RegisteredAt TEXT NOT NULL,
+                LastSeenAt TEXT NOT NULL,
                 DisplayName TEXT NOT NULL,
                 OperatingSystem TEXT NOT NULL,
                 DABotVersion TEXT NOT NULL,
@@ -2039,7 +2108,7 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
                 ExecutionSlots INTEGER NOT NULL CHECK (ExecutionSlots > 0)
             );
 
-            PRAGMA user_version = 8;
+            PRAGMA user_version = 9;
             """;
 
         await command.ExecuteNonQueryAsync(cancellationToken);
@@ -2090,6 +2159,11 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
                 case 7:
                     await MigrateV7ToV8Async(connection, cancellationToken);
                     version = 8;
+                    break;
+
+                case 8:
+                    await MigrateV8ToV9Async(connection, cancellationToken);
+                    version = 9;
                     break;
 
                 default:
@@ -2372,6 +2446,31 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
             WHERE trim(DisplayName) = '';
 
             PRAGMA user_version = 8;
+            """;
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    private static async Task MigrateV8ToV9Async(
+        SqliteConnection connection,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction =
+            (SqliteTransaction)await connection.BeginTransactionAsync(
+                cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText =
+            """
+            ALTER TABLE Nodes
+                ADD COLUMN LastSeenAt TEXT NOT NULL DEFAULT '';
+
+            UPDATE Nodes
+            SET LastSeenAt = RegisteredAt
+            WHERE trim(LastSeenAt) = '';
+
+            PRAGMA user_version = 9;
             """;
 
         await command.ExecuteNonQueryAsync(cancellationToken);
