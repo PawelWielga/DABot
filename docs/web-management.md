@@ -137,7 +137,15 @@ The Events page provides a global operational view over the durable event inbox.
 
 The page shows event type and ID, occurrence/receipt timestamps, correlation ID, linked run, resume-work status, attempt count, retry timing, completion timing, and the latest error. It supports matched/unmatched/problem filters plus text search. Raw `PayloadJson` is intentionally absent from the Application read model and is never returned by history queries.
 
-Manual event publishing uses `IAdministrativeEventService`. The operator provides a stable event ID, type, correlation ID, and JSON payload; Application validates the request, creates the transport-neutral `AutomationEvent`, and delegates to the existing idempotent inbox path. Reusing an event ID does not create duplicate resume work. The static demo renders the same form but disables publishing. Audit of manual resume/cancel/event operations remains later Sprint 9 work.
+Manual event publishing uses `IAdministrativeEventService`. The operator provides a stable event ID, type, correlation ID, and JSON payload; Application validates the request, creates the transport-neutral `AutomationEvent`, and delegates to the existing idempotent inbox path. Reusing an event ID does not create duplicate resume work. The static demo renders the same form but disables publishing.
+
+### Administrative action audit
+
+Web-originated run resume and cancel operations use `IAdministrativeRunControlService` rather than calling the underlying durable control service directly. This matters because event workers also resume runs through `IDurableRunControlService`; auditing that lower-level interface would incorrectly label automatic resume work as an operator action.
+
+Manual resume, cancel, and event publishing write a `Requested` audit record before the state-changing operation, followed by `Succeeded`, `Rejected`, `Failed`, or `Cancelled` metadata when applicable. Records share a generated operation ID and may contain only operational identifiers such as run ID, event ID, resume-work-item ID, duplicate/match flags, timestamps, and exception type. They do not contain event payloads, correlation IDs, page content, credentials, MFA values, or operator input.
+
+The default `LoggingAdministrativeAuditSink` writes these records as structured application logs. This is an audit boundary, not yet a durable audit database: searchable retention, actor identity, administrator authorization, and a dedicated audit-history UI remain future operations/authentication work.
 
 ### Configuration
 
@@ -235,9 +243,9 @@ No login/identity provider is enabled yet, so current routes remain anonymous un
 
 ## Current scope
 
-The dashboard remains read-only. Run details support guarded manual resume/retry/cancel actions, the run list supports filtering, scenario JSON management supports create/edit/delete and validation, persistent browser profiles can be listed, created, renamed, cleared, deleted, and health-tested, page observers can be monitored, created, and edited, and the global event history exposes durable delivery/resume metadata without raw payloads.
+The dashboard remains read-only. Run details support guarded manual resume/retry/cancel actions, the run list supports filtering, scenario JSON management supports create/edit/delete and validation, persistent browser profiles can be listed, created, renamed, cleared, deleted, and health-tested, page observers can be monitored, created, and edited, and the global event history exposes durable delivery/resume metadata without raw payloads. Manual resume/cancel/event operations emit structured metadata-only administrative audit records.
 
-Remote browser display/input streaming, interactive-session authorization/inactivity cleanup/durable audit storage, safely redacted secret-backed configuration, and authentication UX remain later Sprint 8/9 work.
+Remote browser display/input streaming, interactive-session authorization/inactivity cleanup, durable/queryable audit storage, safely redacted secret-backed configuration, and authentication UX remain later work.
 
 
 ## Static GitHub Pages demo
