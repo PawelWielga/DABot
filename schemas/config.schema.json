@@ -65,6 +65,12 @@
               "minimum": 1,
               "default": 1,
               "description": "Configured execution capacity reported by this node. Scheduler enforcement is added in a later Sprint 10 step."
+            },
+            "heartbeatIntervalSeconds": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 15,
+              "description": "Interval between persisted node heartbeats for long-running workers and the web runtime."
             }
           }
         },
