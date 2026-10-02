@@ -3,7 +3,9 @@ using DesktopAutomationBot.Core;
 
 namespace DesktopAutomationBot.Web.Demo;
 
-public sealed class DemoRunControlService : IDurableRunControlService
+public sealed class DemoRunControlService :
+    IDurableRunControlService,
+    IAdministrativeRunControlService
 {
     private const string Message =
         "Run actions are disabled in the static GitHub Pages demo.";
@@ -14,6 +16,11 @@ public sealed class DemoRunControlService : IDurableRunControlService
         throw new NotSupportedException(Message);
 
     public Task<DurableScenarioExecutionResult> ResumeManuallyAsync(
+        Guid runId,
+        CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException(Message);
+
+    public Task<DurableScenarioExecutionResult> ResumeAsync(
         Guid runId,
         CancellationToken cancellationToken = default) =>
         throw new NotSupportedException(Message);
