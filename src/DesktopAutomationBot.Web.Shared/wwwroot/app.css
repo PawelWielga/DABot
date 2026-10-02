@@ -1044,6 +1044,20 @@ select {
     display: block;
 }
 
+.configuration-grid textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: #ffffff;
+    resize: vertical;
+}
+
+.configuration-grid textarea:disabled {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
 .configuration-wide {
     grid-column: 1 / -1;
 }
