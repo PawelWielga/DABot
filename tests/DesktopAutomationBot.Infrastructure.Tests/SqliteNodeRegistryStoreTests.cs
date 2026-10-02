@@ -289,6 +289,85 @@ public sealed class SqliteNodeRegistryStoreTests : IDisposable
     }
 
 
+
+    [Fact]
+    public async Task LoadNodeAsync_ExistingVersion8Node_BackfillsLastSeenAt()
+    {
+        Directory.CreateDirectory(_directory);
+        var databasePath = Path.Combine(
+            _directory,
+            "upgrade-v8.db");
+        var nodeId = Guid.NewGuid();
+        var registeredAt = DateTimeOffset.Parse(
+            "2026-10-02T07:30:00+00:00");
+
+        await using (var connection = new SqliteConnection(
+            new SqliteConnectionStringBuilder
+            {
+                DataSource = databasePath,
+            }.ToString()))
+        {
+            await connection.OpenAsync();
+            await using var command =
+                connection.CreateCommand();
+            command.CommandText =
+                """
+                CREATE TABLE Nodes (
+                    NodeId TEXT NOT NULL PRIMARY KEY,
+                    RegisteredAt TEXT NOT NULL,
+                    DisplayName TEXT NOT NULL,
+                    OperatingSystem TEXT NOT NULL,
+                    DABotVersion TEXT NOT NULL,
+                    BrowserVersionsJson TEXT NOT NULL,
+                    TagsJson TEXT NOT NULL,
+                    CapabilitiesJson TEXT NOT NULL,
+                    ExecutionSlots INTEGER NOT NULL CHECK (ExecutionSlots > 0)
+                );
+
+                INSERT INTO Nodes (
+                    NodeId,
+                    RegisteredAt,
+                    DisplayName,
+                    OperatingSystem,
+                    DABotVersion,
+                    BrowserVersionsJson,
+                    TagsJson,
+                    CapabilitiesJson,
+                    ExecutionSlots)
+                VALUES (
+                    $nodeId,
+                    $registeredAt,
+                    'worker-v8',
+                    'Linux',
+                    '0.1.0',
+                    '{}',
+                    '[]',
+                    '[]',
+                    1);
+
+                PRAGMA user_version = 8;
+                """;
+            command.Parameters.AddWithValue(
+                "$nodeId",
+                nodeId.ToString("D"));
+            command.Parameters.AddWithValue(
+                "$registeredAt",
+                registeredAt.ToString("O"));
+            await command.ExecuteNonQueryAsync();
+        }
+
+        var store = new SqliteRunStore(
+            CreateOptions(databasePath));
+
+        var migrated = await store.LoadNodeAsync(nodeId);
+
+        migrated.Should().NotBeNull();
+        migrated!.RegisteredAt.Should().Be(registeredAt);
+        migrated.LastSeenAt.Should().Be(registeredAt);
+        migrated.Metadata.DisplayName.Should()
+            .Be("worker-v8");
+    }
+
     [Fact]
     public async Task HeartbeatAsync_UpdatesLastSeenWithoutChangingRegistrationOrMetadata()
     {
