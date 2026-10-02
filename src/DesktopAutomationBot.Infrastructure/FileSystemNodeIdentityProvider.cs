@@ -116,14 +116,10 @@ public sealed class FileSystemNodeIdentityProvider(
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        var databasePath =
-            Path.GetFullPath(options.Storage.DatabasePath);
-        var stateDirectory =
-            Path.GetDirectoryName(databasePath)
-            ?? Directory.GetCurrentDirectory();
+        ArgumentException.ThrowIfNullOrWhiteSpace(
+            options.Node.IdentityPath);
 
-        return Path.Combine(
-            stateDirectory,
-            "node-id");
+        return Path.GetFullPath(
+            options.Node.IdentityPath.Trim());
     }
 }
