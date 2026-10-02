@@ -3,6 +3,7 @@
 @inject IRunQueryService RunQueries
 @inject IRunArtifactService RunArtifacts
 @inject IDurableRunControlService RunControl
+@inject IAdministrativeRunControlService AdministrativeRunControl
 @inject ManagementUiEnvironment UiEnvironment
 @inject NavigationManager Navigation
 @inject ILogger<RunDetails> Logger
@@ -517,7 +518,7 @@ else
 
         try
         {
-            var result = await RunControl.ResumeManuallyAsync(_run.RunId);
+            var result = await AdministrativeRunControl.ResumeAsync(_run.RunId);
             _actionMessage = $"Resume finished with run state {result.Run.State.Status}.";
         }
         catch (Exception exception)
@@ -622,7 +623,7 @@ else
 
         try
         {
-            var cancelled = await RunControl.CancelAsync(_run.RunId);
+            var cancelled = await AdministrativeRunControl.CancelAsync(_run.RunId);
             _actionMessage = $"Run state is now {cancelled.State.Status}.";
         }
         catch (Exception exception)
