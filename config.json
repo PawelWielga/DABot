@@ -11,6 +11,9 @@
   },
   "bot": {
     "scenarioPath": "scenarios/sample-open-url.json",
+    "node": {
+      "identityPath": "data/node-id"
+    },
     "browser": {
       "headless": true,
       "slowMoMs": 0,

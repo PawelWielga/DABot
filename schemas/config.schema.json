@@ -22,6 +22,18 @@
           "minLength": 1,
           "description": "Scenario file to load. Relative paths are resolved by the runner/loader."
         },
+        "node": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "identityPath": {
+              "type": "string",
+              "minLength": 1,
+              "default": "data/node-id",
+              "description": "Machine-local file that stores the stable DABot NodeId. Persist this path across process restarts and do not share it between distinct nodes."
+            }
+          }
+        },
         "browser": {
           "type": "object",
           "additionalProperties": false,

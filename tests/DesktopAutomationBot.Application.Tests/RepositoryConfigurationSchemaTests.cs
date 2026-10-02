@@ -23,6 +23,9 @@ public sealed class RepositoryConfigurationSchemaTests
         PropertyNames(botProperties)
             .Should().BeEquivalentTo(OptionPropertyNames<BotOptions>());
 
+        PropertyNames(botProperties.GetProperty("node").GetProperty("properties"))
+            .Should().BeEquivalentTo(OptionPropertyNames<NodeOptions>());
+
         PropertyNames(botProperties.GetProperty("browser").GetProperty("properties"))
             .Should().BeEquivalentTo(OptionPropertyNames<BrowserOptions>());
 

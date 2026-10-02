@@ -64,6 +64,20 @@ try
 
     await using var provider = services.BuildServiceProvider();
 
+    if (commandLine.Command is
+        RunnerCommand.RetryWorker or
+        RunnerCommand.EventWorker or
+        RunnerCommand.ObserverWorker)
+    {
+        var nodeIdentity =
+            await provider
+                .GetRequiredService<INodeIdentityProvider>()
+                .GetAsync();
+
+        Console.WriteLine(
+            $"DABot node: {nodeIdentity.NodeId:D}");
+    }
+
     if (commandLine.Command == RunnerCommand.RetryWorker)
     {
         var worker = provider.GetRequiredService<IDurableRetryWorker>();

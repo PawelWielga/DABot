@@ -372,7 +372,7 @@ Architecture source: [Distributed DABot deployment](distributed-deployment.md).
 
 ### Node identity and registry
 
-- [ ] Introduce stable `NodeId` / worker identity.
+- [x] Introduce stable `NodeId` / worker identity. `INodeIdentityProvider` exposes a transport-neutral identity; the Infrastructure file provider atomically creates and reuses a machine-local GUID at `bot.node.identityPath` (`data/node-id` by default), fails loudly on corrupt persisted identity, and long-running workers/web startup surface the resolved ID.
 - [ ] Add durable node registry.
 - [ ] Add node metadata: display name, OS, DABot version, browser versions, tags/capabilities, configured execution slots.
 - [ ] Add heartbeat with persisted `LastSeenAt`.
