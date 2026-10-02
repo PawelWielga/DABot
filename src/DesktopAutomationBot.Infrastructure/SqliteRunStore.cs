@@ -1929,7 +1929,7 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
             CREATE INDEX IX_PageObserverSnapshots_NextCheckAt
                 ON PageObserverSnapshots(NextCheckAt);
 
-            CREATE TABLE Nodes (
+            CREATE TABLE IF NOT EXISTS Nodes (
                 NodeId TEXT NOT NULL PRIMARY KEY,
                 RegisteredAt TEXT NOT NULL
             );
@@ -2212,7 +2212,7 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
         command.Transaction = transaction;
         command.CommandText =
             """
-            CREATE TABLE Nodes (
+            CREATE TABLE IF NOT EXISTS Nodes (
                 NodeId TEXT NOT NULL PRIMARY KEY,
                 RegisteredAt TEXT NOT NULL
             );
