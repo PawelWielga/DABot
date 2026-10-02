@@ -95,7 +95,7 @@ public sealed class NodeRegistryServiceTests
                 });
         }
 
-        public Task<RegisteredNode?> LoadAsync(
+        public Task<RegisteredNode?> LoadNodeAsync(
             Guid nodeId,
             CancellationToken cancellationToken = default)
         {
@@ -104,7 +104,7 @@ public sealed class NodeRegistryServiceTests
             return Task.FromResult<RegisteredNode?>(null);
         }
 
-        public Task<IReadOnlyList<RegisteredNode>> ListAsync(
+        public Task<IReadOnlyList<RegisteredNode>> ListNodesAsync(
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
