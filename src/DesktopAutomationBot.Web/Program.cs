@@ -1,5 +1,6 @@
 using DesktopAutomationBot.Application;
 using DesktopAutomationBot.Infrastructure;
+using DesktopAutomationBot.Web;
 using DesktopAutomationBot.Web.Components;
 using DesktopAutomationBot.Web.Shared;
 using Microsoft.AspNetCore.Authentication.Cookies;
