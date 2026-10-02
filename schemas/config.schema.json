@@ -31,6 +31,40 @@
               "minLength": 1,
               "default": "data/node-id",
               "description": "Machine-local file that stores the stable DABot NodeId. Persist this path across process restarts and do not share it between distinct nodes."
+            },
+            "displayName": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1,
+              "description": "Optional human-friendly node name. When omitted, DABot uses the machine name."
+            },
+            "tags": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true,
+              "default": [],
+              "description": "Operator-defined labels used to describe the node, for example region:home-lab."
+            },
+            "capabilities": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true,
+              "default": [],
+              "description": "Additional operator-defined execution capabilities. Runtime-detected OS/browser capabilities are added automatically."
+            },
+            "executionSlots": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "description": "Configured execution capacity reported by this node. Scheduler enforcement is added in a later Sprint 10 step."
             }
           }
         },
