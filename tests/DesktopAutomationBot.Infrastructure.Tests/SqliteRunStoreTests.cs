@@ -439,7 +439,7 @@ public sealed class SqliteRunStoreTests : IDisposable
         command.CommandText = "PRAGMA user_version;";
         var rawVersion = await command.ExecuteScalarAsync();
 
-        Convert.ToInt32(rawVersion).Should().Be(7);
+        Convert.ToInt32(rawVersion).Should().Be(8);
     }
 
     [Fact]
@@ -479,7 +479,7 @@ public sealed class SqliteRunStoreTests : IDisposable
         command.CommandText = "PRAGMA user_version;";
         var rawVersion = await command.ExecuteScalarAsync();
 
-        Convert.ToInt32(rawVersion).Should().Be(7);
+        Convert.ToInt32(rawVersion).Should().Be(8);
     }
 
     [Fact]

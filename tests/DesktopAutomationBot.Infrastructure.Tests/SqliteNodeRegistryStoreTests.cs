@@ -14,7 +14,7 @@ public sealed class SqliteNodeRegistryStoreTests : IDisposable
             Guid.NewGuid().ToString("N"));
 
     [Fact]
-    public async Task RegisterAsync_AcrossStoreInstances_PreservesFirstRegistration()
+    public async Task RegisterAsync_AcrossStoreInstances_PreservesFirstRegistrationAndRefreshesMetadata()
     {
         var databasePath = Path.Combine(
             _directory,
@@ -26,24 +26,41 @@ public sealed class SqliteNodeRegistryStoreTests : IDisposable
                 "2026-10-02T08:00:00+00:00");
         var later =
             firstRegisteredAt.AddHours(2);
+        var firstMetadata = CreateMetadata(
+            "worker-1",
+            "0.1.0",
+            executionSlots: 1);
+        var refreshedMetadata = CreateMetadata(
+            "worker-1-renamed",
+            "0.1.1",
+            executionSlots: 3);
 
         var firstStore = new SqliteRunStore(options);
         var first = await firstStore.RegisterAsync(
             nodeId,
-            firstRegisteredAt);
+            firstRegisteredAt,
+            firstMetadata);
 
         var restartedStore = new SqliteRunStore(options);
         var second = await restartedStore.RegisterAsync(
             nodeId,
-            later);
+            later,
+            refreshedMetadata);
 
-        first.Should().Be(second);
+        first.RegisteredAt.Should()
+            .Be(firstRegisteredAt);
         second.RegisteredAt.Should()
             .Be(firstRegisteredAt);
+        second.Metadata.Should()
+            .BeEquivalentTo(refreshedMetadata);
 
         var loaded = await restartedStore.LoadNodeAsync(
             nodeId);
-        loaded.Should().Be(second);
+        loaded.Should().NotBeNull();
+        loaded!.RegisteredAt.Should()
+            .Be(firstRegisteredAt);
+        loaded.Metadata.Should()
+            .BeEquivalentTo(refreshedMetadata);
     }
 
     [Fact]
@@ -60,16 +77,22 @@ public sealed class SqliteNodeRegistryStoreTests : IDisposable
 
         await store.RegisterAsync(
             secondId,
-            now.AddMinutes(1));
+            now.AddMinutes(1),
+            CreateMetadata("second"));
         await store.RegisterAsync(
             firstId,
-            now);
+            now,
+            CreateMetadata("first"));
 
         var nodes = await store.ListNodesAsync();
 
         nodes.Should().HaveCount(2);
         nodes[0].NodeId.Should().Be(firstId);
+        nodes[0].Metadata.DisplayName.Should()
+            .Be("first");
         nodes[1].NodeId.Should().Be(secondId);
+        nodes[1].Metadata.DisplayName.Should()
+            .Be("second");
     }
 
     [Fact]
@@ -83,6 +106,7 @@ public sealed class SqliteNodeRegistryStoreTests : IDisposable
         var firstTime = DateTimeOffset.Parse(
             "2026-10-02T08:00:00+00:00");
         var secondTime = firstTime.AddMinutes(1);
+        var metadata = CreateMetadata("worker-1");
 
         // Initialize the schema before testing concurrent registration itself.
         await new SqliteRunStore(options).ListNodesAsync();
@@ -91,12 +115,23 @@ public sealed class SqliteNodeRegistryStoreTests : IDisposable
         var secondStore = new SqliteRunStore(options);
 
         var results = await Task.WhenAll(
-            firstStore.RegisterAsync(nodeId, firstTime),
-            secondStore.RegisterAsync(nodeId, secondTime));
+            firstStore.RegisterAsync(
+                nodeId,
+                firstTime,
+                metadata),
+            secondStore.RegisterAsync(
+                nodeId,
+                secondTime,
+                metadata));
 
-        results[0].Should().Be(results[1]);
+        results[0].RegisteredAt.Should()
+            .Be(results[1].RegisteredAt);
         results[0].RegisteredAt.Should()
             .BeOneOf(firstTime, secondTime);
+        results[0].Metadata.Should()
+            .BeEquivalentTo(metadata);
+        results[1].Metadata.Should()
+            .BeEquivalentTo(metadata);
 
         var nodes = await firstStore.ListNodesAsync();
         nodes.Should().ContainSingle();
@@ -104,7 +139,7 @@ public sealed class SqliteNodeRegistryStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task RegisterAsync_UpgradesVersion6StoreToVersion7()
+    public async Task RegisterAsync_UpgradesVersion6StoreToCurrentVersion()
     {
         Directory.CreateDirectory(_directory);
         var databasePath = Path.Combine(
@@ -130,7 +165,8 @@ public sealed class SqliteNodeRegistryStoreTests : IDisposable
 
         await store.RegisterAsync(
             Guid.NewGuid(),
-            DateTimeOffset.UtcNow);
+            DateTimeOffset.UtcNow,
+            CreateMetadata("worker-1"));
 
         await using var upgraded = new SqliteConnection(
             new SqliteConnectionStringBuilder
@@ -146,22 +182,102 @@ public sealed class SqliteNodeRegistryStoreTests : IDisposable
         Convert.ToInt32(
                 await version.ExecuteScalarAsync())
             .Should()
-            .Be(7);
+            .Be(8);
 
-        await using var table =
+        await using var columns =
             upgraded.CreateCommand();
-        table.CommandText =
+        columns.CommandText =
             """
             SELECT COUNT(*)
-            FROM sqlite_master
-            WHERE type = 'table'
-              AND name = 'Nodes';
+            FROM pragma_table_info('Nodes')
+            WHERE name IN (
+                'DisplayName',
+                'OperatingSystem',
+                'DABotVersion',
+                'BrowserVersionsJson',
+                'TagsJson',
+                'CapabilitiesJson',
+                'ExecutionSlots');
             """;
 
         Convert.ToInt32(
-                await table.ExecuteScalarAsync())
+                await columns.ExecuteScalarAsync())
             .Should()
-            .Be(1);
+            .Be(7);
+    }
+
+    [Fact]
+    public async Task RegisterAsync_ExistingVersion7Node_BackfillsAndRefreshesMetadata()
+    {
+        Directory.CreateDirectory(_directory);
+        var databasePath = Path.Combine(
+            _directory,
+            "upgrade-v7.db");
+        var nodeId = Guid.NewGuid();
+        var registeredAt = DateTimeOffset.Parse(
+            "2026-10-02T07:00:00+00:00");
+
+        await using (var connection = new SqliteConnection(
+            new SqliteConnectionStringBuilder
+            {
+                DataSource = databasePath,
+            }.ToString()))
+        {
+            await connection.OpenAsync();
+            await using var command =
+                connection.CreateCommand();
+            command.CommandText =
+                """
+                CREATE TABLE Nodes (
+                    NodeId TEXT NOT NULL PRIMARY KEY,
+                    RegisteredAt TEXT NOT NULL
+                );
+
+                INSERT INTO Nodes (
+                    NodeId,
+                    RegisteredAt)
+                VALUES (
+                    $nodeId,
+                    $registeredAt);
+
+                PRAGMA user_version = 7;
+                """;
+            command.Parameters.AddWithValue(
+                "$nodeId",
+                nodeId.ToString("D"));
+            command.Parameters.AddWithValue(
+                "$registeredAt",
+                registeredAt.ToString("O"));
+            await command.ExecuteNonQueryAsync();
+        }
+
+        var store = new SqliteRunStore(
+            CreateOptions(databasePath));
+
+        var migrated = await store.LoadNodeAsync(nodeId);
+
+        migrated.Should().NotBeNull();
+        migrated!.RegisteredAt.Should().Be(registeredAt);
+        migrated.Metadata.DisplayName.Should()
+            .Be(nodeId.ToString("D"));
+        migrated.Metadata.OperatingSystem.Should()
+            .Be("unknown");
+        migrated.Metadata.ExecutionSlots.Should().Be(1);
+
+        var currentMetadata = CreateMetadata(
+            "worker-upgraded",
+            "0.1.1",
+            executionSlots: 4);
+
+        var refreshed = await store.RegisterAsync(
+            nodeId,
+            registeredAt.AddHours(4),
+            currentMetadata);
+
+        refreshed.RegisteredAt.Should()
+            .Be(registeredAt);
+        refreshed.Metadata.Should()
+            .BeEquivalentTo(currentMetadata);
     }
 
     [Fact]
@@ -176,12 +292,38 @@ public sealed class SqliteNodeRegistryStoreTests : IDisposable
         Func<Task> action = async () =>
             await store.RegisterAsync(
                 Guid.Empty,
-                DateTimeOffset.UtcNow);
+                DateTimeOffset.UtcNow,
+                CreateMetadata("worker-1"));
 
         await action.Should()
             .ThrowAsync<ArgumentException>()
             .WithMessage("*Node ID must not be empty*");
     }
+
+    private static NodeMetadata CreateMetadata(
+        string displayName,
+        string version = "0.1.0",
+        int executionSlots = 2) =>
+        NodeMetadata.Validate(
+            new NodeMetadata
+            {
+                DisplayName = displayName,
+                OperatingSystem = "Linux (X64)",
+                DABotVersion = version,
+                BrowserVersions =
+                    new Dictionary<string, string>
+                    {
+                        ["chromium"] = "140.0",
+                    },
+                Tags = ["home-lab"],
+                Capabilities =
+                [
+                    "chromium",
+                    "interactive",
+                    "linux",
+                ],
+                ExecutionSlots = executionSlots,
+            });
 
     private static BotOptions CreateOptions(
         string databasePath) =>

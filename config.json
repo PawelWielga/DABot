@@ -12,7 +12,10 @@
   "bot": {
     "scenarioPath": "scenarios/sample-open-url.json",
     "node": {
-      "identityPath": "data/node-id"
+      "identityPath": "data/node-id",
+      "tags": [],
+      "capabilities": [],
+      "executionSlots": 1
     },
     "browser": {
       "headless": true,

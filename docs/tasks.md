@@ -374,7 +374,7 @@ Architecture source: [Distributed DABot deployment](distributed-deployment.md).
 
 - [x] Introduce stable `NodeId` / worker identity. `INodeIdentityProvider` exposes a transport-neutral identity; the Infrastructure file provider atomically creates and reuses a machine-local GUID at `bot.node.identityPath` (`data/node-id` by default), fails loudly on corrupt persisted identity, and long-running workers/web startup surface the resolved ID.
 - [x] Add durable node registry. `INodeRegistryService` combines the stable local identity with `INodeRegistryStore`; SQLite schema v7 persists `NodeId` and first `RegisteredAt`, registration is idempotent across restarts, and Web plus long-running workers ensure their local node is registered at startup.
-- [ ] Add node metadata: display name, OS, DABot version, browser versions, tags/capabilities, configured execution slots.
+- [x] Add node metadata: display name, OS, DABot version, browser versions, tags/capabilities, configured execution slots. `RuntimeNodeMetadataProvider` combines configured node labels/capacity with runtime OS/architecture, DABot informational version, and best-effort installed Chromium version detection; SQLite schema v8 persists and refreshes metadata while preserving first `RegisteredAt`. Execution slots are metadata only until capacity enforcement is implemented.
 - [ ] Add heartbeat with persisted `LastSeenAt`.
 - [ ] Define node lifecycle states: Online, Draining, Offline, Disabled, Unhealthy.
 - [ ] Add heartbeat-expiry/liveness evaluation.

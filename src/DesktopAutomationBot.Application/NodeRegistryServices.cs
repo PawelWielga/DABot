@@ -5,6 +5,8 @@ public sealed record RegisteredNode
     public required Guid NodeId { get; init; }
 
     public required DateTimeOffset RegisteredAt { get; init; }
+
+    public required NodeMetadata Metadata { get; init; }
 }
 
 public interface INodeRegistryStore
@@ -12,6 +14,7 @@ public interface INodeRegistryStore
     Task<RegisteredNode> RegisterAsync(
         Guid nodeId,
         DateTimeOffset registeredAt,
+        NodeMetadata metadata,
         CancellationToken cancellationToken = default);
 
     Task<RegisteredNode?> LoadNodeAsync(
@@ -37,18 +40,26 @@ public interface INodeRegistryService
 
 public sealed class NodeRegistryService(
     INodeIdentityProvider identityProvider,
+    INodeMetadataProvider metadataProvider,
     INodeRegistryStore store,
     TimeProvider timeProvider) : INodeRegistryService
 {
     public async Task<RegisteredNode> EnsureLocalNodeRegisteredAsync(
         CancellationToken cancellationToken = default)
     {
-        var identity = await identityProvider.GetAsync(
+        var identityTask = identityProvider.GetAsync(
+            cancellationToken);
+        var metadataTask = metadataProvider.GetAsync(
             cancellationToken);
 
+        await Task.WhenAll(
+            identityTask,
+            metadataTask);
+
         return await store.RegisterAsync(
-            identity.NodeId,
+            (await identityTask).NodeId,
             timeProvider.GetUtcNow(),
+            NodeMetadata.Validate(await metadataTask),
             cancellationToken);
     }
 

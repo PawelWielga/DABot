@@ -52,8 +52,11 @@ var localNode =
         .EnsureLocalNodeRegisteredAsync();
 
 app.Logger.LogInformation(
-    "DABot web runtime started as node {NodeId}, registered at {RegisteredAt}.",
+    "DABot web runtime started as node {DisplayName} ({NodeId}), version {DABotVersion}, slots {ExecutionSlots}, registered at {RegisteredAt}.",
+    localNode.Metadata.DisplayName,
     localNode.NodeId,
+    localNode.Metadata.DABotVersion,
+    localNode.Metadata.ExecutionSlots,
     localNode.RegisteredAt);
 
 if (!app.Environment.IsDevelopment())

@@ -23,6 +23,14 @@ public sealed class NodeOptions
 {
     public string IdentityPath { get; init; } =
         Path.Combine("data", "node-id");
+
+    public string? DisplayName { get; init; }
+
+    public string[] Tags { get; init; } = [];
+
+    public string[] Capabilities { get; init; } = [];
+
+    public int ExecutionSlots { get; init; } = 1;
 }
 
 public sealed class InteractiveBrowserOptions

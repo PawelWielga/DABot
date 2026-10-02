@@ -75,7 +75,10 @@ try
                 .EnsureLocalNodeRegisteredAsync();
 
         Console.WriteLine(
-            $"DABot node: {node.NodeId:D}; registered: {node.RegisteredAt:O}");
+            $"DABot node: {node.Metadata.DisplayName} ({node.NodeId:D}); " +
+            $"version: {node.Metadata.DABotVersion}; " +
+            $"slots: {node.Metadata.ExecutionSlots}; " +
+            $"registered: {node.RegisteredAt:O}");
     }
 
     if (commandLine.Command == RunnerCommand.RetryWorker)
