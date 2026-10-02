@@ -46,6 +46,15 @@ builder.Services.AddSingleton<IStorageRuntimeSettingsService>(
 
 var app = builder.Build();
 
+var nodeIdentity =
+    await app.Services
+        .GetRequiredService<INodeIdentityProvider>()
+        .GetAsync();
+
+app.Logger.LogInformation(
+    "DABot web runtime started as node {NodeId}.",
+    nodeIdentity.NodeId);
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/error");
