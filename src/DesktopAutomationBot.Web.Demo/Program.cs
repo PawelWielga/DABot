@@ -28,7 +28,11 @@ builder.Services.AddSingleton<IBrowserProfileCatalog, DemoBrowserProfileCatalog>
 builder.Services.AddSingleton<IBrowserProfileManagementService, DemoBrowserProfileManagementService>();
 builder.Services.AddSingleton<IBrowserProfileService, DemoBrowserProfileService>();
 builder.Services.AddSingleton<IInteractiveBrowserSessionService, DemoInteractiveBrowserSessionService>();
-builder.Services.AddSingleton<IDurableRunControlService, DemoRunControlService>();
+builder.Services.AddSingleton<DemoRunControlService>();
+builder.Services.AddSingleton<IDurableRunControlService>(
+    static provider => provider.GetRequiredService<DemoRunControlService>());
+builder.Services.AddSingleton<IAdministrativeRunControlService>(
+    static provider => provider.GetRequiredService<DemoRunControlService>());
 builder.Services.AddSingleton<IScenarioTestRunService, DemoScenarioTestRunService>();
 builder.Services.AddSingleton<IRunArtifactService, DemoRunArtifactService>();
 builder.Services.AddSingleton<IRunQueryService>(
