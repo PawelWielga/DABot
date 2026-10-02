@@ -14,11 +14,11 @@ public interface INodeRegistryStore
         DateTimeOffset registeredAt,
         CancellationToken cancellationToken = default);
 
-    Task<RegisteredNode?> LoadAsync(
+    Task<RegisteredNode?> LoadNodeAsync(
         Guid nodeId,
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<RegisteredNode>> ListAsync(
+    Task<IReadOnlyList<RegisteredNode>> ListNodesAsync(
         CancellationToken cancellationToken = default);
 }
 
@@ -63,12 +63,12 @@ public sealed class NodeRegistryService(
                 nameof(nodeId));
         }
 
-        return store.LoadAsync(
+        return store.LoadNodeAsync(
             nodeId,
             cancellationToken);
     }
 
     public Task<IReadOnlyList<RegisteredNode>> ListAsync(
         CancellationToken cancellationToken = default) =>
-        store.ListAsync(cancellationToken);
+        store.ListNodesAsync(cancellationToken);
 }
