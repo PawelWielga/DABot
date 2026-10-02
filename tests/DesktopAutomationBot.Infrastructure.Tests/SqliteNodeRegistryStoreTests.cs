@@ -73,6 +73,37 @@ public sealed class SqliteNodeRegistryStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task RegisterAsync_ConcurrentStores_ConvergeOnSingleRegistration()
+    {
+        var databasePath = Path.Combine(
+            _directory,
+            "registry-concurrent.db");
+        var options = CreateOptions(databasePath);
+        var nodeId = Guid.NewGuid();
+        var firstTime = DateTimeOffset.Parse(
+            "2026-10-02T08:00:00+00:00");
+        var secondTime = firstTime.AddMinutes(1);
+
+        // Initialize the schema before testing concurrent registration itself.
+        await new SqliteRunStore(options).ListNodesAsync();
+
+        var firstStore = new SqliteRunStore(options);
+        var secondStore = new SqliteRunStore(options);
+
+        var results = await Task.WhenAll(
+            firstStore.RegisterAsync(nodeId, firstTime),
+            secondStore.RegisterAsync(nodeId, secondTime));
+
+        results[0].Should().Be(results[1]);
+        results[0].RegisteredAt.Should()
+            .BeOneOf(firstTime, secondTime);
+
+        var nodes = await firstStore.ListNodesAsync();
+        nodes.Should().ContainSingle();
+        nodes[0].NodeId.Should().Be(nodeId);
+    }
+
+    [Fact]
     public async Task RegisterAsync_UpgradesVersion6StoreToVersion7()
     {
         Directory.CreateDirectory(_directory);
