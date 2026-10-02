@@ -24,6 +24,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IDurableRetryScheduler, DurableRetryScheduler>();
         services.AddSingleton<IDurableRetryWorker, DurableRetryWorker>();
         services.AddSingleton<IEventPublisher, EventPublisher>();
+        services.AddSingleton<IAdministrativeEventService, AdministrativeEventService>();
         services.AddSingleton<IEventResumeWorker, EventResumeWorker>();
         services.AddSingleton<IPageObserverWorker, PageObserverWorker>();
         services.AddSingleton<IPageObserverManagementService, PageObserverManagementService>();
