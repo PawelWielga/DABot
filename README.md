@@ -77,7 +77,7 @@ Run the default sample from the repository root:
 dotnet run --project src/DesktopAutomationBot.Runner
 ```
 
-The runner reads `config.json`, which points to `scenarios/sample-open-url.json` by default. A scenario path passed on the command line overrides `bot.scenarioPath` for that run. Long-running workers also resolve a stable local `NodeId`; it is generated once and persisted at `bot.node.identityPath` (`data/node-id` by default). Keep that file across restarts and do not share it between different machines. Web and long-running workers idempotently register that identity in the durable node registry, preserving the first registration timestamp while refreshing node metadata. `bot.node` may configure `displayName`, `tags`, `capabilities`, and `executionSlots`; OS/architecture, DABot version, and installed Chromium version are detected at runtime when available.
+The runner reads `config.json`, which points to `scenarios/sample-open-url.json` by default. A scenario path passed on the command line overrides `bot.scenarioPath` for that run. Long-running workers also resolve a stable local `NodeId`; it is generated once and persisted at `bot.node.identityPath` (`data/node-id` by default). Keep that file across restarts and do not share it between different machines. Web and long-running workers idempotently register that identity in the durable node registry, preserving the first registration timestamp while refreshing node metadata. `bot.node` may configure `displayName`, `tags`, `capabilities`, `executionSlots`, and `heartbeatIntervalSeconds`; OS/architecture, DABot version, and installed Chromium version are detected at runtime when available. Web and long-running workers persist `LastSeenAt` periodically; liveness interpretation is intentionally separate and remains future work.
 
 CI performs the restore/build flow on Ubuntu, creates a framework-dependent `linux-x64` publish, starts the published runner, installs Chromium, and runs a self-contained browser scenario. The Linux deployment path is therefore continuously smoke-tested. See [Linux publish and smoke test](docs/linux-publish.md).
 
@@ -178,7 +178,8 @@ Agents should use the README and implementation backlog to distinguish current f
 | Stable node/worker identity | Available; persisted machine-locally at `bot.node.identityPath` |
 | Durable node registry | Available in standalone SQLite; stores stable `NodeId`, first registration time, and refreshable runtime/configured metadata |
 | Node metadata | Available: display name, OS/architecture, DABot/browser versions, tags/capabilities, configured execution slots |
-| Distributed heartbeats / leasing / scheduling | Planned |
+| Persisted node heartbeat | Available; Web and long-running workers update monotonic `LastSeenAt` on a configurable interval |
+| Distributed liveness / leasing / scheduling | Planned |
 | MCP server/client integration | Planned |
 | Dynamic reusable tool registry | Planned |
 
