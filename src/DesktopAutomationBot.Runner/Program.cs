@@ -78,7 +78,8 @@ try
             $"DABot node: {node.Metadata.DisplayName} ({node.NodeId:D}); " +
             $"version: {node.Metadata.DABotVersion}; " +
             $"slots: {node.Metadata.ExecutionSlots}; " +
-            $"registered: {node.RegisteredAt:O}");
+            $"registered: {node.RegisteredAt:O}; " +
+            $"last seen: {node.LastSeenAt:O}");
     }
 
     if (commandLine.Command == RunnerCommand.RetryWorker)
@@ -101,7 +102,13 @@ try
                 $"Retry worker started. Poll interval: {workerOptions.RetryWorker.PollIntervalMs} ms; " +
                 $"batch size: {workerOptions.RetryWorker.BatchSize}. Press Ctrl+C to stop.");
 
-            await worker.RunAsync(cancellation.Token);
+            var heartbeat =
+                provider.GetRequiredService<INodeHeartbeatService>();
+
+            await NodeHeartbeatCoordinator.RunAsync(
+                worker.RunAsync,
+                heartbeat,
+                cancellation.Token);
             return RunnerExitCodes.Success;
         }
         finally
@@ -131,8 +138,14 @@ try
                 $"Event worker started. Poll interval: {workerOptions.EventWorker.PollIntervalMs} ms; " +
                 $"batch size: {workerOptions.EventWorker.BatchSize}. Press Ctrl+C to stop.");
 
-            await worker.RunAsync(
-                workerOptions.EventWorker,
+            var heartbeat =
+                provider.GetRequiredService<INodeHeartbeatService>();
+
+            await NodeHeartbeatCoordinator.RunAsync(
+                token => worker.RunAsync(
+                    workerOptions.EventWorker,
+                    token),
+                heartbeat,
                 cancellation.Token);
             return RunnerExitCodes.Success;
         }
@@ -200,8 +213,14 @@ try
                 $"Observer worker started. Poll interval: {workerOptions.ObserverWorker.PollIntervalMs} ms; " +
                 $"batch size: {workerOptions.ObserverWorker.BatchSize}. Press Ctrl+C to stop.");
 
-            await worker.RunAsync(
-                workerOptions.ObserverWorker,
+            var heartbeat =
+                provider.GetRequiredService<INodeHeartbeatService>();
+
+            await NodeHeartbeatCoordinator.RunAsync(
+                token => worker.RunAsync(
+                    workerOptions.ObserverWorker,
+                    token),
+                heartbeat,
                 cancellation.Token);
             return RunnerExitCodes.Success;
         }

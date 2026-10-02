@@ -31,6 +31,7 @@ public sealed class NodeRegistryServiceTests
 
         result.NodeId.Should().Be(nodeId);
         result.RegisteredAt.Should().Be(now);
+        result.LastSeenAt.Should().Be(now);
         result.Metadata.Should().BeEquivalentTo(metadata);
 
         store.RegisteredNodeId.Should().Be(nodeId);
@@ -130,9 +131,16 @@ public sealed class NodeRegistryServiceTests
                 {
                     NodeId = nodeId,
                     RegisteredAt = registeredAt,
+                    LastSeenAt = registeredAt,
                     Metadata = metadata,
                 });
         }
+
+        public Task<RegisteredNode> HeartbeatAsync(
+            Guid nodeId,
+            DateTimeOffset lastSeenAt,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
 
         public Task<RegisteredNode?> LoadNodeAsync(
             Guid nodeId,

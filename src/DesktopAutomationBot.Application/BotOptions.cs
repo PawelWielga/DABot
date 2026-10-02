@@ -31,6 +31,8 @@ public sealed class NodeOptions
     public string[] Capabilities { get; init; } = [];
 
     public int ExecutionSlots { get; init; } = 1;
+
+    public int HeartbeatIntervalSeconds { get; init; } = 15;
 }
 
 public sealed class InteractiveBrowserOptions

@@ -15,7 +15,8 @@
       "identityPath": "data/node-id",
       "tags": [],
       "capabilities": [],
-      "executionSlots": 1
+      "executionSlots": 1,
+      "heartbeatIntervalSeconds": 15
     },
     "browser": {
       "headless": true,

@@ -1,5 +1,6 @@
 using DesktopAutomationBot.Application;
 using DesktopAutomationBot.Infrastructure;
+using DesktopAutomationBot.Web;
 using DesktopAutomationBot.Web.Components;
 using DesktopAutomationBot.Web.Shared;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -32,6 +33,7 @@ builder.Services.AddSingleton(
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure();
+builder.Services.AddHostedService<NodeHeartbeatHostedService>();
 
 var runtimeSettingsService =
     new FileSystemGeneralRuntimeSettingsService(
@@ -52,12 +54,13 @@ var localNode =
         .EnsureLocalNodeRegisteredAsync();
 
 app.Logger.LogInformation(
-    "DABot web runtime started as node {DisplayName} ({NodeId}), version {DABotVersion}, slots {ExecutionSlots}, registered at {RegisteredAt}.",
+    "DABot web runtime started as node {DisplayName} ({NodeId}), version {DABotVersion}, slots {ExecutionSlots}, registered at {RegisteredAt}, last seen at {LastSeenAt}.",
     localNode.Metadata.DisplayName,
     localNode.NodeId,
     localNode.Metadata.DABotVersion,
     localNode.Metadata.ExecutionSlots,
-    localNode.RegisteredAt);
+    localNode.RegisteredAt,
+    localNode.LastSeenAt);
 
 if (!app.Environment.IsDevelopment())
 {

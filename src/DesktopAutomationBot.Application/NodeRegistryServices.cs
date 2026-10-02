@@ -6,6 +6,8 @@ public sealed record RegisteredNode
 
     public required DateTimeOffset RegisteredAt { get; init; }
 
+    public required DateTimeOffset LastSeenAt { get; init; }
+
     public required NodeMetadata Metadata { get; init; }
 }
 
@@ -15,6 +17,11 @@ public interface INodeRegistryStore
         Guid nodeId,
         DateTimeOffset registeredAt,
         NodeMetadata metadata,
+        CancellationToken cancellationToken = default);
+
+    Task<RegisteredNode> HeartbeatAsync(
+        Guid nodeId,
+        DateTimeOffset lastSeenAt,
         CancellationToken cancellationToken = default);
 
     Task<RegisteredNode?> LoadNodeAsync(
