@@ -94,7 +94,7 @@ The Core model must not depend on HTTP, SignalR, RabbitMQ, Kafka, or another spe
 
 ## Node identity and capabilities
 
-Each node has a stable `NodeId` and reports metadata such as:
+Each node has a stable `NodeId`.
 
 The first implemented identity layer is transport-neutral: Application exposes `INodeIdentityProvider`, while the default Infrastructure adapter persists a generated non-empty GUID in the machine-local file configured by `bot.node.identityPath` (`data/node-id` by default). Creation is atomic so concurrent first starts converge on the same persisted ID. An invalid/corrupt identity file is treated as an operator-visible error rather than silently replacing the node identity. The identity path must be persisted across restarts and must not be shared by distinct machines/agents.
 
