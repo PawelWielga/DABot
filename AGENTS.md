@@ -69,7 +69,7 @@ Planned:
 - Do not model interactive access as an iframe of the target website. The operator must interact with the real headed browser that owns the selected persistent profile.
 - Keep remote-display/VNC/noVNC/WebSocket implementation details in Infrastructure. Do not expose a public reusable VNC/noVNC credential or require inbound public agent ports in the normal topology.
 - Interactive profile access must use exclusive locking, short-lived authorization, bounded lifetime/cleanup, and audit. The local lifecycle enforces configurable maximum duration through `bot.interactiveBrowser.maxDurationSeconds`; remote streaming still needs inactivity cleanup and short-lived grants. It must not race a run or observer using the same profile.
-- Credentials and MFA values typed by an operator inside an interactive browser must not be captured into scenario variables, configuration, logs, or audit payloads. Operator input must flow directly to the browser/profile rather than through Application models. Interactive-session info and audit records must stay metadata-only: session identity, profile identity, lifecycle timestamps, expiry, and lifecycle reason; do not add target URL, page content, form values, credentials, MFA values, or keystrokes without an explicit security redesign.
+- Credentials and MFA values typed by an operator inside an interactive browser must not be captured into scenario variables, configuration, logs, or audit payloads. Operator input must flow directly to the browser/profile rather than through Application models. Interactive-session info and audit records must stay metadata-only: session identity, profile identity, lifecycle timestamps, expiry, and lifecycle reason; do not add target URL, page content, form values, credentials, MFA values, or keystrokes without an explicit security redesign.\n- Manual administrative audit records must remain metadata-only. Do not add event payloads, correlation IDs, page content, credentials, MFA values, or operator input to `AdministrativeAuditEvent`; use operational identifiers and outcome metadata only.
 - A future human **Take control** flow must explicitly coordinate browser-command ownership before accepting operator input; Playwright and a human must not issue commands concurrently.
 - Do not keep `IBrowserAutomation` as a global singleton when session isolation or concurrency is required.
 - Add new generic browser operations as focused abstractions/handlers rather than growing a monolith.
@@ -100,7 +100,7 @@ These rules describe the durable execution architecture. Durable execution, susp
 
 ## Web panel rules
 
-The web panel currently provides a dashboard, run list/details and guarded run actions, scenario list/synchronized visual+JSON import/export/validation/editing with one-shot test runs, browser-profile list/create/rename/clear/delete/test operations, local headed interactive-profile session lifecycle, page-observer monitoring plus create/edit management, event-history browsing without raw payload exposure, manual durable-event publishing through Application services, and restart-required editing of non-secret general and storage runtime settings. Continue toward:
+The web panel currently provides a dashboard, run list/details and guarded run actions, scenario list/synchronized visual+JSON import/export/validation/editing with one-shot test runs, browser-profile list/create/rename/clear/delete/test operations, local headed interactive-profile session lifecycle, page-observer monitoring plus create/edit management, event-history browsing without raw payload exposure, manual durable-event publishing through Application services, metadata-only structured audit logging for manual resume/cancel/event operations, and restart-required editing of non-secret general and storage runtime settings. Continue toward:
 
 - remote interactive-browser display/input streaming with authorization, inactivity cleanup, and audit,
 - safely redacted secret-backed configuration.
@@ -110,7 +110,7 @@ Later features may include:
 - workers,
 - schedules,
 - secret management,
-- audit logs.
+- durable/queryable general audit logs.
 
 Configuration editing must go through Application contracts. The current file-backed implementation owns non-secret general and storage `bot` settings, preserves logging/unknown sections, serializes both editors through one file lock, and applies changes after process restart. Storage changes must remain configuration-only unless an explicit migration workflow is designed; never silently move or delete existing database, scenario, artifact, screenshot, or browser-profile data.
 
