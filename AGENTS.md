@@ -52,7 +52,7 @@ Planned:
 - `RunId` must be stable and externally passable for durable execution.
 - Resume processing must be idempotent.
 - Multiple workers must use leases/locks for mutable run state and persistent browser profiles.
-- Distributed deployments use a central control plane plus execution agents; keep standalone Web/Runner + SQLite fully supported.
+- Distributed deployments use a central control plane plus execution agents; keep standalone Web/Runner + SQLite fully supported.\n- Stable node identity is implemented through `INodeIdentityProvider`; the default file adapter persists a machine-local GUID at `bot.node.identityPath` (`data/node-id` by default). Preserve that identity across restarts, never silently rotate a corrupt identity file, and never share one identity file between distinct nodes.
 - Agents should prefer outbound authenticated connectivity to the control plane; do not require inbound public ports on execution nodes.
 - Do not use SQLite on a shared/network filesystem as the coordination database for multiple VMs. Target PostgreSQL for the first supported distributed persistence provider.
 - Persistent Chromium profile directories are node-local by default; scheduling must respect profile ownership/location.
