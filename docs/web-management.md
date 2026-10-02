@@ -133,11 +133,11 @@ Changing the URL, browser profile, condition, locator, expected value, event typ
 
 ### Events
 
-The Events page provides a global read-only view over the durable event inbox through `IEventHistoryQueryService`. The SQLite adapter reads existing `AutomationEvents` rows and left-joins `ResumeWorkItems`, so operators can distinguish events that matched a waiting run from events that were accepted but did not schedule resume work.
+The Events page provides a global operational view over the durable event inbox. Reads go through `IEventHistoryQueryService`; the SQLite adapter reads existing `AutomationEvents` rows and left-joins `ResumeWorkItems`, so operators can distinguish events that matched a waiting run from events that were accepted but did not schedule resume work.
 
-The page shows event type and ID, occurrence/receipt timestamps, correlation ID, linked run, resume-work status, attempt count, retry timing, completion timing, and the latest error. It supports matched/unmatched/problem filters plus text search. Raw `PayloadJson` is intentionally absent from the Application read model and is never sent to the shared UI or static demo.
+The page shows event type and ID, occurrence/receipt timestamps, correlation ID, linked run, resume-work status, attempt count, retry timing, completion timing, and the latest error. It supports matched/unmatched/problem filters plus text search. Raw `PayloadJson` is intentionally absent from the Application read model and is never returned by history queries.
 
-Administrative event publishing and audit of manual resume/cancel/event operations remain later Sprint 9 work.
+Manual event publishing uses `IAdministrativeEventService`. The operator provides a stable event ID, type, correlation ID, and JSON payload; Application validates the request, creates the transport-neutral `AutomationEvent`, and delegates to the existing idempotent inbox path. Reusing an event ID does not create duplicate resume work. The static demo renders the same form but disables publishing. Audit of manual resume/cancel/event operations remains later Sprint 9 work.
 
 ### Configuration
 
