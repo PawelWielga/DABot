@@ -41,7 +41,7 @@ public sealed class SqliteNodeRegistryStoreTests : IDisposable
         second.RegisteredAt.Should()
             .Be(firstRegisteredAt);
 
-        var loaded = await restartedStore.LoadAsync(
+        var loaded = await restartedStore.LoadNodeAsync(
             nodeId);
         loaded.Should().Be(second);
     }
@@ -65,7 +65,7 @@ public sealed class SqliteNodeRegistryStoreTests : IDisposable
             firstId,
             now);
 
-        var nodes = await store.ListAsync();
+        var nodes = await store.ListNodesAsync();
 
         nodes.Should().HaveCount(2);
         nodes[0].NodeId.Should().Be(firstId);
