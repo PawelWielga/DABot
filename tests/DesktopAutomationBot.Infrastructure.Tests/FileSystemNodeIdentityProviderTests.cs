@@ -84,11 +84,11 @@ public sealed class FileSystemNodeIdentityProviderTests : IDisposable
         new(
             new BotOptions
             {
-                Storage = new StorageOptions
+                Node = new NodeOptions
                 {
-                    DatabasePath = Path.Combine(
+                    IdentityPath = Path.Combine(
                         _directory,
-                        "dabot.db"),
+                        "node-id"),
                 },
             });
 
