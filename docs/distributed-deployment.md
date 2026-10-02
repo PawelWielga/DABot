@@ -98,7 +98,9 @@ Each node has a stable `NodeId`.
 
 The first implemented identity layer is transport-neutral: Application exposes `INodeIdentityProvider`, while the default Infrastructure adapter persists a generated non-empty GUID in the machine-local file configured by `bot.node.identityPath` (`data/node-id` by default). Creation is atomic so concurrent first starts converge on the same persisted ID. An invalid/corrupt identity file is treated as an operator-visible error rather than silently replacing the node identity. The identity path must be persisted across restarts and must not be shared by distinct machines/agents.
 
-Future node registration and heartbeat records will use this ID; the identity provider itself does not depend on HTTP, PostgreSQL, or the control-plane transport.
+The durable node registry is also implemented. `INodeRegistryService` ensures the local identity exists in a persistence-agnostic `INodeRegistryStore`; the standalone SQLite adapter stores the stable `NodeId` and immutable first `RegisteredAt` timestamp in schema version 7. Web startup and long-running retry/event/observer workers register idempotently. Registry rows deliberately do not contain heartbeat state or machine metadata yet; those remain the next Sprint 10 increments.
+
+The identity provider and registry contracts do not depend on HTTP, PostgreSQL, or the control-plane transport. A future distributed persistence adapter can implement the same registry contract centrally.
 
 A node reports metadata such as:
 
