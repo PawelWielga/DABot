@@ -361,7 +361,7 @@ The web panel is optional and uses Application services. It must not directly ow
 - [x] Poll interval configuration. Observer polling intervals are editable in milliseconds and validated by the existing observer domain rules.
 - [x] Event type/correlation configuration. Observer event type and correlation ID are editable; changes that alter observation or event-routing semantics reset the persisted polling snapshot so stale edge/baseline state cannot suppress or fabricate events.
 - [x] Event history browser. The shared web panel lists recent durable inbox events through `IEventHistoryQueryService`, including matched/unmatched delivery, correlation metadata, linked run/resume-work state, retries, and errors while deliberately excluding raw payloads.
-- [ ] Manual administrative event publishing.
+- [x] Manual administrative event publishing. The shared Events page publishes transport-neutral durable events through `IAdministrativeEventService`, validates stable event identity/metadata/payload JSON in Application, preserves inbox idempotency, and keeps publishing disabled in the static GitHub Pages demo.
 - [ ] Audit manual resume/cancel/event operations.
 
 ## Sprint 10 - Distributed workers and shared control plane
