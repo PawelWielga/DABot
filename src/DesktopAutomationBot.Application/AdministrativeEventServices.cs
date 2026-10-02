@@ -42,7 +42,7 @@ public sealed class AdministrativeEventService(
         ArgumentNullException.ThrowIfNull(request);
 
         var operationId = Guid.NewGuid();
-        var auditEventId =
+        Guid? auditEventId =
             request.EventId == Guid.Empty
                 ? null
                 : request.EventId;
