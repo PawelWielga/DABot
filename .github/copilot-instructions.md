@@ -5,6 +5,7 @@
 - Keep Core free of Playwright, MCP, website-specific, vendor-specific, and transport-specific types.
 - Put orchestration and interfaces in Application, concrete external integrations in Infrastructure, and executable composition/CLI concerns in Runner.
 - Stable node identity is implemented through `INodeIdentityProvider`; the default file adapter persists the machine-local GUID at `bot.node.identityPath`. Preserve it across restarts and never share one identity file between distinct nodes.
+- Durable node registration uses `INodeRegistryService` / `INodeRegistryStore`; keep node metadata and heartbeat evolution behind Application contracts and transport/database agnostic.
 - Preserve existing scenario JSON compatibility unless a migration is explicitly documented.
 - For scenario JSON, use `schemas/scenario.schema.json` and prefer executable step handlers documented in README/CONTRIBUTING.
 - For repository configuration, use `schemas/config.schema.json` and keep it aligned with `BotOptions` and its nested option types, including `NodeOptions`, `BrowserOptions`, and `StorageOptions`.
