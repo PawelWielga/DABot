@@ -11,6 +11,7 @@ applyTo: "src/**/*.cs,tests/**/*.cs"
 - Keep CLI/worker composition in Runner.
 - Do not leak Playwright or MCP protocol types into Core.
 - Prefer small focused handlers and interfaces over large multi-purpose classes.
+- Use injected `TimeProvider` for persisted timestamps and time-based orchestration such as node heartbeat; do not hard-code `DateTimeOffset.UtcNow` in Application services.
 - Preserve scenario JSON compatibility unless a documented migration is part of the change.
 - Administrative audit models must stay metadata-only: operational IDs, timestamps, outcomes, and exception types are allowed; event payloads, correlation IDs, page content, credentials, MFA values, and operator input are not.
 - Add or update xUnit tests for behavior changes and keep them Linux/headless compatible.
