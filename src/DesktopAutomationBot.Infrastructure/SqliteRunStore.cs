@@ -8,7 +8,7 @@ namespace DesktopAutomationBot.Infrastructure;
 
 public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStore, IEventInboxStore, IPageObserverStore, IPageObserverManagementStore, INodeRegistryStore
 {
-    private const int StoreSchemaVersion = 7;
+    private const int StoreSchemaVersion = 8;
 
     private readonly string _connectionString;
     private readonly SemaphoreSlim _initializationLock = new(1, 1);
@@ -1566,6 +1566,7 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
     public async Task<RegisteredNode> RegisterAsync(
         Guid nodeId,
         DateTimeOffset registeredAt,
+        NodeMetadata metadata,
         CancellationToken cancellationToken = default)
     {
         if (nodeId == Guid.Empty)
@@ -1575,6 +1576,9 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
                 nameof(nodeId));
         }
 
+        var validatedMetadata =
+            NodeMetadata.Validate(metadata);
+
         await EnsureInitializedAsync(cancellationToken);
 
         await using var connection =
@@ -1583,36 +1587,91 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
             (SqliteTransaction)await connection.BeginTransactionAsync(
                 cancellationToken);
 
-        await using (var insert = connection.CreateCommand())
+        await using (var upsert = connection.CreateCommand())
         {
-            insert.Transaction = transaction;
-            insert.CommandText =
+            upsert.Transaction = transaction;
+            upsert.CommandText =
                 """
-                INSERT OR IGNORE INTO Nodes (
+                INSERT INTO Nodes (
                     NodeId,
-                    RegisteredAt)
+                    RegisteredAt,
+                    DisplayName,
+                    OperatingSystem,
+                    DABotVersion,
+                    BrowserVersionsJson,
+                    TagsJson,
+                    CapabilitiesJson,
+                    ExecutionSlots)
                 VALUES (
                     $nodeId,
-                    $registeredAt);
+                    $registeredAt,
+                    $displayName,
+                    $operatingSystem,
+                    $dabotVersion,
+                    $browserVersionsJson,
+                    $tagsJson,
+                    $capabilitiesJson,
+                    $executionSlots)
+                ON CONFLICT(NodeId) DO UPDATE SET
+                    DisplayName = excluded.DisplayName,
+                    OperatingSystem = excluded.OperatingSystem,
+                    DABotVersion = excluded.DABotVersion,
+                    BrowserVersionsJson = excluded.BrowserVersionsJson,
+                    TagsJson = excluded.TagsJson,
+                    CapabilitiesJson = excluded.CapabilitiesJson,
+                    ExecutionSlots = excluded.ExecutionSlots;
                 """;
-            insert.Parameters.AddWithValue(
+            upsert.Parameters.AddWithValue(
                 "$nodeId",
                 nodeId.ToString("D"));
-            insert.Parameters.AddWithValue(
+            upsert.Parameters.AddWithValue(
                 "$registeredAt",
                 FormatTimestamp(registeredAt));
+            upsert.Parameters.AddWithValue(
+                "$displayName",
+                validatedMetadata.DisplayName);
+            upsert.Parameters.AddWithValue(
+                "$operatingSystem",
+                validatedMetadata.OperatingSystem);
+            upsert.Parameters.AddWithValue(
+                "$dabotVersion",
+                validatedMetadata.DABotVersion);
+            upsert.Parameters.AddWithValue(
+                "$browserVersionsJson",
+                JsonSerializer.Serialize(
+                    validatedMetadata.BrowserVersions));
+            upsert.Parameters.AddWithValue(
+                "$tagsJson",
+                JsonSerializer.Serialize(
+                    validatedMetadata.Tags));
+            upsert.Parameters.AddWithValue(
+                "$capabilitiesJson",
+                JsonSerializer.Serialize(
+                    validatedMetadata.Capabilities));
+            upsert.Parameters.AddWithValue(
+                "$executionSlots",
+                validatedMetadata.ExecutionSlots);
 
-            await insert.ExecuteNonQueryAsync(cancellationToken);
+            await upsert.ExecuteNonQueryAsync(cancellationToken);
         }
 
-        DateTimeOffset persistedRegisteredAt;
+        RegisteredNode registeredNode;
 
         await using (var select = connection.CreateCommand())
         {
             select.Transaction = transaction;
             select.CommandText =
                 """
-                SELECT RegisteredAt
+                SELECT
+                    NodeId,
+                    RegisteredAt,
+                    DisplayName,
+                    OperatingSystem,
+                    DABotVersion,
+                    BrowserVersionsJson,
+                    TagsJson,
+                    CapabilitiesJson,
+                    ExecutionSlots
                 FROM Nodes
                 WHERE NodeId = $nodeId;
                 """;
@@ -1620,27 +1679,20 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
                 "$nodeId",
                 nodeId.ToString("D"));
 
-            var value = await select.ExecuteScalarAsync(
-                cancellationToken);
+            await using var reader =
+                await select.ExecuteReaderAsync(cancellationToken);
 
-            if (value is not string persisted)
+            if (!await reader.ReadAsync(cancellationToken))
             {
                 throw new InvalidOperationException(
                     $"Node '{nodeId}' could not be read after registration.");
             }
 
-            persistedRegisteredAt = ParseTimestamp(
-                persisted,
-                "Node.RegisteredAt");
+            registeredNode = ReadRegisteredNode(reader);
         }
 
         await transaction.CommitAsync(cancellationToken);
-
-        return new RegisteredNode
-        {
-            NodeId = nodeId,
-            RegisteredAt = persistedRegisteredAt,
-        };
+        return registeredNode;
     }
 
     public async Task<RegisteredNode?> LoadNodeAsync(
@@ -1661,7 +1713,16 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
         await using var command = connection.CreateCommand();
         command.CommandText =
             """
-            SELECT NodeId, RegisteredAt
+            SELECT
+                NodeId,
+                RegisteredAt,
+                DisplayName,
+                OperatingSystem,
+                DABotVersion,
+                BrowserVersionsJson,
+                TagsJson,
+                CapabilitiesJson,
+                ExecutionSlots
             FROM Nodes
             WHERE NodeId = $nodeId;
             """;
@@ -1690,7 +1751,16 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
         await using var command = connection.CreateCommand();
         command.CommandText =
             """
-            SELECT NodeId, RegisteredAt
+            SELECT
+                NodeId,
+                RegisteredAt,
+                DisplayName,
+                OperatingSystem,
+                DABotVersion,
+                BrowserVersionsJson,
+                TagsJson,
+                CapabilitiesJson,
+                ExecutionSlots
             FROM Nodes
             ORDER BY julianday(RegisteredAt), NodeId;
             """;
@@ -1709,8 +1779,24 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
     }
 
     private static RegisteredNode ReadRegisteredNode(
-        SqliteDataReader reader) =>
-        new()
+        SqliteDataReader reader)
+    {
+        var browserVersions =
+            JsonSerializer.Deserialize<Dictionary<string, string>>(
+                reader.GetString(5))
+            ?? [];
+
+        var tags =
+            JsonSerializer.Deserialize<string[]>(
+                reader.GetString(6))
+            ?? [];
+
+        var capabilities =
+            JsonSerializer.Deserialize<string[]>(
+                reader.GetString(7))
+            ?? [];
+
+        return new RegisteredNode
         {
             NodeId = ParseGuid(
                 reader.GetString(0),
@@ -1718,7 +1804,19 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
             RegisteredAt = ParseTimestamp(
                 reader.GetString(1),
                 "Node.RegisteredAt"),
+            Metadata = NodeMetadata.Validate(
+                new NodeMetadata
+                {
+                    DisplayName = reader.GetString(2),
+                    OperatingSystem = reader.GetString(3),
+                    DABotVersion = reader.GetString(4),
+                    BrowserVersions = browserVersions,
+                    Tags = tags,
+                    Capabilities = capabilities,
+                    ExecutionSlots = reader.GetInt32(8),
+                }),
         };
+    }
 
     private async Task EnsureInitializedAsync(CancellationToken cancellationToken)
     {
@@ -1931,10 +2029,17 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
 
             CREATE TABLE IF NOT EXISTS Nodes (
                 NodeId TEXT NOT NULL PRIMARY KEY,
-                RegisteredAt TEXT NOT NULL
+                RegisteredAt TEXT NOT NULL,
+                DisplayName TEXT NOT NULL,
+                OperatingSystem TEXT NOT NULL,
+                DABotVersion TEXT NOT NULL,
+                BrowserVersionsJson TEXT NOT NULL,
+                TagsJson TEXT NOT NULL,
+                CapabilitiesJson TEXT NOT NULL,
+                ExecutionSlots INTEGER NOT NULL CHECK (ExecutionSlots > 0)
             );
 
-            PRAGMA user_version = 7;
+            PRAGMA user_version = 8;
             """;
 
         await command.ExecuteNonQueryAsync(cancellationToken);
@@ -1980,6 +2085,11 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
                 case 6:
                     await MigrateV6ToV7Async(connection, cancellationToken);
                     version = 7;
+                    break;
+
+                case 7:
+                    await MigrateV7ToV8Async(connection, cancellationToken);
+                    version = 8;
                     break;
 
                 default:
@@ -2218,6 +2328,50 @@ public sealed class SqliteRunStore : IRunStore, IStepAttemptStore, IRetryRunStor
             );
 
             PRAGMA user_version = 7;
+            """;
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    private static async Task MigrateV7ToV8Async(
+        SqliteConnection connection,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction =
+            (SqliteTransaction)await connection.BeginTransactionAsync(
+                cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText =
+            """
+            ALTER TABLE Nodes
+                ADD COLUMN DisplayName TEXT NOT NULL DEFAULT '';
+
+            ALTER TABLE Nodes
+                ADD COLUMN OperatingSystem TEXT NOT NULL DEFAULT 'unknown';
+
+            ALTER TABLE Nodes
+                ADD COLUMN DABotVersion TEXT NOT NULL DEFAULT 'unknown';
+
+            ALTER TABLE Nodes
+                ADD COLUMN BrowserVersionsJson TEXT NOT NULL DEFAULT '{}';
+
+            ALTER TABLE Nodes
+                ADD COLUMN TagsJson TEXT NOT NULL DEFAULT '[]';
+
+            ALTER TABLE Nodes
+                ADD COLUMN CapabilitiesJson TEXT NOT NULL DEFAULT '[]';
+
+            ALTER TABLE Nodes
+                ADD COLUMN ExecutionSlots INTEGER NOT NULL DEFAULT 1
+                    CHECK (ExecutionSlots > 0);
+
+            UPDATE Nodes
+            SET DisplayName = NodeId
+            WHERE trim(DisplayName) = '';
+
+            PRAGMA user_version = 8;
             """;
 
         await command.ExecuteNonQueryAsync(cancellationToken);
