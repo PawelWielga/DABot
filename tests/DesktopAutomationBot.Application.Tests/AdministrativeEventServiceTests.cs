@@ -7,7 +7,7 @@ namespace DesktopAutomationBot.Application.Tests;
 public sealed class AdministrativeEventServiceTests
 {
     [Fact]
-    public async Task PublishAsync_WhenRequestIsValid_PublishesTransportNeutralEvent()
+    public async Task PublishAsync_WhenRequestIsValid_PublishesAndAuditsMetadata()
     {
         var eventId = Guid.Parse(
             "91000000-0000-4000-8000-000000000001");
@@ -31,8 +31,10 @@ public sealed class AdministrativeEventServiceTests
                 RunId = runId,
                 ResumeWorkItemId = workItemId,
             });
+        var audit = new RecordingAdministrativeAuditSink();
         var service = new AdministrativeEventService(
             publisher,
+            audit,
             new FixedTimeProvider(now));
 
         var result = await service.PublishAsync(
@@ -63,25 +65,45 @@ public sealed class AdministrativeEventServiceTests
             .GetBoolean()
             .Should()
             .BeTrue();
+
+        audit.Events.Should().HaveCount(2);
+        audit.Events[0].Operation.Should()
+            .Be(AdministrativeOperation.PublishEvent);
+        audit.Events[0].Outcome.Should()
+            .Be(AdministrativeAuditOutcome.Requested);
+        audit.Events[0].EventId.Should().Be(eventId);
+
+        audit.Events[1].OperationId.Should()
+            .Be(audit.Events[0].OperationId);
+        audit.Events[1].Outcome.Should()
+            .Be(AdministrativeAuditOutcome.Succeeded);
+        audit.Events[1].EventId.Should().Be(eventId);
+        audit.Events[1].RunId.Should().Be(runId);
+        audit.Events[1].ResumeWorkItemId.Should().Be(workItemId);
+        audit.Events[1].IsDuplicate.Should().BeFalse();
+        audit.Events[1].MatchedWaitingRun.Should().BeTrue();
     }
 
     [Fact]
-    public async Task PublishAsync_WhenPayloadIsInvalid_ReturnsValidationError()
+    public async Task PublishAsync_WhenPayloadIsInvalid_AuditsRejectedWithoutPublishing()
     {
+        var eventId = Guid.NewGuid();
         var publisher = new RecordingPublisher(
             new EventAcceptanceResult
             {
                 IsDuplicate = false,
                 MatchedWaitingRun = false,
             });
+        var audit = new RecordingAdministrativeAuditSink();
         var service = new AdministrativeEventService(
             publisher,
+            audit,
             new FixedTimeProvider(DateTimeOffset.UtcNow));
 
         var result = await service.PublishAsync(
             new AdministrativeEventPublishRequest
             {
-                EventId = Guid.NewGuid(),
+                EventId = eventId,
                 Type = "approval.completed",
                 CorrelationId = "approval-42",
                 PayloadJson = "{not-json",
@@ -91,10 +113,18 @@ public sealed class AdministrativeEventServiceTests
         result.Errors.Should().ContainSingle(
             "Payload must be valid JSON.");
         publisher.PublishedEvent.Should().BeNull();
+
+        audit.Events.Select(item => item.Outcome)
+            .Should()
+            .Equal(
+                AdministrativeAuditOutcome.Requested,
+                AdministrativeAuditOutcome.Rejected);
+        audit.Events[1].EventId.Should().Be(eventId);
+        audit.Events[1].FailureType.Should().Be("Validation");
     }
 
     [Fact]
-    public async Task PublishAsync_WhenEventMetadataIsInvalid_ReturnsValidationError()
+    public async Task PublishAsync_WhenEventMetadataIsInvalid_AuditsRejected()
     {
         var publisher = new RecordingPublisher(
             new EventAcceptanceResult
@@ -102,8 +132,10 @@ public sealed class AdministrativeEventServiceTests
                 IsDuplicate = false,
                 MatchedWaitingRun = false,
             });
+        var audit = new RecordingAdministrativeAuditSink();
         var service = new AdministrativeEventService(
             publisher,
+            audit,
             new FixedTimeProvider(DateTimeOffset.UtcNow));
 
         var result = await service.PublishAsync(
@@ -118,6 +150,22 @@ public sealed class AdministrativeEventServiceTests
         result.Success.Should().BeFalse();
         result.Errors.Should().ContainSingle();
         publisher.PublishedEvent.Should().BeNull();
+        audit.Events.Last().Outcome.Should()
+            .Be(AdministrativeAuditOutcome.Rejected);
+    }
+
+    [Fact]
+    public void AdministrativeAuditEvent_DoesNotExposeEventContentFields()
+    {
+        var properties = typeof(AdministrativeAuditEvent)
+            .GetProperties()
+            .Select(property => property.Name)
+            .ToArray();
+
+        properties.Should().NotContain("Payload");
+        properties.Should().NotContain("PayloadJson");
+        properties.Should().NotContain("CorrelationId");
+        properties.Should().NotContain("EventType");
     }
 
     private sealed class RecordingPublisher(
@@ -132,6 +180,21 @@ public sealed class AdministrativeEventServiceTests
             cancellationToken.ThrowIfCancellationRequested();
             PublishedEvent = automationEvent;
             return Task.FromResult(result);
+        }
+    }
+
+    private sealed class RecordingAdministrativeAuditSink :
+        IAdministrativeAuditSink
+    {
+        public List<AdministrativeAuditEvent> Events { get; } = [];
+
+        public Task WriteAsync(
+            AdministrativeAuditEvent auditEvent,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Events.Add(auditEvent);
+            return Task.CompletedTask;
         }
     }
 
