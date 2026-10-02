@@ -1,7 +1,7 @@
 # DABot repository instructions
 
 - Read and follow `AGENTS.md`; it is the authoritative repository-wide engineering guide.
-- DABot currently provides one-shot and durable declarative JSON browser automation on .NET 8 using Playwright, including persistent profiles, durable events, page observers, and a web-management panel with run controls, scenario JSON management, browser-profile management/local headed interactive-profile lifecycle, observer monitoring/create/edit management, and event-history browsing without raw payload exposure. MCP and dynamic tools remain roadmap work unless the code and README explicitly show otherwise.
+- DABot currently provides one-shot and durable declarative JSON browser automation on .NET 8 using Playwright, including persistent profiles, durable events, page observers, and a web-management panel with run controls, scenario JSON management, browser-profile management/local headed interactive-profile lifecycle, observer monitoring/create/edit management, event-history browsing without raw payload exposure, and manual durable-event publishing through Application services. MCP and dynamic tools remain roadmap work unless the code and README explicitly show otherwise.
 - Keep Core free of Playwright, MCP, website-specific, vendor-specific, and transport-specific types.
 - Put orchestration and interfaces in Application, concrete external integrations in Infrastructure, and executable composition/CLI concerns in Runner.
 - Preserve existing scenario JSON compatibility unless a migration is explicitly documented.

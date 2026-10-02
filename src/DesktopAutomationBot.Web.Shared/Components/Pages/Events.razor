@@ -1,5 +1,9 @@
+@using Microsoft.Extensions.Logging
 @page "/events"
+@inject IAdministrativeEventService AdministrativeEvents
 @inject IEventHistoryQueryService EventHistory
+@inject ManagementUiEnvironment UiEnvironment
+@inject ILogger<Events> Logger
 
 <PageTitle>DABot events</PageTitle>
 
@@ -10,6 +14,89 @@
     </div>
     <span class="muted">@FilteredEvents.Count event(s)</span>
 </div>
+
+<section class="panel">
+    <div class="panel-heading">
+        <div>
+            <h2>Publish event</h2>
+            <p>Inject a transport-neutral event into the same durable inbox used by observers and external adapters.</p>
+        </div>
+    </div>
+
+    <div class="configuration-grid">
+        <label class="configuration-wide">
+            <span>Event ID</span>
+            <input type="text"
+                   @bind="_eventId"
+                   disabled="@PublishDisabled" />
+            <small>Reuse the same ID when intentionally retrying delivery. Duplicate IDs are idempotent.</small>
+        </label>
+
+        <label>
+            <span>Type</span>
+            <input type="text"
+                   @bind="_eventType"
+                   placeholder="order.approved"
+                   disabled="@PublishDisabled" />
+        </label>
+
+        <label>
+            <span>Correlation ID</span>
+            <input type="text"
+                   @bind="_correlationId"
+                   placeholder="order-123"
+                   disabled="@PublishDisabled" />
+        </label>
+
+        <label class="configuration-wide">
+            <span>Payload JSON</span>
+            <textarea rows="6"
+                      @bind="_payloadJson"
+                      disabled="@PublishDisabled"></textarea>
+            <small>The payload is persisted for workflow resume but is not exposed by event-history queries.</small>
+        </label>
+    </div>
+
+    @if (_publishErrors.Count > 0)
+    {
+        <div class="scenario-errors">
+            @foreach (var error in _publishErrors)
+            {
+                <div>@error</div>
+            }
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(_publishMessage))
+    {
+        <p class="action-message">@_publishMessage</p>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(_publishError))
+    {
+        <p class="action-error">@_publishError</p>
+    }
+
+    <div class="button-row">
+        <button class="button primary"
+                type="button"
+                @onclick="PublishAsync"
+                disabled="@PublishDisabled">
+            @(_publishing ? "Publishing…" : "Publish event")
+        </button>
+        <button class="button secondary"
+                type="button"
+                @onclick="NewEventId"
+                disabled="@_publishing">
+            New event ID
+        </button>
+    </div>
+
+    @if (UiEnvironment.IsDemo)
+    {
+        <p class="muted action-note">Event publishing is disabled in the static demo.</p>
+    }
+</section>
 
 <section class="panel">
     @if (_loading)
@@ -134,9 +221,21 @@
 
 @code {
     private bool _loading = true;
+    private bool _publishing;
+    private string _eventId = Guid.NewGuid().ToString("D");
+    private string _eventType = string.Empty;
+    private string _correlationId = string.Empty;
+    private string _payloadJson = "{}";
     private string _statusFilter = string.Empty;
     private string _search = string.Empty;
+    private string? _publishMessage;
+    private string? _publishError;
+    private IReadOnlyList<string> _publishErrors = [];
     private IReadOnlyList<EventHistoryItem> _events = [];
+
+    private bool PublishDisabled =>
+        UiEnvironment.IsDemo ||
+        _publishing;
 
     private IReadOnlyList<EventHistoryItem> FilteredEvents =>
         _events
@@ -146,8 +245,81 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _events = await EventHistory.ListRecentAsync(limit: 200);
+        await LoadEventsAsync();
         _loading = false;
+    }
+
+    private async Task LoadEventsAsync()
+    {
+        _events = await EventHistory.ListRecentAsync(limit: 200);
+    }
+
+    private async Task PublishAsync()
+    {
+        if (PublishDisabled)
+        {
+            return;
+        }
+
+        _publishMessage = null;
+        _publishError = null;
+        _publishErrors = [];
+
+        if (!Guid.TryParse(_eventId, out var eventId) ||
+            eventId == Guid.Empty)
+        {
+            _publishErrors =
+                ["Event ID must be a non-empty GUID."];
+            return;
+        }
+
+        _publishing = true;
+
+        try
+        {
+            var result = await AdministrativeEvents.PublishAsync(
+                new AdministrativeEventPublishRequest
+                {
+                    EventId = eventId,
+                    Type = _eventType,
+                    CorrelationId = _correlationId,
+                    PayloadJson = _payloadJson,
+                });
+
+            if (!result.Success)
+            {
+                _publishErrors = result.Errors;
+                return;
+            }
+
+            _publishMessage = result.IsDuplicate
+                ? $"Event {result.EventId} was already accepted; no duplicate resume work was scheduled."
+                : result.MatchedWaitingRun
+                    ? $"Event {result.EventId} accepted and matched run {result.RunId}. Resume work item: {result.ResumeWorkItemId}."
+                    : $"Event {result.EventId} accepted. No active waiting run matched it.";
+
+            await LoadEventsAsync();
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(
+                exception,
+                "Administrative event publishing failed.");
+            _publishError =
+                "The event could not be published. Check server logs for diagnostics.";
+        }
+        finally
+        {
+            _publishing = false;
+        }
+    }
+
+    private void NewEventId()
+    {
+        _eventId = Guid.NewGuid().ToString("D");
+        _publishMessage = null;
+        _publishError = null;
+        _publishErrors = [];
     }
 
     private bool MatchesStatus(EventHistoryItem item) =>

@@ -91,6 +91,14 @@ Worker polling is configured through `bot.eventWorker.pollIntervalMs` and `bot.e
 
 This provides a transport-neutral end-to-end path for local and operational testing. Future HTTP, queue, observer, or GitHub adapters should only translate their input into `AutomationEvent` and publish it through the same application service.
 
+## Web management publishing
+
+The shared Events page can publish an event manually through `IAdministrativeEventService`. The operator supplies a stable event ID, type, correlation ID, and JSON payload. The Application service validates the request, stamps the occurrence time, creates the same transport-neutral `AutomationEvent` used by other producers, and delegates to `IEventPublisher`.
+
+Reusing the same event ID is safe: the durable inbox returns the existing acceptance result and does not schedule duplicate resume work. The page keeps the submitted event ID after publishing so an operator can intentionally retry the same delivery, and provides an explicit **New event ID** action for a distinct event.
+
+The static GitHub Pages demo renders the same form but keeps publishing disabled. Event-history queries continue to exclude raw payloads; payload JSON is visible only while the operator is composing the event and is then persisted for workflow use through the existing inbox path.
+
 ## Resume retry and dead-letter policy
 
 Failed resume work items stay durable and are retried with exponential backoff.
