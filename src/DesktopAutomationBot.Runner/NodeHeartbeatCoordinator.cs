@@ -26,7 +26,7 @@ public static class NodeHeartbeatCoordinator
             workerTask,
             heartbeatTask);
 
-        await linkedCancellation.CancelAsync();
+        linkedCancellation.Cancel();
 
         try
         {
