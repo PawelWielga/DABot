@@ -15,6 +15,14 @@ public sealed class BotOptions
     public ObserverWorkerOptions ObserverWorker { get; init; } = new();
 
     public InteractiveBrowserOptions InteractiveBrowser { get; init; } = new();
+
+    public NodeOptions Node { get; init; } = new();
+}
+
+public sealed class NodeOptions
+{
+    public string IdentityPath { get; init; } =
+        Path.Combine("data", "node-id");
 }
 
 public sealed class InteractiveBrowserOptions
