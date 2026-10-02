@@ -32,6 +32,7 @@ public sealed record AdministrativeEventPublishResult(
 
 public sealed class AdministrativeEventService(
     IEventPublisher eventPublisher,
+    IAdministrativeAuditSink auditSink,
     TimeProvider timeProvider) : IAdministrativeEventService
 {
     public async Task<AdministrativeEventPublishResult> PublishAsync(
@@ -40,9 +41,25 @@ public sealed class AdministrativeEventService(
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        var operationId = Guid.NewGuid();
+        var auditEventId =
+            request.EventId == Guid.Empty
+                ? null
+                : request.EventId;
+
+        await auditSink.WriteAsync(
+            CreateAuditEvent(
+                operationId,
+                AdministrativeAuditOutcome.Requested,
+                auditEventId),
+            cancellationToken);
+
         if (request.EventId == Guid.Empty)
         {
-            return Failure("Event ID must not be empty.");
+            return await RejectAsync(
+                operationId,
+                auditEventId,
+                "Event ID must not be empty.");
         }
 
         ScenarioVariableValue payload;
@@ -55,11 +72,17 @@ public sealed class AdministrativeEventService(
         }
         catch (JsonException)
         {
-            return Failure("Payload must be valid JSON.");
+            return await RejectAsync(
+                operationId,
+                auditEventId,
+                "Payload must be valid JSON.");
         }
         catch (ArgumentException exception)
         {
-            return Failure(exception.Message);
+            return await RejectAsync(
+                operationId,
+                auditEventId,
+                exception.Message);
         }
 
         AutomationEvent automationEvent;
@@ -75,12 +98,51 @@ public sealed class AdministrativeEventService(
         }
         catch (ArgumentException exception)
         {
-            return Failure(exception.Message);
+            return await RejectAsync(
+                operationId,
+                auditEventId,
+                exception.Message);
         }
 
-        var acceptance = await eventPublisher.PublishAsync(
-            automationEvent,
-            cancellationToken);
+        EventAcceptanceResult acceptance;
+
+        try
+        {
+            acceptance = await eventPublisher.PublishAsync(
+                automationEvent,
+                cancellationToken);
+        }
+        catch (OperationCanceledException)
+            when (cancellationToken.IsCancellationRequested)
+        {
+            await WriteCompletionBestEffortAsync(
+                CreateAuditEvent(
+                    operationId,
+                    AdministrativeAuditOutcome.Cancelled,
+                    automationEvent.EventId,
+                    failureType: nameof(OperationCanceledException)));
+            throw;
+        }
+        catch (Exception exception)
+        {
+            await WriteCompletionBestEffortAsync(
+                CreateAuditEvent(
+                    operationId,
+                    AdministrativeAuditOutcome.Failed,
+                    automationEvent.EventId,
+                    failureType: exception.GetType().Name));
+            throw;
+        }
+
+        await WriteCompletionBestEffortAsync(
+            CreateAuditEvent(
+                operationId,
+                AdministrativeAuditOutcome.Succeeded,
+                automationEvent.EventId,
+                runId: acceptance.RunId,
+                resumeWorkItemId: acceptance.ResumeWorkItemId,
+                isDuplicate: acceptance.IsDuplicate,
+                matchedWaitingRun: acceptance.MatchedWaitingRun));
 
         return new AdministrativeEventPublishResult(
             Success: true,
@@ -92,9 +154,60 @@ public sealed class AdministrativeEventService(
             ResumeWorkItemId: acceptance.ResumeWorkItemId);
     }
 
-    private static AdministrativeEventPublishResult Failure(
-        string error) =>
-        new(
+    private async Task<AdministrativeEventPublishResult> RejectAsync(
+        Guid operationId,
+        Guid? eventId,
+        string error)
+    {
+        await WriteCompletionBestEffortAsync(
+            CreateAuditEvent(
+                operationId,
+                AdministrativeAuditOutcome.Rejected,
+                eventId,
+                failureType: "Validation"));
+
+        return new AdministrativeEventPublishResult(
             Success: false,
             Errors: [error]);
+    }
+
+    private AdministrativeAuditEvent CreateAuditEvent(
+        Guid operationId,
+        AdministrativeAuditOutcome outcome,
+        Guid? eventId,
+        Guid? runId = null,
+        Guid? resumeWorkItemId = null,
+        bool? isDuplicate = null,
+        bool? matchedWaitingRun = null,
+        string? failureType = null) =>
+        new()
+        {
+            OperationId = operationId,
+            Operation = AdministrativeOperation.PublishEvent,
+            Outcome = outcome,
+            OccurredAt = timeProvider.GetUtcNow(),
+            RunId = runId,
+            EventId = eventId,
+            ResumeWorkItemId = resumeWorkItemId,
+            IsDuplicate = isDuplicate,
+            MatchedWaitingRun = matchedWaitingRun,
+            FailureType = failureType,
+        };
+
+    private async Task WriteCompletionBestEffortAsync(
+        AdministrativeAuditEvent auditEvent)
+    {
+        try
+        {
+            await auditSink.WriteAsync(
+                auditEvent,
+                CancellationToken.None);
+        }
+        catch
+        {
+            // The request audit record is written before publishing. A
+            // completion-audit failure must not change an already completed
+            // event acceptance result.
+        }
+    }
 }
