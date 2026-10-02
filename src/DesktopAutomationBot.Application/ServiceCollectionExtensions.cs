@@ -30,6 +30,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IPageObserverWorker, PageObserverWorker>();
         services.AddSingleton<IPageObserverManagementService, PageObserverManagementService>();
         services.AddSingleton<INodeRegistryService, NodeRegistryService>();
+        services.AddSingleton<INodeHeartbeatService, NodeHeartbeatService>();
         services.AddSingleton<IStepHandler, OpenUrlStepHandler>();
         services.AddSingleton<IStepHandler, ClickStepHandler>();
         services.AddSingleton<IStepHandler, FillTextStepHandler>();
