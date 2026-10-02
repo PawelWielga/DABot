@@ -362,7 +362,7 @@ The web panel is optional and uses Application services. It must not directly ow
 - [x] Event type/correlation configuration. Observer event type and correlation ID are editable; changes that alter observation or event-routing semantics reset the persisted polling snapshot so stale edge/baseline state cannot suppress or fabricate events.
 - [x] Event history browser. The shared web panel lists recent durable inbox events through `IEventHistoryQueryService`, including matched/unmatched delivery, correlation metadata, linked run/resume-work state, retries, and errors while deliberately excluding raw payloads.
 - [x] Manual administrative event publishing. The shared Events page publishes transport-neutral durable events through `IAdministrativeEventService`, validates stable event identity/metadata/payload JSON in Application, preserves inbox idempotency, and keeps publishing disabled in the static GitHub Pages demo.
-- [ ] Audit manual resume/cancel/event operations.
+- [x] Audit manual resume/cancel/event operations. Web-originated resume/cancel requests go through `IAdministrativeRunControlService`, and manual event publishing audits through the same metadata-only `IAdministrativeAuditSink`. Requested and terminal outcomes share an operation ID; the default Infrastructure sink writes structured logs without payload, correlation ID, credentials, or page content. A durable/queryable audit store remains later operations work.
 
 ## Sprint 10 - Distributed workers and shared control plane
 
