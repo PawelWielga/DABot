@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="8.0.31" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="8.0.32" />
     <ProjectReference Include="..\DesktopAutomationBot.Core\DesktopAutomationBot.Core.csproj" />
     <ProjectReference Include="..\DesktopAutomationBot.Application\DesktopAutomationBot.Application.csproj" />
   </ItemGroup>
